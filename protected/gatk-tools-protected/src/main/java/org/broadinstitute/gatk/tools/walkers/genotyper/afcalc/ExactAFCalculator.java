@@ -51,10 +51,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
+import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-import htsjdk.variant.variantcontext.*;
 
 import java.util.*;
 
@@ -65,8 +65,8 @@ abstract class ExactAFCalculator extends AFCalculator {
 
     protected static final int HOM_REF_INDEX = 0;  // AA likelihoods are always first
 
-    // useful so that we don't keep printing out the same warning message
-    protected static boolean printedWarning = false;
+    // useful so that we don't keep printing out the same warning messages
+    protected static boolean printedMaxAltAllelesWarning = false;
 
     /**
      * Sorts {@link ExactAFCalculator.LikelihoodSum} instances where those with higher likelihood are first.
@@ -157,15 +157,14 @@ abstract class ExactAFCalculator extends AFCalculator {
         if (altAlleleReduction == 0)
             return vc;
 
-        String message = "this tool is currently set to genotype at most " + maximumAlternativeAlleles
-                + " alternate alleles in a given context, but the context at " + vc.getContig() + ":" + vc.getStart()
-                + " has " + (vc.getAlternateAlleles().size())
-                + " alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument";
+        final String message = String.format("This tool is currently set to genotype at most %d " +
+                        "alternate alleles in a given context, but the context at %s: %d has %d " +
+                        "alternate alleles so only the top alleles will be used; see the --max_alternate_alleles argument",
+                maximumAlternativeAlleles, vc.getContig(), vc.getStart(), vc.getAlternateAlleles().size());
 
-        if ( !printedWarning ) {
-            printedWarning = true;
-            message += ". This warning message is output just once per run and further warnings will be suppressed unless the DEBUG logging level is used.";
-            logger.warn(message);
+        if ( !printedMaxAltAllelesWarning ) {
+            printedMaxAltAllelesWarning = true;
+            logger.warn(message + ". Unless the DEBUG logging level is used, this warning message is output just once per run and further warnings are suppressed.");
         } else {
             logger.debug(message);
         }

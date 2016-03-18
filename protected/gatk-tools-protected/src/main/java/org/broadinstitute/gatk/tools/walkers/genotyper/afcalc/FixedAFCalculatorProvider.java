@@ -71,6 +71,8 @@ public class FixedAFCalculatorProvider extends AFCalculatorProvider {
 
     private final int maximumAltAlleleCount;
 
+    private final int maximumNumPLValues;
+
     private final int ploidy;
 
     /**
@@ -125,17 +127,18 @@ public class FixedAFCalculatorProvider extends AFCalculatorProvider {
                                       final Logger logger, final boolean verifyRequests) {
 
         if (configuration == null)
-            throw new IllegalArgumentException("null configuration");
-        if (configuration == null)
-            throw new IllegalArgumentException("null configuration genotype arguments");
+            throw new IllegalArgumentException("null genotype-arguments configuration");
         if (configuration.samplePloidy < 1)
             throw new IllegalArgumentException("invalid sample ploidy " + configuration.samplePloidy);
         if (configuration.MAX_ALTERNATE_ALLELES < 0)
             throw new IllegalArgumentException("invalid maximum number of alleles " + (configuration.MAX_ALTERNATE_ALLELES + 1));
+        if (configuration.MAX_NUM_PL_VALUES < 0)
+            throw new IllegalArgumentException("invalid maximum number of PL values " + configuration.MAX_NUM_PL_VALUES);
 
         ploidy = configuration.samplePloidy;
         maximumAltAlleleCount = configuration.MAX_ALTERNATE_ALLELES;
-        singleton = AFCalculatorImplementation.bestValue(ploidy,maximumAltAlleleCount,preferred).newInstance();
+        maximumNumPLValues = configuration.MAX_NUM_PL_VALUES;
+        singleton = AFCalculatorImplementation.bestValue(ploidy,maximumAltAlleleCount,preferred).newInstance().setMaxNumPLValues(maximumNumPLValues);
         singleton.setLogger(logger);
         this.verifyRequests = verifyRequests;
     }

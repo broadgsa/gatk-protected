@@ -51,13 +51,18 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.variant.GATKVCFIndexType;
+import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -352,4 +357,60 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         executeTest(" testHaplotypeCallerMultiAllelicNonRef", spec);
     }
 
+    @Test
+    public void testHaplotypeCallerMaxNumPLValues() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 70",
+                b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("7ea93210277fa4b590790a81c4b3994b"));
+        spec.disableShadowBCF();
+        executeTest("testHaplotypeCallerMaxNumPLValues", spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerMaxNumPLValuesExceededWithWarnLogLevel() throws IOException {
+        // Need to see log WARN messages
+        final Level level = logger.getLevel();
+        logger.setLevel(Level.WARN);
+
+        final File logFile = createTempFile("testMaxNumPLValuesExceededWithWarnLogLevel.log", ".tmp");
+        final String logFileName = logFile.getAbsolutePath();
+
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 30 -log %s",
+                b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals",
+                GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER, logFileName);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("9d69cb9dc67e0d0ee9863767428e6841"));
+        spec.disableShadowBCF();
+        executeTest("testHaplotypeCallerMaxNumPLValuesExceededWithWarnLogLevel", spec);
+        // Make sure the "Maximum allowed number of PLs exceeded" messages are in the log
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) exceeded for sample NA12878 at 20:10097101-10097101 with 35 possible genotypes. " +
+                "No PLs will be output for these genotypes (which may cause incorrect results in subsequent analyses) unless the --max_num_PL_values argument is increased accordingly. " +
+                "Unless the DEBUG logging level is used, this warning message is output just once per run and further warnings are suppressed."));
+        Assert.assertFalse(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) exceeded for sample NA12878 at 20:10316239-10316241 with 70 possible genotypes."));
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) was exceeded 2 time(s); the largest number of PLs found was 70."));
+        // Set the log level back
+        logger.setLevel(level);
+    }
+
+    @Test
+    public void testHaplotypeCallerMaxNumPLValuesExceededWithDebugLogLevel() throws IOException {
+        // Need to see log DEBUG messages
+        final Level level = logger.getLevel();
+        logger.setLevel(Level.DEBUG);
+
+        final File logFile = createTempFile("testMaxNumPLValuesExceededWithDebugLogLevel.log", ".tmp");
+        final String logFileName = logFile.getAbsolutePath();
+
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 30 -log %s",
+                b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals",
+                GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER, logFileName);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("9d69cb9dc67e0d0ee9863767428e6841"));
+        spec.disableShadowBCF();
+        executeTest("testHaplotypeCallerMaxNumPLValuesExceededWithDebugLogLevel", spec);
+        // Make sure the "Maximum allowed number of PLs exceeded" messages are in the log
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) exceeded for sample NA12878 at 20:10097101-10097101 with 35 possible genotypes."));
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) exceeded for sample NA12878 at 20:10316239-10316241 with 70 possible genotypes."));
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) was exceeded 2 time(s); the largest number of PLs found was 70."));
+        // Set the log level back
+        logger.setLevel(level);
+    }
 }

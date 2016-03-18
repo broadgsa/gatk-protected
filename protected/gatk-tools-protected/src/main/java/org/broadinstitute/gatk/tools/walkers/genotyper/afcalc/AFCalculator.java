@@ -53,11 +53,12 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.SimpleTimer;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.SimpleTimer;
 
 import java.io.File;
 import java.util.List;
@@ -67,10 +68,13 @@ import java.util.List;
  * Generic interface for calculating the probability of alleles segregating given priors and genotype likelihoods
  */
 public abstract class AFCalculator implements Cloneable {
-    private final static Logger defaultLogger = Logger.getLogger(AFCalculator.class);
-
+    private static final Logger defaultLogger = Logger.getLogger(AFCalculator.class);
+    public static final int MAX_NUM_PL_VALUES_DEFAULT = 100;
 
     protected Logger logger = defaultLogger;
+    protected int maxNumPLValues = MAX_NUM_PL_VALUES_DEFAULT; // if PL vectors longer than this # of elements, don't log them
+    protected static int maxNumPLValuesObserved = 0;
+    protected static long numTimesMaxNumPLValuesExceeded = 0;
 
     private SimpleTimer callTimer = new SimpleTimer();
     private StateTracker stateTracker;
@@ -102,8 +106,17 @@ public abstract class AFCalculator implements Cloneable {
      *
      * @param logger
      */
-    public void setLogger(Logger logger) {
+    public void setLogger(final Logger logger) {
         this.logger = logger;
+    }
+
+    /**
+     * Set the maximum number of PL values to log.  If the number of PL values exceeds this, no PL values will be logged.
+     * @param maxNumPLValues    maximum number of PL values to log
+     */
+    public AFCalculator setMaxNumPLValues(final int maxNumPLValues) {
+        this.maxNumPLValues = maxNumPLValues;
+        return this;
     }
 
     /**
@@ -242,4 +255,50 @@ public abstract class AFCalculator implements Cloneable {
         return getStateTracker(false,allele + 1).getAlleleCountsOfMAP()[allele];
     }
 
+    /**
+     * Strips PLs from the specified GenotypeBuilder if their number exceeds the maximum allowed.  Corresponding counters are updated.
+     * @param gb                the GenotypeBuilder to modify
+     * @param vc                the VariantContext
+     * @param sampleName        the sample name
+     * @param newLikelihoods    the PL array
+     */
+    protected void removePLsIfMaxNumPLValuesExceeded(final GenotypeBuilder gb, final VariantContext vc, final String sampleName, final double[] newLikelihoods) {
+        final int numPLValuesFound = newLikelihoods.length;
+        if (numPLValuesFound > maxNumPLValues) {
+            logMaxNumPLValuesWarning(vc, sampleName, numPLValuesFound);
+            numTimesMaxNumPLValuesExceeded++;
+            gb.noPL();
+            if (numPLValuesFound > maxNumPLValuesObserved) {
+                maxNumPLValuesObserved = numPLValuesFound;
+            }
+        }
+    }
+
+    private void logMaxNumPLValuesWarning(final VariantContext vc, final String sampleName, final int numPLValuesFound) {
+        final String message = String.format("Maximum allowed number of PLs (%d) exceeded for sample %s at %s:%d-%d with %d possible genotypes. " +
+                        "No PLs will be output for these genotypes (which may cause incorrect results in subsequent analyses) " +
+                        "unless the --max_num_PL_values argument is increased accordingly",
+                maxNumPLValues, sampleName, vc.getContig(), vc.getStart(), vc.getEnd(), numPLValuesFound);
+
+        if ( numTimesMaxNumPLValuesExceeded == 0 ) {
+            logger.warn(message + ". Unless the DEBUG logging level is used, this warning message is output just once per run and further warnings are suppressed.");
+        } else {
+            logger.debug(message);
+        }
+    }
+
+    /**
+     * Logs the number of times the maximum allowed number of PLs was exceeded and the largest number of PLs observed. The corresponding counters are reset.
+     */
+    public void printFinalMaxNumPLValuesWarning() {
+        if ( numTimesMaxNumPLValuesExceeded > 0 ) {
+            final String message = String.format("Maximum allowed number of PLs (%d) was exceeded %d time(s); the largest number of PLs found was %d. " +
+                            "No PLs will be output for these genotypes (which may cause incorrect results in subsequent analyses) " +
+                            "unless the --max_num_PL_values argument is increased accordingly",
+                    maxNumPLValues, numTimesMaxNumPLValuesExceeded, maxNumPLValuesObserved);
+            logger.warn(message);
+        }
+        maxNumPLValuesObserved = 0;
+        numTimesMaxNumPLValuesExceeded = 0;
+    }
 }

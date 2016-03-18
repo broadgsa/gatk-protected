@@ -75,8 +75,6 @@ import java.util.*;
  */
 public class IndependentAllelesExactAFCalculator extends ExactAFCalculator {
 
-    private static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
-
     /**
      * Array that caches the allele list that corresponds to the ith ploidy.
      *
@@ -460,78 +458,83 @@ public class IndependentAllelesExactAFCalculator extends ExactAFCalculator {
     @Override
     @Requires("vc != null && allelesToUse != null")
     public GenotypesContext subsetAlleles(VariantContext vc, int defaultPloidy, List<Allele> allelesToUse, boolean assignGenotypes) {
-            // the genotypes with PLs
-            final GenotypesContext oldGTs = vc.getGenotypes();
+        // the genotypes with PLs
+        final GenotypesContext oldGTs = vc.getGenotypes();
 
-            // samples
-            final List<String> sampleIndices = oldGTs.getSampleNamesOrderedByName();
+        // samples
+        final List<String> sampleIndices = oldGTs.getSampleNamesOrderedByName();
 
-            // the new genotypes to create
-            final GenotypesContext newGTs = GenotypesContext.create();
+        // the new genotypes to create
+        final GenotypesContext newGTs = GenotypesContext.create();
 
-            // we need to determine which of the alternate alleles (and hence the likelihoods) to use and carry forward
-            final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
-            final int numNewAltAlleles = allelesToUse.size() - 1;
+        // we need to determine which of the alternate alleles (and hence the likelihoods) to use and carry forward
+        final int numOriginalAltAlleles = vc.getAlternateAlleles().size();
+        final int numNewAltAlleles = allelesToUse.size() - 1;
 
 
-            // create the new genotypes
-            for ( int k = 0; k < oldGTs.size(); k++ ) {
-                final Genotype g = oldGTs.get(sampleIndices.get(k));
-                final int declaredPloidy = g.getPloidy();
-                final int ploidy = declaredPloidy <= 0 ? defaultPloidy : declaredPloidy;
-                if ( !g.hasLikelihoods() ) {
-                    newGTs.add(GenotypeBuilder.create(g.getSampleName(),GATKVariantContextUtils.noCallAlleles(ploidy)));
-                    continue;
-                }
-
-                // create the new likelihoods array from the alleles we are allowed to use
-                final double[] originalLikelihoods = g.getLikelihoods().getAsVector();
-                double[] newLikelihoods;
-
-                // Optimization: if # of new alt alleles = 0 (pure ref call), keep original likelihoods so we skip normalization
-                // and subsetting
-                if ( numOriginalAltAlleles == numNewAltAlleles || numNewAltAlleles == 0) {
-                    newLikelihoods = originalLikelihoods;
-                } else {
-                    newLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse);
-
-                    // might need to re-normalize
-                    newLikelihoods = MathUtils.normalizeFromLog10(newLikelihoods, false, true);
-                }
-
-                // if there is no mass on the (new) likelihoods, then just no-call the sample
-                if ( MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL ) {
-                    newGTs.add(GenotypeBuilder.create(g.getSampleName(), GATKVariantContextUtils.noCallAlleles(ploidy)));
-                }
-                else {
-                    final GenotypeBuilder gb = new GenotypeBuilder(g);
-
-                    if ( numNewAltAlleles == 0 )
-                        gb.noPL();
-                    else
-                        gb.PL(newLikelihoods);
-
-                    // if we weren't asked to assign a genotype, then just no-call the sample
-                    if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
-                        gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
-                    else
-                        assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
-                    newGTs.add(gb.make());
-                }
+        // create the new genotypes
+        for ( int k = 0; k < oldGTs.size(); k++ ) {
+            final Genotype g = oldGTs.get(sampleIndices.get(k));
+            final int declaredPloidy = g.getPloidy();
+            final int ploidy = declaredPloidy <= 0 ? defaultPloidy : declaredPloidy;
+            if ( !g.hasLikelihoods() ) {
+                newGTs.add(GenotypeBuilder.create(g.getSampleName(),GATKVariantContextUtils.noCallAlleles(ploidy)));
+                continue;
             }
 
-            return GATKVariantContextUtils.fixADFromSubsettedAlleles(newGTs, vc, allelesToUse);
+            // create the new likelihoods array from the alleles we are allowed to use
+            final double[] originalLikelihoods = g.getLikelihoods().getAsVector();
+            double[] newLikelihoods;
+
+            // Optimization: if # of new alt alleles = 0 (pure ref call), keep original likelihoods so we skip normalization
+            // and subsetting
+            if ( numOriginalAltAlleles == numNewAltAlleles || numNewAltAlleles == 0) {
+                newLikelihoods = originalLikelihoods;
+            } else {
+                newLikelihoods = GeneralPloidyGenotypeLikelihoods.subsetToAlleles(originalLikelihoods, ploidy, vc.getAlleles(), allelesToUse);
+
+                // might need to re-normalize
+                newLikelihoods = MathUtils.normalizeFromLog10(newLikelihoods, false, true);
+            }
+
+            // if there is no mass on the (new) likelihoods, then just no-call the sample
+            if ( MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL ) {
+                newGTs.add(GenotypeBuilder.create(g.getSampleName(), GATKVariantContextUtils.noCallAlleles(ploidy)));
+            } else {
+                final GenotypeBuilder gb = new GenotypeBuilder(g);
+                final String sampleName = g.getSampleName();
+
+                if ( numNewAltAlleles == 0 )
+                    gb.noPL();
+                else
+                    gb.PL(newLikelihoods);
+
+                // if we weren't asked to assign a genotype, then just no-call the sample
+                if ( !assignGenotypes || MathUtils.sum(newLikelihoods) > GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
+                    gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
+                else
+                    assignGenotype(gb, vc, sampleName, newLikelihoods, allelesToUse, ploidy);
+                newGTs.add(gb.make());
+            }
+        }
+
+        return GATKVariantContextUtils.fixADFromSubsettedAlleles(newGTs, vc, allelesToUse);
     }
 
 
     /**
-     * Assign genotypes (GTs) to the samples in the Variant Context greedily based on the PLs
+     * Assign genotypes (GTs) to the samples in the VariantContext greedily based on the PLs
      *
+     * @param gb                   the GenotypeBuilder to modify
+     * @param vc                   the VariantContext
+     * @param sampleName           the sample name
      * @param newLikelihoods       the PL array
      * @param allelesToUse         the list of alleles to choose from (corresponding to the PLs)
      * @param numChromosomes        Number of chromosomes per pool
      */
     private void assignGenotype(final GenotypeBuilder gb,
+                                final VariantContext vc,
+                                final String sampleName,
                                 final double[] newLikelihoods,
                                 final List<Allele> allelesToUse,
                                 final int numChromosomes) {
@@ -544,9 +547,7 @@ public class IndependentAllelesExactAFCalculator extends ExactAFCalculator {
 
         gb.alleles(alleleCounts.asAlleleList(allelesToUse));
 
-        // remove PLs if necessary
-        if (newLikelihoods.length > MAX_LENGTH_FOR_POOL_PL_LOGGING)
-            gb.noPL();
+        removePLsIfMaxNumPLValuesExceeded(gb, vc, sampleName, newLikelihoods);
 
         if ( numNewAltAlleles > 0 )
             gb.log10PError(GenotypeLikelihoods.getGQLog10FromLikelihoods(PLindex, newLikelihoods));

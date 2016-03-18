@@ -56,22 +56,22 @@ import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.BaseUtils;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.baq.BAQ;
 import org.broadinstitute.gatk.utils.classloader.PluginManager;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
 import java.io.PrintStream;
@@ -469,7 +469,9 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                 allAllelesToUse, false, model, perReadAlleleLikelihoodMap);
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
-        return afCalculatorProvider.getInstance(vc, defaultPloidy, maxAltAlleles).getLog10PNonRef(vc, defaultPloidy, maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
+        final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
+        return afCalculatorProvider.getInstance(vc, defaultPloidy, maxAltAlleles).setMaxNumPLValues(maxNumPLValues)
+                .getLog10PNonRef(vc, defaultPloidy, maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
     }
 
     private Map<String, AlignmentContext> getFilteredAndStratifiedContexts(final ReferenceContext refContext,

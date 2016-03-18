@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.engine.arguments;
 
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
@@ -113,7 +114,7 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public double STANDARD_CONFIDENCE_FOR_EMITTING = 30.0;
 
     /**
-     * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN ALLELES),
+     * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN_ALLELES),
      * then only this many alleles will be used.  Note that genotyping sites with many alternate alleles is both CPU and memory intensive and it
      * scales exponentially based on the number of alternate alleles.  Unless there is a good reason to change the default value, we highly recommend
      * that you not play around with this parameter.
@@ -123,6 +124,15 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     @Advanced
     @Argument(fullName = "max_alternate_alleles", shortName = "maxAltAlleles", doc = "Maximum number of alternate alleles to genotype", required = false)
     public int MAX_ALTERNATE_ALLELES = 6;
+
+    /**
+     * Determines the maximum number of PL values that will be logged in the output.  If the number of genotypes
+     * (which is determined by the ploidy and the number of alleles) exceeds the value provided by this argument,
+     * then output of all of the PL values will be suppressed.
+     */
+    @Advanced
+    @Argument(fullName = "max_num_PL_values", shortName = "maxNumPLValues", doc = "Maximum number of PL values to output", required = false)
+    public int MAX_NUM_PL_VALUES = AFCalculator.MAX_NUM_PL_VALUES_DEFAULT;
 
     /**
      * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus, using an infinite sites model,

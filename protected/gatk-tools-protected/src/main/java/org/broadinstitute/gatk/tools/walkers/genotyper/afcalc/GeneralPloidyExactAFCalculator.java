@@ -58,14 +58,15 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalcula
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
-
-    static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
     protected GeneralPloidyExactAFCalculator() {
     }
@@ -491,6 +492,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
                                                           final boolean assignGenotypes, final double[] newLikelihoods) {
 
         final GenotypeBuilder gb = new GenotypeBuilder(g);
+        final String sampleName = g.getSampleName();
 
         // add likelihoods
         gb.PL(newLikelihoods);
@@ -500,7 +502,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
         if (newSACs != null)
             gb.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, newSACs);
         if (assignGenotypes)
-            assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
+            assignGenotype(gb, vc, sampleName, newLikelihoods, allelesToUse, ploidy);
         else
             gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
 
@@ -528,13 +530,18 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
     }
 
     /**
-     * Assign genotypes (GTs) to the samples in the Variant Context greedily based on the PLs
+     * Assign genotypes (GTs) to the samples in the VariantContext greedily based on the PLs
      *
+     * @param gb                   the GenotypeBuilder to modify
+     * @param vc                   the VariantContext
+     * @param sampleName           the sample name
      * @param newLikelihoods       the PL array
      * @param allelesToUse         the list of alleles to choose from (corresponding to the PLs)
      * @param numChromosomes       Number of chromosomes per pool
      */
     private void assignGenotype(final GenotypeBuilder gb,
+                                final VariantContext vc,
+                                final String sampleName,
                                 final double[] newLikelihoods,
                                 final List<Allele> allelesToUse,
                                 final int numChromosomes) {
@@ -547,13 +554,10 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
         gb.alleles(alleleCounts.asAlleleList(allelesToUse));
 
-        // remove PLs if necessary
-        if (newLikelihoods.length > MAX_LENGTH_FOR_POOL_PL_LOGGING)
-            gb.noPL();
+        removePLsIfMaxNumPLValuesExceeded(gb, vc, sampleName, newLikelihoods);
 
         // TODO - deprecated so what is the appropriate method to call?
         if ( numNewAltAlleles > 0 )
             gb.log10PError(GenotypeLikelihoods.getGQLog10FromLikelihoods(PLindex, newLikelihoods));
     }
-
 }
