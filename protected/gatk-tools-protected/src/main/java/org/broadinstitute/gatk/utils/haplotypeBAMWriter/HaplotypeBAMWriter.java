@@ -84,6 +84,8 @@ public abstract class HaplotypeBAMWriter {
     private boolean writeHaplotypesAsWell = true;
     private boolean onlyRealignInformativeReads = false;
 
+    protected final DroppedReadsTracker droppedReadsTracker = new DroppedReadsTracker();
+
     /**
      * Possible modes for writing haplotypes to BAMs
      */
@@ -147,6 +149,35 @@ public abstract class HaplotypeBAMWriter {
      */
     protected HaplotypeBAMWriter(final ReadDestination output) {
         this.output = output;
+    }
+
+    /**
+     * Figure out the delta between the preReads list and the postReads list by hashing on the combination of read name and
+     * first_of_pair flag; any read not in the postReads list is added to the dropped list for the specified reason.
+     */
+    public void addDroppedReadsFromDelta(
+            final DroppedReadsTracker.Reason reason,
+            final Collection<GATKSAMRecord> preReads,
+            final Collection<GATKSAMRecord> postReads)  {
+        droppedReadsTracker.addReadsFromDelta(reason, preReads, postReads);
+    }
+
+    /**
+     * Add reads that have been dropped for the specified reason to the dropped list.
+     *
+     * @param reason -reason category these reads were dropped
+     * @param reads - reads to write out for this reason
+     *
+     */
+    public void addDroppedReads(final DroppedReadsTracker.Reason reason, final Collection<GATKSAMRecord> reads) {
+        droppedReadsTracker.addReads(reason, reads);
+    }
+
+    /**
+     * Emit the accumulated dropped reads and reset/clear the droppedReads cache.
+     */
+    public void writeDroppedReads() {
+        droppedReadsTracker.writeDroppedReads(output);
     }
 
     /**

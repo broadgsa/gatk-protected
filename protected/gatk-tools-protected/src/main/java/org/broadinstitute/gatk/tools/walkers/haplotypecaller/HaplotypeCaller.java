@@ -72,6 +72,7 @@ import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
 import org.broadinstitute.gatk.engine.io.stubs.VariantContextWriterStub;
+import org.broadinstitute.gatk.utils.haplotypeBAMWriter.DroppedReadsTracker;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
@@ -893,12 +894,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final ActiveRegion regionForGenotyping = assemblyResult.getRegionForGenotyping();
 
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.TRIMMMED, originalActiveRegion.getReads(), regionForGenotyping.getReads());
+        }
+
         // filter out reads from genotyping which fail mapping quality based criteria
         //TODO - why don't do this before any assembly is done? Why not just once at the beginning of this method
         //TODO - on the originalActiveRegion?
         //TODO - if you move this up you might have to consider to change referenceModelForNoVariation
         //TODO - that does also filter reads.
         final Collection<GATKSAMRecord> filteredReads = filterNonPassingReads( regionForGenotyping );
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReads(DroppedReadsTracker.Reason.FILTERED, filteredReads);
+        }
+
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // abort early if something is out of the acceptable range
@@ -927,6 +937,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // Realign reads to their best haplotype.
         final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getReferenceHaplotype(), assemblyResult.getPaddedReferenceLoc());
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(
+                    DroppedReadsTracker.Reason.REALIGNMENT_FAILURE,
+                    regionForGenotyping.getReads(),
+                    readRealignments.values());
+        }
+
         readLikelihoods.changeReads(readRealignments);
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
@@ -957,6 +975,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                     haplotypes,
                     calledHaplotypeSet,
                     readLikelihoods);
+
+            if ( HCAC.emitDroppedReads ) {
+                haplotypeBAMWriter.writeDroppedReads();
+            }
         }
 
         if( HCAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
@@ -1181,6 +1203,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // TODO -- Performance optimization: we partition the reads by sample 4 times right now; let's unify that code.
 
         final List<GATKSAMRecord> downsampledReads = DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart);
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.DOWNSAMPLED, activeRegion.getReads(), downsampledReads);
+        }
 
         // handle overlapping read pairs from the same fragment
         cleanOverlappingReadPairs(downsampledReads);

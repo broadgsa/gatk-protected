@@ -84,9 +84,9 @@ public abstract class ReadDestination {
         bamHeader.setSequenceDictionary(header.getSequenceDictionary());
         bamHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
 
-        // include the original read groups plus a new artificial one for the haplotypes
-        final List<SAMReadGroupRecord> readGroups = new ArrayList<SAMReadGroupRecord>(header.getReadGroups());
-        final SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupID);
+        // include the original read groups plus an artificial one for haplotypes
+        final List<SAMReadGroupRecord> readGroups = new ArrayList<>(header.getReadGroups());
+        SAMReadGroupRecord rg = new SAMReadGroupRecord(readGroupID);
         rg.setSample("HC");
         rg.setSequencingCenter("BI");
         readGroups.add(rg);
