@@ -69,8 +69,8 @@ import java.util.*;
  * that users of this code can rely on the values coming out of these functions.
  */
 public class AFCalculationResult {
-    private final static int AF0 = 0;
-    private final static int AF1p = 1;
+    private final static int AF0 = 0;  //index of the AC=0 entry in the log10 array (of priors, likelihoods, or posteriors listed below)
+    private final static int AF1p = 1;  //index of the AC>0 entry in the log10 array
     private final static int LOG_10_ARRAY_SIZES = 2;
 
     private final double[] log10LikelihoodsOfAC;

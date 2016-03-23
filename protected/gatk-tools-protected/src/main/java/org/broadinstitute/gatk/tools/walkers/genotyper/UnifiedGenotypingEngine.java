@@ -312,7 +312,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
      * Compute genotypes at a given locus.
      *
      * @param vc         the GL-annotated variant context
-     * @return the VariantCallContext object
+     * @return the VariantCallContext object (can be null)
      */
     public VariantCallContext calculateGenotypes(VariantContext vc) {
         final VariantContext.Type type = vc.getType();

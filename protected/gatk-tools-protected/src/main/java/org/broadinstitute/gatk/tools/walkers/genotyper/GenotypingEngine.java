@@ -521,7 +521,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     @Ensures("MathUtils.goodLog10Probability(result)")
     protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double log10OfTheta) {
         final double log10PofNonRef = log10OfTheta + getRefBinomialProbLog10(depth);
-        return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
+        return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));  //TODO: this 10^log(PofNonRef) seems inefficient
     }
 
     /**
