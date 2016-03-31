@@ -125,7 +125,7 @@ public class DroppedReadsTracker {
         // filtering/trimming etc., but that distinguishes paired reads from their mate, secondary etc.
         public int hashCode() {
             // Use a murmur hash of the flags to distribute the values more uniformly over the full range of int
-            return samRec.getReadName().hashCode() +  (31 * murmurHasher.hashInt(samRec.getFlags()).asInt());
+            return samRec.getReadName().hashCode() +  (31 * murmurHasher.hashLong(samRec.getFlags()).asInt());
         }
     }
 
