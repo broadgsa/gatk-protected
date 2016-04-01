@@ -65,7 +65,9 @@ import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
@@ -169,7 +171,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{"Standard"}));
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{StandardAnnotation.class.getSimpleName()}));
 
 
     /**
@@ -222,9 +224,13 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
         // create the genotyping engine
-        boolean doAlleleSpecificGenotyping = annotationsToUse.contains(GATKVCFConstants.AS_QUAL_BY_DEPTH_KEY) || annotationGroupsToUse.contains("AS_Standard");
-                genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
-                toolkit.getArguments().BAQMode, doAlleleSpecificGenotyping);
+        // when checking for presence of AS_StandardAnnotation we must deal with annoying feature that
+        // the class name with or without the trailing "Annotation" are both valid command lines
+        boolean doAlleleSpecificGenotyping = annotationsToUse.contains(GATKVCFConstants.AS_QUAL_BY_DEPTH_KEY)
+                || annotationGroupsToUse.contains(AS_StandardAnnotation.class.getSimpleName())
+                || annotationGroupsToUse.contains(AS_StandardAnnotation.class.getSimpleName().replace("Annotation", ""));
+        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(),
+                GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger), toolkit.getArguments().BAQMode, doAlleleSpecificGenotyping);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);

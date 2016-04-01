@@ -62,6 +62,8 @@ import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.io.DirectOutputTracker;
 import org.broadinstitute.gatk.engine.io.stubs.SAMFileWriterStub;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardHCAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -328,7 +330,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{ "Standard", "StandardHCAnnotation" }));
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{StandardAnnotation.class.getSimpleName(), StandardHCAnnotation.class.getSimpleName() }));
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection HCAC = new HaplotypeCallerArgumentCollection();

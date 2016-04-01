@@ -1066,7 +1066,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
      * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    //protected String[] annotationGroupsToUse = { "Standard" };
+    //protected String[] annotationGroupsToUse = { StandardAnnotation.class.getSimpleName() };
     protected String[] annotationClassesToUse = { };
 
     /**

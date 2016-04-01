@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.variantutils;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
@@ -129,7 +130,7 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected String[] annotationGroupsToUse = { "Standard" };
+    protected String[] annotationGroupsToUse = { StandardAnnotation.class.getSimpleName() };
 
 
     /**
