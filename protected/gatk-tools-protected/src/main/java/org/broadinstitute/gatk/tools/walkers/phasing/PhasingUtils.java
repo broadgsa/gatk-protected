@@ -297,8 +297,8 @@ class PhasingUtils {
      */
     static boolean mergeIntoMNPvalidationCheck(GenomeLocParser genomeLocParser, VariantContext vc1, VariantContext vc2) {
 	// Can only merge "simple" base strings (i.e., SNPs or MNPs, but not indels):
-	final boolean vc1CanBeMerged = vc1.isSNP() || vc1.isMNP();
-	final boolean vc2CanBeMerged = vc2.isSNP() || vc2.isMNP();
+	final boolean vc1CanBeMerged = (vc1.isSNP() || vc1.isMNP()) && !vc1.hasAllele(Allele.SPAN_DEL);
+	final boolean vc2CanBeMerged = (vc2.isSNP() || vc2.isMNP()) && !vc2.hasAllele(Allele.SPAN_DEL);
 	if (!vc1CanBeMerged || !vc2CanBeMerged)
             return false;
 
