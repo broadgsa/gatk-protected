@@ -106,7 +106,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "b49e15b4680d197db9b9f71644a5a1f9", "f84c8bc44b6af548bd3b8555a068b59e");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "1ad8934dc0ea624ffeb89d3e877176b2", "f84c8bc44b6af548bd3b8555a068b59e");
     }
 
     @Test
@@ -202,7 +202,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "6f5678f8fb6a4c0b21df1e6b0d1019ee");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "a048ea02eeb9610660e31f36e6114bf4");
     }
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
@@ -249,7 +249,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
         final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("392ac1966cfa1cae78e8d674065a0d28"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("188ce2d74ee42f4187c7b41a01a193bb"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
