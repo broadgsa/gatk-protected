@@ -158,7 +158,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "d7947ddf0240fe06a44621312831f44c");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "1df41f2dd6d4715ae1b423bf295ec7c5");
     }
 
     /**
