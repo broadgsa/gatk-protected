@@ -111,18 +111,18 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMultiSample() throws IOException {
-        HCTest(CEUTRIO_BAM, "", "b86311f6a0b4b5f2cfd05662f03fbe6c");
+        HCTest(CEUTRIO_BAM, "", "5d9b06d7bf88bb18aa3e8fa6322dff89");
     }
 
     @Test
     public void testHaplotypeCallerSingleSample() throws IOException {
 
-        HCTest(NA12878_BAM, "", "1ceedd80a36e042a93d60e25b94c0b03");
+        HCTest(NA12878_BAM, "", "b35ba8b7ec8ddfe8268b82e77709c9ca");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleHaploid() throws IOException {
-        HCTest(CEUTRIO_BAM, "-ploidy 1", "a7e83df05d8ef3558fa98e8c6a86e12d");
+        HCTest(CEUTRIO_BAM, "-ploidy 1", "84bd5a2ac22aa47b4436ecaf656b73b1");
     }
 
     @Test
@@ -132,12 +132,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleTetraploid() throws IOException {
-        HCTest(NA12878_BAM, "-ploidy 4", "ae463cceb8cb0937440cfe5b56904feb");
+        HCTest(NA12878_BAM, "-ploidy 4", "894b56fa3afd35e240a7db394da7b4ef");
     }
 
     @Test
     public void testHaplotypeCallerMinBaseQuality() throws IOException {
-        HCTest(NA12878_BAM, "-mbq 15", "1ceedd80a36e042a93d60e25b94c0b03");
+        HCTest(NA12878_BAM, "-mbq 15", "b35ba8b7ec8ddfe8268b82e77709c9ca");
     }
 
     @Test
@@ -147,46 +147,46 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerMinBaseQualityTetraploid() throws IOException {
-        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "ae463cceb8cb0937440cfe5b56904feb");
+        HCTest(NA12878_BAM, "-mbq 15 -ploidy 4", "894b56fa3afd35e240a7db394da7b4ef");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() throws IOException {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "58abaabab25b9a75aaf17ab48478f42a");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "94dc1ca52ebe24ab118b13558e667253");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() throws IOException {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "d7c7ff3883e8a50be38ec32b1a8fa5b4");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "8aae4fe36d14158ea2cbf5db151f39a1");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() throws IOException {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "ccec6b941d41ac2642450964c3ab85d7");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "ea4365e2dd6ae627d6347f2a53ceeaef");
     }
 
     @Test
     public void testHaplotypeCallerSingleSampleWithDbsnp() throws IOException {
-        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "48a008f41644c8e4bb256141d095a140");
+        HCTest(NA12878_BAM, "-D " + b37dbSNP132, "626abc84e03d4488b781cfc5a5f50290");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGA() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
-                "b7d2576ac00c175f4136b2bfbffc4dcd");
+                "03a9fa3a1c7163c68807d8c713d8040c");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGAHaploid() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 1 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -isr INTERSECTION -L 20:10080000-10100000",
-                "07e0a87e762173bcd6bba5e7af704159");
+                "6120365c05e74a8e1e1c44d739cbf8cd");
     }
 
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -isr INTERSECTION -L 20:10080000-10100000",
-                "be7315e2866eccfb951ed63090f9119c");
+                "a3a547a7bf7e488651733da08fd22049");
     }
 
     @Test
@@ -483,12 +483,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerTandemRepeatAnnotator() throws IOException{
-        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "abc2daf88b9c5b3c0989f5d06df84ab3");
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "57eed4eec7b49efa1269fd8d58bde718");
     }
 
     @Test
     public void testHBaseCountsBySample() throws IOException{
-        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "3e0ee74ec384ae38bda8ac15d8d67cca");
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "5e5d064f2bb90e05e1ab28a087d8469d");
     }
 }
 
