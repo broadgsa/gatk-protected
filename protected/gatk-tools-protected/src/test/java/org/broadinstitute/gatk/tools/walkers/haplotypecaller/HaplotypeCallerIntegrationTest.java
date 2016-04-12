@@ -490,5 +490,15 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHBaseCountsBySample() throws IOException{
         HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "f5ad4e03c0faaa806ee6ae536af8a479");
     }
+
+    @Test
+    public void testSetZeroGQsToNoCall() throws IOException{
+        final File testBAM = new File(privateTestDir + "set.zero.GQs.no.call.bam");
+        final String md5 = "b90da12d97fce42f5127bcb6cad07b09";
+        final String base = String.format("-T HaplotypeCaller  -R %s -I %s -L 8:17312375-17312975 ", REF, testBAM) +
+                " --no_cmdline_in_header -o %s";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5));
+        executeTest("testSetZeroGQsToNoCall", spec);
+    }
 }
 

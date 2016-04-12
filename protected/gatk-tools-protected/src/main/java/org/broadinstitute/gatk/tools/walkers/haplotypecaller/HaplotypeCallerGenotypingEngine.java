@@ -238,8 +238,6 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
                 if( mergedVC == null )
                     continue;
 
-
-
                 final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
                         ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
@@ -284,6 +282,11 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
                         final List<Haplotype> haplotypeList = alleleMapper.get(calledAllele);
                         if (haplotypeList == null) continue;
                         calledHaplotypes.addAll(haplotypeList);
+                    }
+
+                    if ( !emitReferenceConfidence ) {
+                        // set GTs to no-call when GQ is 0 in normal mode
+                        annotatedCall = clearUnconfidentGenotypeCalls(annotatedCall);
                     }
 
                     returnCalls.add( annotatedCall );
@@ -808,5 +811,27 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      */
     public GenotypingModel getGenotypingModel() {
         return genotypingModel;
+    }
+
+    /**
+     * Cleans up genotype-level annotations that need to be updated
+     * (similar to {@link org.broadinstitute.gatk.tools.walkers.variantutils.GenotypeGVCFs#cleanupGenotypeAnnotations},
+     * but here we only check for unconfident calls (i.e., those with GQ = 0), which are set to no-call).
+     */
+    private VariantContext clearUnconfidentGenotypeCalls(final VariantContext VC) {
+        final GenotypesContext oldGTs = VC.getGenotypes();
+        final List<Genotype> clearedGTs = new ArrayList<>(oldGTs.size());
+        for ( final Genotype oldGT : oldGTs ) {
+            // set GT to no-call when GQ is 0
+            if (oldGT.hasGQ() && oldGT.getGQ() == 0) {
+                final int ploidy = oldGT.getPloidy();
+                final List<Allele> noCallAlleles = GATKVariantContextUtils.noCallAlleles(ploidy);
+                final Genotype noCallGT = new GenotypeBuilder().alleles(noCallAlleles).make();
+                clearedGTs.add(noCallGT);
+            } else {
+                clearedGTs.add(oldGT);
+            }
+        }
+        return new VariantContextBuilder(VC).genotypes(clearedGTs).make();
     }
 }

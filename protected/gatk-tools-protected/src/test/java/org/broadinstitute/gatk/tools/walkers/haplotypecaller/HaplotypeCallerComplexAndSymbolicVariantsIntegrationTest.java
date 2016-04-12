@@ -72,7 +72,7 @@ public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends Wa
 
     @Test
     public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "32ce23b3830f5f2c693161b40de8b15e");
+        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "88255eda0e29e4a6e128ddb7177a03ab");
     }
 
     private void HCTestSymbolicVariants(String bam, String args, String md5) {
