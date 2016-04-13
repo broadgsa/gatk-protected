@@ -234,8 +234,19 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormat.vcf --setFilteredGtToNocall", 1,
-                Arrays.asList("454d265ee8b425284ed7fca8ca4774be"));
+                Arrays.asList("2ff3753215d418712309e50da323f6e8"));
         executeTest("testSetFilteredGtoNocall", spec);
+    }
+
+
+    @Test
+    public void testSetFilteredGtoNocallUpdateInfo() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " -G_filter 'GQ < 20' -G_filterName lowDP -G_filter 'DP<10' -G_filterName lowGQ -V " + privateTestDir + "variantFiltrationInfoField.vcf --setFilteredGtToNocall",
+                1,
+                Arrays.asList("3b074975bb6f70c84b2dd81695bb89ff"));
+        executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
     }
 
     @Test
@@ -245,7 +256,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("7771f07a9997296852ab367fac2c7a6c")
+                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
         );
 
         spec.disableShadowBCF();
