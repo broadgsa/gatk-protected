@@ -732,12 +732,25 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("7771f07a9997296852ab367fac2c7a6c")
+                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
         );
 
         spec.disableShadowBCF();
         executeTest("testSetFilteredGtoNocall--" + testfile, spec);
     }
+
+    @Test
+    public void testSetFilteredGtoNocallUpdateInfo() {
+        String testfile = privateTestDir + "selectVariantsInfoField.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --setFilteredGtToNocall --removeUnusedAlternates --excludeNonVariants -R " + b37KGReference + " --variant " +
+                        testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("349136d92f915f8c7ba8a2f92e51d6b7"));
+        executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
+    }
+
     @Test
     public void testSACSimpleDiploid() {
         String testfile = privateTestDir + "261_S01_raw_variants_gvcf.vcf";
