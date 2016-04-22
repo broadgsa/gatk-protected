@@ -270,7 +270,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testWrongGVCFNonVariantRecordOrderBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, WRONG_GVCF_RECORD_ORDER_BUGFIX_BAM, WRONG_GVCF_RECORD_ORDER_BUGFIX_INTERVALS, GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("a22bafa2f91c197ea1ab13e02a0c08fb"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("1c3d390b467a9b0e1e307419796142fd"));
         spec.disableShadowBCF();
         executeTest("testMissingGVCFIndexingStrategyException", spec);
     }
@@ -320,7 +320,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G Standard -G AS_Standard --disableDithering",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("9db19d4706e32ce883c6e3f71e5f4178"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("169c2145c9981b8a1bb1d64a6d776d66"));
         spec.disableShadowBCF();
         executeTest(" testAlleleSpecificAnnotations", spec);
     }
@@ -329,7 +329,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testASMQMateRankSumAnnotation() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -A AS_MQMateRankSumTest --disableDithering",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("85b26109c4586ba33c44e253297050be"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("75b78770469c5aaa73f1c95db8fda574"));
         spec.disableShadowBCF();
         executeTest(" testASMQMateRankSumAnnotation", spec);
     }
@@ -338,7 +338,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testASInsertSizeRankSum() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G Standard -G AS_Standard --disableDithering -A AS_InsertSizeRankSum",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("f1531ed03d6f9538d4d6af7630ff2502"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("4fd0fcf44b1121c15e9d38de4171002c"));
         spec.disableShadowBCF();
         executeTest(" testASInsertSizeRankSum", spec);
     }
