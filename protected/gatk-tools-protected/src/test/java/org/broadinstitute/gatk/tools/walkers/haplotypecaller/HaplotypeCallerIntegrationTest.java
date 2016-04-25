@@ -522,5 +522,10 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5));
         executeTest("testHaplotypeCallerRemoveAltAlleleBasedOnHaptypeScores", spec);
     }
+
+    @Test
+    public void testAlleleBalance() throws IOException{
+        HCTest(CEUTRIO_BAM, " -L 20:10001000-10010000 -A AlleleBalance -A AlleleBalanceBySample", "a210161843f4cb80143ff56e4e5c250f");
+    }
 }
 
