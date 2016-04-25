@@ -69,7 +69,7 @@ public class VariantCallContext extends VariantContext {
     // Should this site be emitted?
     public boolean shouldEmit = true;
 
-    VariantCallContext(VariantContext vc, boolean confidentlyCalledP) {
+    public VariantCallContext(VariantContext vc, boolean confidentlyCalledP) {
         super(vc);
         this.confidentlyCalled = confidentlyCalledP;
     }

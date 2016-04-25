@@ -352,7 +352,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiAllelicNonRef() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -A StrandAlleleCountsBySample",
                 b37KGReference, privateTestDir + "multiallelic-nonref.bam", "2:47641259-47641859", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("87f9203f5ac637080469052b702c61c7"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("1d9e75bd09a6fc5a1d9156fe8a7d43ce"));
         spec.disableShadowBCF();
         executeTest(" testHaplotypeCallerMultiAllelicNonRef", spec);
     }
