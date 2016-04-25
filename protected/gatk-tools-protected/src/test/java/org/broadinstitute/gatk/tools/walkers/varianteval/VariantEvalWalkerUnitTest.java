@@ -226,7 +226,7 @@ public class VariantEvalWalkerUnitTest extends BaseTest {
 
         // test pairs of strats
         new StratifiedEvalTestProvider(12,
-                Arrays.asList(4, 3, 2, 3),
+                Arrays.asList(3, 4, 3, 2),
                 Arrays.asList(1, 2), Arrays.asList(3, 4));
 
         return StratifiedEvalTestProvider.getTests(StratifiedEvalTestProvider.class);

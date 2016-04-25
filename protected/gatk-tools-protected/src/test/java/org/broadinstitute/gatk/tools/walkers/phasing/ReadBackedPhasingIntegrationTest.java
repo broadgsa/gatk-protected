@@ -87,7 +87,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 baseTestString(hg18Reference, "phasing_test_chr20_332341_1332503.bam", "phasing_test_chr20_332341_1332503.vcf", 20000, 10, 10)
                         + " -L chr20:1232503-1332503",
                 1,
-                Arrays.asList("27c0e81c71f599685f6bdc433652645d"));
+                Arrays.asList("39d4f9b5650667491091ccee7c245b06"));
         executeTest("MAX 10 het sites [TEST TWO]; require PQ >= 10", spec);
     }
 
@@ -127,7 +127,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 baseTestString(hg18Reference, "phasing_test_chr20_332341_1332503.bam", "phasing_test_chr20_332341_1332503.vcf", 20000, 10, 10)
                         + " -L chr20:652810-681757",
                 1,
-                Arrays.asList("acfcca2d271c3403dc42a16e0494f11b"));
+                Arrays.asList("f06edaabb82af64f1465dd27b9c9948e"));
         executeTest("MAX 10 het sites [TEST SIX]; require PQ >= 10; cacheWindow = 20000; has inconsistent sites", spec);
     }
 
@@ -137,7 +137,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 baseTestString(hg18Reference, "phasing_test_chr20_332341_1332503.bam", "CEU.trio.2010_03.genotypes.hg18.vcf", 20000, 10, 10)
                         + " -L chr20:332341-802503",
                 1,
-                Arrays.asList("504e9af1f767db3d9da9bb6665daabcb"));
+                Arrays.asList("16ac184f0f8c81c9b4a6cbc235a58872"));
         executeTest("Use trio-phased VCF, adding read-backed phasing information in HP tag (as is now standard for RBP) [TEST SEVEN]", spec);
     }
 

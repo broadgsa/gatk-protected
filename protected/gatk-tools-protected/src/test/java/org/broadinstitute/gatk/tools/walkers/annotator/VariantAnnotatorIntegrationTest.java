@@ -264,7 +264,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         /* The order of filters in the output seems platform-dependent. May need to change htsjdk to make the order consistent across platforms. [Sato] */
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "annotationResourceWithFilter.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.FILTER -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
-                Arrays.asList("77bc144fd432b8886ab19ed20bfb9396"));
+                Arrays.asList("d0a381375a407dd454637f78bb5b194f"));
         executeTest("annotate a vcf with the FILTER field of another vcf", spec);
     }
 
@@ -354,7 +354,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testInbreedingCoeffPed() {
-        final String MD5 = "914e6882f01bae43f1d6ba1b0023cf91";
+        final String MD5 = "5cbf01dc895bff5a8dd9f6c46e0958c6";
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantAnnotator -R " + b37KGReference + " -A InbreedingCoeff --variant:vcf " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf" +
                         " -L " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf --no_cmdline_in_header -ped " + privateTestDir + "ug.random50000.family.ped -o %s", 1,
