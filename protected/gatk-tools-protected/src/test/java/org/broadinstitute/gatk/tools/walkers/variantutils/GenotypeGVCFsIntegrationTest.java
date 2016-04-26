@@ -277,7 +277,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:combined2 " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
                         " --uniquifySamples", b37KGReference),
                 1,
-                Arrays.asList("b73f5bf5646695ca019d84d44c74c819"));
+                Arrays.asList("2492d55f0e688d01ef2d67f675c0e2d9"));
         executeTest("testUniquifiedSamples", spec);
 
     }

@@ -106,7 +106,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "1ad8934dc0ea624ffeb89d3e877176b2", "f84c8bc44b6af548bd3b8555a068b59e");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "1ad8934dc0ea624ffeb89d3e877176b2", "6a81bbefa6c4ed7a6b8d2c3e0e5a4756");
     }
 
     @Test
@@ -296,7 +296,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testLeftAlignmentBamOutBugFix() {
         final String base = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
                 + " --no_cmdline_in_header -bamout %s -o /dev/null -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("c1840293b4565ce1cef393c6a0d5fc9a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("01deba68f7a7d562b0e466f6858d42e3"));
         executeTest("LeftAlignmentBamOutBugFix", spec);
     }
 
