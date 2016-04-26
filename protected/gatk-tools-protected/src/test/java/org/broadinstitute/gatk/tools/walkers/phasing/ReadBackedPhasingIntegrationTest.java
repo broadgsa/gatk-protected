@@ -151,7 +151,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 " -o %s" +
                 " --no_cmdline_in_header",
                 1,
-                Arrays.asList("b251b4378fda9784f2175c7e3d80f032"));
+                Arrays.asList("0b47205ebdf2cf752ad91ff49e82c401"));
         executeTest("Do not merge unphased SNPs", spec);
     }
 
@@ -166,7 +166,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " --no_cmdline_in_header",
                 1,
-                Arrays.asList("630816da701b9ea8674c23c91fa61bec"));
+                Arrays.asList("1419d9292d6e5db6282204826cb53bf7"));
         executeTest("Merge SNPs if on the same read", spec);
     }
 
@@ -184,7 +184,7 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " --no_cmdline_in_header",
                 1,
-                Arrays.asList("b334de5ad35665f0d65034197ac05b32"));
+                Arrays.asList("8a3cd58dd6b1d04ab8c699f4e328dff4"));
         executeTest("Don't merge symbolic SPAN_DEL (*) alleles (into the nonexistent ** MNP).", spec);
     }
 }

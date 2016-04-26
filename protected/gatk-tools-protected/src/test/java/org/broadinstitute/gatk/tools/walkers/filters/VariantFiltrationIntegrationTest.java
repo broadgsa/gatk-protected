@@ -189,7 +189,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
             "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                     + " --filterExpression 'FS > 60.0' --filterName SNP_FS -V " + privateTestDir + "unfilteredForFiltering.vcf", 1,
-                Arrays.asList("0febd66699fcd7f521377d1d0d0016fb"));
+                Arrays.asList("b9fa012770831c984101d23420ef0c38"));
         executeTest("testUnfilteredBecomesFilteredAndPass", spec);
     }
 

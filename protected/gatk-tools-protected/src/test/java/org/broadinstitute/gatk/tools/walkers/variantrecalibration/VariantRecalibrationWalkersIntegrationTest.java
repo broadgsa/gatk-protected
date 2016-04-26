@@ -197,7 +197,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
             "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
             "48c21792897bdbb9adcc64886d03c5d1",  // recal file
-            "0bd2067f831e5388b790e7bb7f45d98f"); // cut VCF
+            "93a6e7ab6cbd6ae24a5b2a6f0fd29d92"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
@@ -359,7 +359,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 " -tranchesFile " + privateTestDir + "VQSR.AStest.snps.tranches" +
                 " -recalFile " + privateTestDir + "VQSR.AStest.snps.recal";
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("cd087f2824fac5fe04c6c50cbdab1fab"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("dbcf0cb5c2a0eb2312e6ca7d4e3aeeda"));
         final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificSNPmode", spec).getFirst();
         setPDFsForDeletion(outputFiles);
     }
@@ -377,7 +377,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 " -tranchesFile " + privateTestDir + "VQSR.AStest.indels.tranches" +
                 " -recalFile " + privateTestDir + "VQSR.AStest.indels.recal";
 
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("b0d14f1c0647f46819018cd378036024"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("38d4b8e89dbf8acb6a36dfa1bb55c54c"));
         final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificINDELmode", spec).getFirst();
         setPDFsForDeletion(outputFiles);
     }

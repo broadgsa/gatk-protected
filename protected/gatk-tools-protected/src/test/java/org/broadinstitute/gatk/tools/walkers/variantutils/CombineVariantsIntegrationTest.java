@@ -207,7 +207,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                         + " -R " + b37KGReference
                         + " -V " + privateTestDir + "combineVariantsLeavesRecordsUnfiltered.vcf",
                 1,
-                Arrays.asList("11aab642395645589e48edee1fb179e2"));
+                Arrays.asList("0f221847e76521250de1abcba535e49c"));
         cvExecuteTest("combineLeavesUnfilteredRecordsUnfiltered: ", spec, false);
     }
 

@@ -278,7 +278,7 @@ public class ConsensusAlleleCounter {
             builder.noGenotypes();
             if (doMultiAllelicCalls) {
                 vcs.add(builder.make());
-                if (vcs.size() >= GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
+                if (vcs.size() >= GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
                     break;
             } else if (curCnt > maxAlleleCnt) {
                 maxAlleleCnt = curCnt;

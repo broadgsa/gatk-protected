@@ -84,7 +84,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf", b37KGReference),
                 1,
-                Arrays.asList("beebc536d20d69a45c6f56fbb041c9bc"));
+                Arrays.asList("8d9788afd0de26bd9d9e55dd0e9fc3ed"));
         executeTest("testUpdatePGT", spec);
     }
 
@@ -94,7 +94,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample -log " + logFileName, b37KGReference),
                 1,
-                Arrays.asList("527d513874a787821daf54b8fc8a33e3"));
+                Arrays.asList("5dd4698da963a423446bb1e183eb75aa"));
         executeTest("testUpdatePGTStrandAlleleCountsBySample", spec);
 
         File file = new File(logFileName);
@@ -109,7 +109,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000", b37KGReference),
                 1,
-                Arrays.asList("24ea3dd1f13b6636cf51aea7d5a4ce06"));
+                Arrays.asList("d3fab0d45f0054b71aa1d031876a4bbb"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -121,7 +121,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals", b37KGReference),
                 1,
-                Arrays.asList("3708b0d993a683e8c7421f60d7123cf4"));
+                Arrays.asList("64fa89f20ee25df21ad20ce4ada7e7ad"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -133,7 +133,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "diploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals", b37KGReference),
                 1,
-                Arrays.asList("7d7a65ea549fcd30553766ad4333f9e2"));
+                Arrays.asList("b1d93f4cd93093c208be2c9842f38d12"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -145,7 +145,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Arrays.asList("65497a0711a33d131a165c9cfc8bc3cf"));
+                Arrays.asList("c2f30f25ba4a84e38c04aa49b95694e8"));
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 
@@ -158,7 +158,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("70dcdc1a111ebd048d32e7e61a9b7052"));
+                Arrays.asList("54a86ade63b84c87ff4e537e276987fc"));
         executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
     }
 
@@ -170,7 +170,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Arrays.asList("f911428f0f3bfba9b1d96a6b5ace3dee"));
+                Arrays.asList("1a2728e7295a6ffca6c2ba5a01af3593"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
     }
 
@@ -180,7 +180,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -L 1:69485-69791 -o %s -R " + b37KGReference +
                 " -V " + privateTestDir + "gvcfExample1.vcf",
                 1,
-                Arrays.asList("84ad9c6e7582dbcc693deacdeff5984a"));
+                Arrays.asList("9ff344a5ab87a2c3b128e435e2e86db0"));
         executeTest("testJustOneSample", spec);
     }
 
@@ -191,14 +191,14 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V " + privateTestDir + "gvcfExample1.vcf" +
                         " -V " + privateTestDir + "gvcfExample2.vcf",
                 1,
-                Arrays.asList("54b76f721811c9c7958e849c40b8d4e2"));
+                Arrays.asList("0c07ed795562ea96eab427e63a970384"));
         executeTest("testSamplesWithDifferentLs", spec);
     }
 
     @Test(enabled = true)
     public void testNoPLsException() {
         // Test with input files with (1) 0/0 and (2) ./.
-        final String md5 = "276159213ddaaf82cd0e640cc7a77fc4";
+        final String md5 = "2f3d71272fdac19ac861cc7159edfb08";
         WalkerTestSpec spec1 = new WalkerTestSpec(
                 "-T GenotypeGVCFs --no_cmdline_in_header -L 1:1115550-1115551 -o %s -R " + hg19Reference +
                         " --variant " + privateTestDir + "combined_genotype_gvcf_exception.vcf",
@@ -218,7 +218,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-nda"),
                 1,
-                Arrays.asList("3c9c84b78e7d3b358c8cb7e29a2d302b"));
+                Arrays.asList("ce064429e6cbcaa956d52ef22e102f2f"));
         executeTest("testNDA", spec);
     }
 
@@ -227,7 +227,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-maxAltAlleles 1"),
                 1,
-                Arrays.asList("87ed70b8f910b662aa67e8ed1b2ed174"));
+                Arrays.asList("1f1c0605fc8a500c9646132e0d7420a0"));
         executeTest("testMaxAltAlleles", spec);
     }
 
@@ -236,7 +236,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-stand_call_conf 300 -stand_emit_conf 100"),
                 1,
-                Arrays.asList("1d98fb542a39090db3a8f89ae232e1e5"));
+                Arrays.asList("0283e784ed49bc2dce32a26137c43409"));
         executeTest("testStandardConf", spec);
     }
 
@@ -259,7 +259,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Arrays.asList("d8eb4a64a2ae7e7dad1efc4fe8b4b3ed"));
+                Arrays.asList("34d76dc8dabc6a97e6d8f5365d7531e5"));
         spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         executeTest("testStrandAlleleCountsBySample", spec);
     }
@@ -276,7 +276,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:combined2 " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
                         " --uniquifySamples", b37KGReference),
                 1,
-                Arrays.asList("1c552a9d76a1bbba4b92a94532f54a1a"));
+                Arrays.asList("16d7374502fa3cf99863d15d31b5ef86"));
         executeTest("testUniquifiedSamples", spec);
 
     }
@@ -448,7 +448,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
 
-    private static final String simpleSpanningDeletionsMD5 = "85c14341171548997e4503f7b5a9253f";
+    private static final String simpleSpanningDeletionsMD5 = "4629c2f02ff58c111828269091cded82";
 
     @Test(enabled = true)
     public void testSpanningDeletionsMD5() {
@@ -478,7 +478,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.1.g.vcf -V " + privateTestDir + "spanningDel.2.g.vcf -V " + privateTestDir + "spanningDel.3.g.vcf",
                 1,
-                Arrays.asList("6c5761ffb7a0c5252f3f5048d52f500e"));
+                Arrays.asList("7fe5364565585d31a0bb6a9dfa4a01d4"));
         spec.disableShadowBCF();
         executeTest("testMultipleSpanningDeletionsMD5", spec);
     }
@@ -489,7 +489,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.delOnly.g.vcf",
                 1,
-                Arrays.asList("c8414446dbac9a3639bfc2f347cc2c1d"));
+                Arrays.asList("057f9368f380bf3c12b539a749deac61"));
         spec.disableShadowBCF();
         executeTest("testSpanningDeletionDoesNotGetGenotypedWithNoOtherAlleles", spec);
     }
@@ -500,7 +500,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.depr.delOnly.g.vcf",
                 1,
-                Arrays.asList("d1d8c3db65905b4ef79f960f9565ca94"));
+                Arrays.asList("e8f5186718050fe0784416e41425563f"));
         spec.disableShadowBCF();
         executeTest("testSpanningDeletionDoesNotGetGenotypedWithNoOtherAlleles", spec);
     }
@@ -523,7 +523,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "ad-bug-input.vcf",
                 1,
-                Arrays.asList("a8dcb9024e3701449ec2a1fe75e0d057"));
+                Arrays.asList("5ed5cb6aac68aa8943dc45b8b90eb508"));
         spec.disableShadowBCF();
         executeTest("testBadADPropagationHaploidBugTest", spec);
     }
@@ -534,7 +534,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "261_S01_raw_variants_gvcf.vcf",
                 1,
-                Arrays.asList("01a9eee63801d46de8fcf1d6f80f8359"));
+                Arrays.asList("37eec6aedd26aa3430a15d90d7f8a011"));
         spec.disableShadowBCF();
         executeTest("testSAC", spec);
     }
@@ -545,7 +545,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 "-T GenotypeGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "tetraploid-multisample-sac.g.vcf",
                 1,
-                Arrays.asList("8c79a16f6a524d49ff402b8c0b39b396"));
+                Arrays.asList("76532a74d4ba49f23362c149ad31a229"));
         spec.disableShadowBCF();
         executeTest("testSACMultisampleTetraploid", spec);
     }
@@ -556,8 +556,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 baseTestString(" -V " + privateTestDir + "set.zero.RGQs.no.call.sample1.g.vcf" +
                         " -V " + privateTestDir + "set.zero.RGQs.no.call.sample2.g.vcf" +
                         " -L chr16:1279274-1279874 -allSites", hg19ReferenceWithChrPrefixInChromosomeNames),
-                1,
-                Arrays.asList("6505d305441b4e6ff975a40ef5d352b5"));
+                Arrays.asList("b7106be316e43ca04204b78038f65c9f"));
         executeTest("testSetZeroRGQsToNoCall", spec);
     }
 
@@ -565,7 +564,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d4dd179d8a53c4a550d4a22cc9ef1aa8"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("89712a9fe5b6db16be2257be2b0b4759"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
@@ -574,7 +573,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testASMateRankSumAnnotation() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest --disableDithering -V "
                 + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.MateRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("515771fa88b0c4bc2a40e9c233806fb1"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("8e41a139600ab58a67910cdc60053726"));
         spec.disableShadowBCF();
         executeTest("testASMateRankSumAnnotation", spec);
     }
@@ -583,7 +582,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testASInsertSizeRankSumAnnotation() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.InsertSizeRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.InsertSizeRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("c8a096f2533d06c28ec115a24ffb7ca0"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("b1334fbfbf21934aac1c1eda0b5062d5"));
         spec.disableShadowBCF();
         executeTest("testASInsertSizeRankSumAnnotation", spec);
     }
@@ -596,7 +595,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations_oneSample() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("558486182a84d0a274534fc00fee326e"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("7d86260e91fe74588e01339a2064b59c"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations_oneSample", spec);
     }
@@ -606,7 +605,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations_elevenSamples() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard --disableDithering -V "
                 + privateTestDir + "multiSamples.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("84b5723c9c8eeb5549aaceb4fd4053b5"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("a889fe6775575513e84905b4fa98f8b3"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations_elevenSamples", spec);
     }
@@ -615,7 +614,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testMonomorphicVCwithAlt() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -G AS_Standard -o %s --no_cmdline_in_header --disableDithering -V "
                 + privateTestDir + "monomorphicGVCwithAlt.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("ddf0a386c007b797fce3eb4ddc204216"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("8bf329a40637623515972dcc0e09a49e"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
@@ -624,7 +623,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testFractionInformativeReads() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -G AS_Standard -o %s --no_cmdline_in_header -A FractionInformativeReads --disableDithering -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("70fda103f68709e32d691393e9228a9b"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList("b338bf1807791b23255b8cb1947c01b2"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }

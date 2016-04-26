@@ -407,14 +407,14 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @throws NullPointerException if {@code vc} is {@code null}.
      *
      * @return {@code true} iff there is too many alternative alleles based on
-     * {@link GenotypeLikelihoods#MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED}.
+     * {@link GenotypeLikelihoods#MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED}.
      */
     @Requires("vc != null")
     protected final boolean hasTooManyAlternativeAlleles(final VariantContext vc) {
         // protect against too many alternate alleles that we can't even run AF on:
-        if (vc.getNAlleles() <= GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
+        if (vc.getNAlleles() <= GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
             return false;
-        logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
+        logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
              " alleles. Site will be skipped at location "+vc.getChr()+":"+vc.getStart());
         return true;
     }

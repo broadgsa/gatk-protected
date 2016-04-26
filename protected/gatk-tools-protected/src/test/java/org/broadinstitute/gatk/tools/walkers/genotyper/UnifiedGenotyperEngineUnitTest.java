@@ -133,7 +133,7 @@ public class UnifiedGenotyperEngineUnitTest extends BaseTest {
             }
             final VariantContext vc = new VariantContextBuilder("test", "chr1", 1000, 1000, alleles).make();
             final boolean result = ugEngine.hasTooManyAlternativeAlleles(vc);
-            Assert.assertTrue(result == (vc.getNAlleles() > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
+            Assert.assertTrue(result == (vc.getNAlleles() > GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
         }
     }
 

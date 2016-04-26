@@ -88,7 +88,7 @@ public class PhaseByTransmissionIntegrationTest extends WalkerTest {
                         "-o %s"
                 ),
                 2,
-                Arrays.asList("af979bcb353edda8dee2127605c71daf","3934b5de598024496a5de0ec35bde5b0")
+                Arrays.asList("af979bcb353edda8dee2127605c71daf","7ed46f6aa4565b5012acde17119a1a31")
         );
         executeTest("testTrueNegativeMV", spec);
     }
