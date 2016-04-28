@@ -56,22 +56,22 @@ import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -85,7 +85,7 @@ import java.util.*;
  */
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
 
-    protected final AFCalculatorProvider afCalculatorProvider   ;
+    protected final AFCalculatorProvider afCalculatorProvider;
 
     protected Logger logger;
 
@@ -103,6 +103,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     private final AFPriorProvider log10AlleleFrequencyPriorsIndels;
 
     protected final GenomeLocParser genomeLocParser;
+
+    protected static int maxNumPLValuesObserved = 0;
+    protected static int numTimesMaxNumPLValuesExceeded = 0;
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
@@ -226,7 +229,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
-        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
+        final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
         final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
@@ -729,5 +733,16 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
             return 1.0 - Math.pow(10.0, normalizedLog10ACeq0Posterior);
         }
+    }
+
+    /**
+     * Logs the number of times the maximum allowed number of PLs was exceeded and the largest number of PLs observed. The corresponding counters are reset.
+     */
+    public void printFinalMaxNumPLValuesWarning() {
+        final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
+        final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
+        afCalculator.printFinalMaxNumPLValuesWarning();
     }
 }
