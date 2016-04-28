@@ -482,7 +482,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "", "5e81af1825aa207b0a352f5eeb5db700"},
                 { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT", "339cca608ff18a355abc629bca448043"},
                 { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env", "3e8e2ebbc576ceee717a7ce80e23dd35"},
-                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -trimAlternates", "8650d66b2199a4f8ce0acc660b2091cd"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -trimAlternates", "2cbf4c8c991777254145aacf19cba508"},
                 { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env -trimAlternates", "14538e17d5aca22c655c42e130f8cebc"}
         };
     }
@@ -770,7 +770,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12891 -trimAlternates",
                 1,
-                Arrays.asList("7aecb079b16448f0377b6b03069b2994"));
+                Arrays.asList("a8c23f4d6f93806a34d432dd2c7a0449"));
         spec.disableShadowBCF();
         executeTest("testSACDiploid", spec);
     }

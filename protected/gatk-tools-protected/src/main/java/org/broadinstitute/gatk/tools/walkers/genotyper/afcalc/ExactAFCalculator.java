@@ -125,11 +125,22 @@ abstract class ExactAFCalculator extends AFCalculator {
     }
 
     /**
-     * Unpack GenotypesContext into arraylist of doubel values
+     * Unpack GenotypesContext into arraylist of double values
      * @param GLs            Input genotype context
      * @return               ArrayList of doubles corresponding to GL vectors
      */
     protected static ArrayList<double[]> getGLs(final GenotypesContext GLs, final boolean includeDummy) {
+        return getGLs(GLs, includeDummy, false);
+    }
+
+    /**
+     * Unpack GenotypesContext into arraylist of double values
+     * @param GLs            Input genotype context
+     * @param keepUninformative Don't filter out uninformative genotype likelihoods (i.e. all log likelihoods near 0)
+     *                          This is useful for VariantContexts with a NON_REF allele
+     * @return               ArrayList of doubles corresponding to GL vectors
+     */
+    protected static ArrayList<double[]> getGLs(final GenotypesContext GLs, final boolean includeDummy, final boolean keepUninformative) {
         final ArrayList<double[]> genotypeLikelihoods = new ArrayList<>(GLs.size() + 1);
 
         if ( includeDummy ) genotypeLikelihoods.add(new double[]{0.0,0.0,0.0}); // dummy
@@ -137,7 +148,7 @@ abstract class ExactAFCalculator extends AFCalculator {
             if ( sample.hasLikelihoods() ) {
                 final double[] gls = sample.getLikelihoods().getAsVector();
 
-                if ( MathUtils.sum(gls) < GATKVariantContextUtils.SUM_GL_THRESH_NOCALL )
+                if ( MathUtils.sum(gls) < GATKVariantContextUtils.SUM_GL_THRESH_NOCALL || keepUninformative )
                     genotypeLikelihoods.add(gls);
             }
         }
