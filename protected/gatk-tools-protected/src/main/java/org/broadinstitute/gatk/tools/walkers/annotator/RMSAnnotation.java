@@ -212,8 +212,14 @@ public abstract class RMSAnnotation extends InfoFieldAnnotation implements Reduc
             numOfReads += Integer.parseInt(vc.getAttributeAsString(VCFConstants.DEPTH_KEY, "-1"));
             if(vc.hasGenotypes()) {
                 for(Genotype gt : vc.getGenotypes()) {
-                    if(gt.isHomRef() && gt.hasExtendedAttribute("MIN_DP")) //site-level DP contribution will come from MIN_DP for gVCF-called reference variants
-                        numOfReads -= Integer.parseInt(gt.getExtendedAttribute("MIN_DP").toString());
+                    if(gt.isHomRef()) {
+                        //site-level DP contribution will come from MIN_DP for gVCF-called reference variants or DP for BP resolution
+                        if (gt.hasExtendedAttribute("MIN_DP"))
+                            numOfReads -= Integer.parseInt(gt.getExtendedAttribute("MIN_DP").toString());
+                        else if (gt.hasDP())
+                            numOfReads -= gt.getDP();
+                    }
+
                 }
             }
             return numOfReads;

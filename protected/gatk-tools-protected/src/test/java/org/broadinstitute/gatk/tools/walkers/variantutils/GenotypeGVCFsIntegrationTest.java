@@ -109,7 +109,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000", b37KGReference),
                 1,
-                Arrays.asList("d3fab0d45f0054b71aa1d031876a4bbb"));
+                Arrays.asList("c9edd4ca8c2801c4681322087d82e781"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -158,7 +158,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Arrays.asList("54a86ade63b84c87ff4e537e276987fc"));
+                Arrays.asList("f48114bc6348cdc9dc4f0960f5dcf5f8"));
         executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
     }
 
@@ -170,8 +170,19 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Arrays.asList("1a2728e7295a6ffca6c2ba5a01af3593"));
+                Arrays.asList("f88841deb5c2ce4f3bbea1e914a13898"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
+    }
+
+    @Test(enabled = true)
+    public void combineBPresGVCFs() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "NA12891.BPres.g.vcf" +
+                " -V " + privateTestDir + "NA12892.BPres.g.vcf" +
+                " -L 20:10433000-10436909", b37KGReference),
+                1,
+                Arrays.asList("f342872f485e6978501facc78c354078"));
+        executeTest("combineBPresGVCFs", spec);
     }
 
     @Test(enabled = true)
