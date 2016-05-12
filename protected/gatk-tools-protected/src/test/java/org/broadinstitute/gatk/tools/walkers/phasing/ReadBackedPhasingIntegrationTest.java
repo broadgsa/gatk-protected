@@ -70,7 +70,6 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 " --no_cmdline_in_header";
     }
 
-
     @Test
     public void test1() {
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -169,5 +168,23 @@ public class ReadBackedPhasingIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("630816da701b9ea8674c23c91fa61bec"));
         executeTest("Merge SNPs if on the same read", spec);
+    }
+
+    @Test
+    public void testDontMergeSpanningDeletions() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T ReadBackedPhasing" +
+                        " -R " + b37KGReferenceWithDecoy +
+                        " -I " + privateTestDir + "phasing_test_with_span_del_1.bam" +
+                        " -I " + privateTestDir + "phasing_test_with_span_del_2.bam" +
+                        " -I " + privateTestDir + "phasing_test_with_span_del_3.bam" +
+                        " -I " + privateTestDir + "phasing_test_with_span_del_4.bam" +
+                        " --variant " + privateTestDir + "phasing_test_with_span_del.vcf" +
+                        " -enableMergeToMNP" +
+                        " -o %s" +
+                        " --no_cmdline_in_header",
+                1,
+                Arrays.asList("b334de5ad35665f0d65034197ac05b32"));
+        executeTest("Don't merge symbolic SPAN_DEL (*) alleles (into the nonexistent ** MNP).", spec);
     }
 }
