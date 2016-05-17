@@ -74,7 +74,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("3e60ca3e04fecf5d6004c08d6f7503ca"));
+                Arrays.asList("43fa27382e654081af69ea05bd26e281"));
         executeTest("testUsingDiscoveredAF", spec);
     }
 
@@ -89,7 +89,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("1cca249ebc2599c7f24210d4f3204049"));
+                Arrays.asList("d63893f530fb749505ec685a5c57ff69"));
         executeTest("testMissingPriors", spec);
     }
 
@@ -103,7 +103,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + validationDataLocation + "NA12878.Jan2013.haplotypeCaller.subset.indels.vcf" +
                         " -supporting " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("cc59ceb6dab620a353edf03ef14090f1"));
+                Arrays.asList("a5d7bcad5a2a194441d00eb6574b8300"));
         executeTest("testInputINDELs", spec);
     }
 
@@ -117,7 +117,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + CEUtrioTest +
                         " -supporting " + CEUtrioPopPriorsTest,
                 1,
-                Arrays.asList("c7d35ce5f3675528fc484baa1c5df7b4"));
+                Arrays.asList("98bf63fd2ae3fa1cc42e66fa6b4f50f5"));
         executeTest("testFamilyPriors", spec);
     }
 
@@ -131,7 +131,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + getThreeMemberNonTrioTest +
                         " -skipPop",
                 1,
-                Arrays.asList("c523b99da1f7e0c0ea4090b916ae7379"));
+                Arrays.asList("e71420099fcfc824f1cf92ff2010b69e"));
         executeTest("testFamilyPriors", spec);
     }
 

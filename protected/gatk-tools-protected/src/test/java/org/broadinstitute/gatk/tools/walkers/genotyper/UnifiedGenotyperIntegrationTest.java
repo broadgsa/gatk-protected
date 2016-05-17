@@ -86,7 +86,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testMinBaseQualityScore() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --min_base_quality_score 26", 1,
-                Arrays.asList("b4201a4d30b6ed5c6fc80248676be5ff"));
+                Arrays.asList("52a3064863b97e43d8df878edc29275c"));
         executeTest("test min_base_quality_score 26", spec);
     }
 
@@ -94,7 +94,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testSLOD() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --disableDithering -R " + b36KGReference + " --computeSLOD --no_cmdline_in_header -glm BOTH --dbsnp " + b36dbSNP129 + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000", 1,
-                Arrays.asList("06d166ecf40563c234902d1b340a3ff1"));
+                Arrays.asList("31790ea2bd2fa7e5cec78e3ffbc98c81"));
         executeTest("test SLOD", spec);
     }
 
@@ -102,7 +102,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testNDA() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " --annotateNDA -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000", 1,
-                Arrays.asList("0538b7363d271f1f37d73dc3bd5b0071"));
+                Arrays.asList("2f2d7dd623446fc3cae62a44a016c16d"));
         executeTest("test NDA", spec);
     }
 
@@ -110,7 +110,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testCompTrack() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -comp:FOO " + b36dbSNP129 + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000", 1,
-                Arrays.asList("f54dafe8e9ac1402d230e4d83766d6cf"));
+                Arrays.asList("7645a06b917efb1ee799bf21bdf08bc4"));
         executeTest("test using comp track", spec);
     }
 
@@ -124,17 +124,17 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testOutputParameterSitesOnly() {
-        testOutputParameters("-sites_only", "dfd11f2f33dc4da50a2725bfb6f64dba");
+        testOutputParameters("-sites_only", "3c0e109190cfbe41d24e7726cc8fe6e3");
     }
 
     @Test
     public void testOutputParameterAllConfident() {
-        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "a9c30d2bb179ea7a69dd0e7367fcd465");
+        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "f6937cc8ec068f2d38b5d277a92be34b");
     }
 
     @Test
     public void testOutputParameterAllSites() {
-        testOutputParameters("--output_mode EMIT_ALL_SITES", "791fbabf4a8a7a1d0735d57c4c6b4a5a");
+        testOutputParameters("--output_mode EMIT_ALL_SITES", "1cddd7b1e730765c2b7b55d8a1d69b4c");
     }
 
     private void testOutputParameters(final String args, final String md5) {
@@ -148,7 +148,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testConfidence() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 ", 1,
-                Arrays.asList("38a2f8e5542f78c324e89d09eb545f07"));
+                Arrays.asList("5c7d237e666439edb0ef8c697e37933c"));
         executeTest("test confidence 1", spec1);
     }
 
@@ -156,7 +156,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testNoPrior() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -inputPrior 0.33333 -inputPrior 0.33333", 1,
-                Arrays.asList("6f96d079f5889d8555880e6cb614a41d"));
+                Arrays.asList("24b550bbc3c9f0577e069b3fd3122d52"));
         executeTest("test no prior 1", spec1);
 
     }
@@ -165,7 +165,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void testUserPrior() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 -stand_call_conf 10 -inputPrior 0.001 -inputPrior 0.495", 1,
-                Arrays.asList("6e48c44b58960954e7e49810d9e3b3ad"));
+                Arrays.asList("f60b6705daec1059ce3e533bf8e44c89"));
         executeTest("test user prior 1", spec1);
 
     }
@@ -174,7 +174,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void emitPLsAtAllSites() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --output_mode EMIT_ALL_SITES -allSitePLs", 1,
-                Arrays.asList("04630efda71e0e804cfa4b2e7461c083"));
+                Arrays.asList("ae778a64323abe0da5194f0b936f48aa"));
         // GDA: TODO: BCF encoder/decoder doesn't seem to support non-standard values in genotype fields. IE even if there is a field defined in FORMAT and in the header the BCF2 encoder will still fail
         spec1.disableShadowBCF();
 
@@ -190,12 +190,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testHeterozyosity1() {
-        testHeterozosity( 0.01, "3e6328e822a92911e591733438fe023c" );
+        testHeterozosity( 0.01, "6b8bdde9d303139806c5177fae53b1fd" );
     }
 
     @Test
     public void testHeterozyosity2() {
-        testHeterozosity( 1.0 / 1850, "e87e2ad4a6d86ba9cc627b397af9c681" );
+        testHeterozosity( 1.0 / 1850, "b1604d1ba68dfe2fcfb861ef6420a8ba" );
     }
 
     private void testHeterozosity(final double arg, final String md5) {
@@ -274,7 +274,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,100,000",
                 1,
-                Arrays.asList("9363de1caf569d565e0c377fe234f170"));
+                Arrays.asList("7ed55f70feeacf8ecc6b36f0d741dfc7"));
 
         executeTest(String.format("test multiple technologies"), spec);
     }
@@ -293,7 +293,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -L 1:10,000,000-10,100,000" +
                         " -baq CALCULATE_AS_NECESSARY",
                 1,
-                Arrays.asList("5e9d48c296d50d553ae13f283b75e1ee"));
+                Arrays.asList("90224ac1c9e2ce9b77fee8dd6e044efe"));
 
         executeTest(String.format("test calling with BAQ"), spec);
     }
@@ -310,7 +310,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000 " +
                 "-A SnpEff",
                 1,
-                Arrays.asList("52bac28a85b85d9596d668d3f934f792"));
+                Arrays.asList("e99f100fe71bb7f328b485204c16f14a"));
 
         executeTest("testSnpEffAnnotationRequestedWithoutRodBinding", spec);
     }

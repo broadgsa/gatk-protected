@@ -95,12 +95,12 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
             { // new tests on b37 using testdir VCF
                 final String testfile = privateTestDir + "NA12878.hg19.example1.vcf";
                 final String args = "-select 'DP > 30' -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "b899cebdd30e6641437489b746301797", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "64f9258e9e3024b6361abbeeeefafee9", nt);
             }
             { // AD and PL decoding race condition
                 final String testfile = privateTestDir + "race_condition.vcf";
                 final String args = "-env -trimAlternates -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "ace613ed2e4929f448d30d85110d6ced", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "f289f22aacf1a5638a9fb6b32c5cf6fb", nt);
             }
         }
 

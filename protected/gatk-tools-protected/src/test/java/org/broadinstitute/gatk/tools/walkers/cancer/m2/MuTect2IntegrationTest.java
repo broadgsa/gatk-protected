@@ -121,7 +121,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
 
     @Test
     public void testMicroRegression() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "617054c6d056cad7448a463cb8d04a55");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "a7658ccfb75bf1ce8d3d3cfbf3b552f0");
     }
 
     /**
@@ -131,7 +131,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTruePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "f856432679e43445d2939772be4326cf");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "91dee82a13275e5568f5d2e680e3162b");
     }
 
     /**
@@ -140,7 +140,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     @Test
     public void testTruePositivesDream3TrackedDropped() {
         M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
-                "ee4786de29532ffd745048c449a9772a",
+                "4f1337df1de5dd4468e2d389403ca785",
                 "b536e76870326b4be01b8d6b83c1cf1c");
     }
 
@@ -150,7 +150,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "11357aa543e7c6b2725cd330adba23a0");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "6be3fc318e2c22a28098f58b76c9a5a1");
     }
 
     /**
@@ -158,7 +158,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "1df41f2dd6d4715ae1b423bf295ec7c5");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "b1010a6614b0332c41fd6da9d5f6b14e");
     }
 
     /**
@@ -166,7 +166,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTumorOnly(){
-        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "8439d9a673b3a57aa5893af600125d3b");
+        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "bb0cddfdc29500fbea68a0913d6706a3");
     }
 
 }

@@ -275,8 +275,8 @@ public class UnifiedGenotyper extends LocusWalker<List<VariantCallContext>, Unif
             UAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(UAC.CONTAMINATION_FRACTION_FILE, UAC.CONTAMINATION_FRACTION, sampleNameSet, logger));
 
         // check for a bad max alleles value
-        if ( UAC.genotypeArgs.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
-            throw new UserException.BadArgumentValue("max_alternate_alleles", "the maximum possible value is " + GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED);
+        if ( UAC.genotypeArgs.MAX_ALTERNATE_ALLELES > GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
+            throw new UserException.BadArgumentValue("max_alternate_alleles", "the maximum possible value is " + GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED);
 
         // warn the user for misusing EMIT_ALL_SITES
         if ( UAC.outputMode == OutputMode.EMIT_ALL_SITES &&
