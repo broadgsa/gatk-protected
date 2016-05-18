@@ -794,7 +794,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             }
         }
 
-        if ( (normalAltCounts >= MTAC.MAX_ALT_ALLELES_IN_NORMAL_COUNT || normalF >= MTAC.MAX_ALT_ALLELE_IN_NORMAL_FRACTION ) && normalAltQualityScoreSum > MTAC.MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM) {
+        if ( (normalAltCounts > MTAC.MAX_ALT_ALLELES_IN_NORMAL_COUNT || normalF > MTAC.MAX_ALT_ALLELE_IN_NORMAL_FRACTION ) && normalAltQualityScoreSum > MTAC.MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM) {
             filters.add(GATKVCFConstants.ALT_ALLELE_IN_NORMAL_FILTER_NAME);
         } else {
 
