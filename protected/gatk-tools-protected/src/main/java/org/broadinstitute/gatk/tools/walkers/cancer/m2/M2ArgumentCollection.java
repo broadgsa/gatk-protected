@@ -62,30 +62,32 @@ public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection 
 
     /**
      * Artifact detection mode is used to prepare a panel of normals. This maintains the specified tumor LOD threshold,
-     * but disables the remaining pragmatic filters. See M2 usage examples for more information.
+     * but disables the remaining pragmatic filters. See usage examples above for more information.
      */
     @Advanced
     @Argument(fullName = "artifact_detection_mode", required = false, doc="Enable artifact detection for creating panels of normals")
     public boolean ARTIFACT_DETECTION_MODE = false;
 
     /**
-     * This is the tumor LOD threshold to output the variant in the VCF, although it may be filtered
+     * This is the LOD threshold that a variant must pass in the tumor to be emitted to the VCF. Note that the variant may pass this threshold yet still be annotated as FILTERed based on other criteria.
      */
     @Argument(fullName = "initial_tumor_lod", required = false, doc = "Initial LOD threshold for calling tumor variant")
     public double INITIAL_TUMOR_LOD_THRESHOLD = 4.0;
 
-
+    /**
+     * This is the LOD threshold corresponding to the minimum amount of reference evidence in the normal for a variant to be considered somatic and emitted in the VCF
+     */
     @Argument(fullName = "initial_normal_lod", required = false, doc = "Initial LOD threshold for calling normal variant")
     public double INITIAL_NORMAL_LOD_THRESHOLD = 0.5;
 
     /**
-     * Only variants with tumor LODs exceeding this thresholds can pass filtration
+     * Only variants with tumor LODs exceeding this threshold can pass filtering.
      */
     @Argument(fullName = "tumor_lod", required = false, doc = "LOD threshold for calling tumor variant")
     public double TUMOR_LOD_THRESHOLD = 6.3;
 
     /**
-     * This is a measure of the minimum evidence to show that a variant observed in the tumor is not also present in its normal
+     * This is a measure of the minimum evidence to support that a variant observed in the tumor is not also present in the normal.
      */
     @Argument(fullName = "normal_lod", required = false, doc = "LOD threshold for calling normal non-germline")
     public double NORMAL_LOD_THRESHOLD = 2.2;
@@ -98,19 +100,22 @@ public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection 
     public double NORMAL_DBSNP_LOD_THRESHOLD = 5.5;
 
     /**
-     * This argument is used for the M2 internal "alt_allele_in_normal" filter
+     * This argument is used for the internal "alt_allele_in_normal" filter.
+     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
      **/
     @Argument(fullName = "max_alt_alleles_in_normal_count", required = false, doc="Threshold for maximum alternate allele counts in normal")
-    public int MAX_ALT_ALLELES_IN_NORMAL_COUNT = 2;
+    public int MAX_ALT_ALLELES_IN_NORMAL_COUNT = 1;
 
     /**
-     * This argument is used for the M2 internal "alt_allele_in_normal" filter
+     * This argument is used for the internal "alt_allele_in_normal" filter.
+     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
      */
     @Argument(fullName = "max_alt_alleles_in_normal_qscore_sum", required = false, doc="Threshold for maximum alternate allele quality score sum in normal")
     public int MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM = 20;
 
     /**
-     * This argument is used for the M2 internal "alt_allele_in_normal" filter
+     * This argument is used for the internal "alt_allele_in_normal" filter.
+     * A variant will PASS the filter if the value tested is lower or equal to the threshold value. It will FAIL the filter if the value tested is greater than the max threshold value.
      */
     @Argument(fullName = "max_alt_allele_in_normal_fraction", required = false, doc="Threshold for maximum alternate allele fraction in normal")
     public double MAX_ALT_ALLELE_IN_NORMAL_FRACTION = 0.03;
