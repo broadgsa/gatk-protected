@@ -193,6 +193,11 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * issues. Rather than dying immediately when the initial model fails, this argument allows the
      * tool to restart with a different random seed and try to build the model again. The first
      * successfully built model will be kept.
+     *
+     * Note that one underlying cause of model building failure is that there is insufficient data to 
+     * build a really robust model. This argument provides a workaround for that issue but it is 
+     * preferable to provide this tool with more data (typically by including more samples or more territory) 
+     * in order to generate a more robust model.
      */
     @Advanced
     @Argument(fullName="max_attempts", shortName = "max_attempts", doc="How many times should we try to build a VQSR model before failing?", required=false)
