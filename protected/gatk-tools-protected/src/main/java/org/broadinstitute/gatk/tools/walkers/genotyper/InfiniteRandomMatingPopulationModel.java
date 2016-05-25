@@ -141,7 +141,7 @@ public class InfiniteRandomMatingPopulationModel implements GenotypingModel {
     }
 
     private GenotypeLikelihoodCalculator getLikelihoodsCalculator(final int samplePloidy, final int alleleCount) {
-        if (samplePloidy >= cacheAlleleCountCapacity)
+        if (samplePloidy >= cachePloidyCapacity)
             return GenotypeLikelihoodCalculators.getInstance(samplePloidy, alleleCount);
         else if (alleleCount >= cacheAlleleCountCapacity)
             return GenotypeLikelihoodCalculators.getInstance(samplePloidy, alleleCount);
