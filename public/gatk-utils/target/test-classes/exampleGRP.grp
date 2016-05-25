@@ -1,0 +1,1118 @@
+#:GATKReport.v1.1:5
+#:GATKTable:2:18:%s:%s:;
+#:GATKTable:Arguments:Recalibration argument collection values used in this run
+Argument                    Value                                                                   
+binary_tag_name             null                                                                    
+covariate                   ReadGroupCovariate,QualityScoreCovariate,ContextCovariate,CycleCovariate
+default_platform            null                                                                    
+deletions_default_quality   45                                                                      
+force_platform              null                                                                    
+indels_context_size         3                                                                       
+insertions_default_quality  45                                                                      
+low_quality_tail            2                                                                       
+maximum_cycle_value         500                                                                     
+mismatches_context_size     2                                                                       
+mismatches_default_quality  -1                                                                      
+no_standard_covs            false                                                                   
+plot_pdf_file               null                                                                    
+quantizing_levels           16                                                                      
+recalibration_report        null                                                                    
+run_without_dbsnp           false                                                                   
+solid_nocall_strategy       THROW_EXCEPTION                                                         
+solid_recal_mode            SET_Q_ZERO                                                              
+
+#:GATKTable:3:94:%s:%s:%s:;
+#:GATKTable:Quantized:Quality quantization map
+QualityScore  Count  QuantizedScore
+           0      0               8
+           1      0               8
+           2      0               8
+           3      0               8
+           4      0               8
+           5      0               8
+           6     11               8
+           7      0               8
+           8      7               8
+           9      4               8
+          10      1               8
+          11      2               8
+          12      4              19
+          13      3              19
+          14      1              19
+          15      5              19
+          16     10              19
+          17      6              19
+          18      7              19
+          19     15              19
+          20      5              19
+          21     17              19
+          22      9              19
+          23     15              23
+          24     20              24
+          25     15              13
+          26      6              13
+          27     22              27
+          28     15              28
+          29     20              29
+          30     20              30
+          31     25              31
+          32     32              32
+          33     35              33
+          34     36              34
+          35      0              93
+          36      0              93
+          37      0              93
+          38      0              93
+          39      0              93
+          40      0              93
+          41      0              93
+          42      0              93
+          43      0              93
+          44      0              93
+          45    736              45
+          46      0              93
+          47      0              93
+          48      0              93
+          49      0              93
+          50      0              93
+          51      0              93
+          52      0              93
+          53      0              93
+          54      0              93
+          55      0              93
+          56      0              93
+          57      0              93
+          58      0              93
+          59      0              93
+          60      0              93
+          61      0              93
+          62      0              93
+          63      0              93
+          64      0              93
+          65      0              93
+          66      0              93
+          67      0              93
+          68      0              93
+          69      0              93
+          70      0              93
+          71      0              93
+          72      0              93
+          73      0              93
+          74      0              93
+          75      0              93
+          76      0              93
+          77      0              93
+          78      0              93
+          79      0              93
+          80      0              93
+          81      0              93
+          82      0              93
+          83      0              93
+          84      0              93
+          85      0              93
+          86      0              93
+          87      0              93
+          88      0              93
+          89      0              93
+          90      0              93
+          91      0              93
+          92      0              93
+          93      0              93
+
+#:GATKTable:6:3:%s:%s:%.4f:%.4f:%d:%.2f:;
+#:GATKTable:RecalTable0:
+ReadGroup       EventType  EmpiricalQuality  EstimatedQReported  Observations  Errors
+exampleBAM.bam  M                   17.0000             17.4959           368   11.00
+exampleBAM.bam  I                   45.0000             45.0000           368    0.00
+exampleBAM.bam  D                   45.0000             45.0000           368    0.00
+
+#:GATKTable:6:30:%s:%s:%s:%.4f:%d:%.2f:;
+#:GATKTable:RecalTable1:
+ReadGroup       QualityScore  EventType  EmpiricalQuality  Observations  Errors
+exampleBAM.bam             6  M                    6.0000            11    3.00
+exampleBAM.bam             8  M                    8.0000             7    1.00
+exampleBAM.bam             9  M                    9.0000             4    0.00
+exampleBAM.bam            10  M                   10.0000             1    0.00
+exampleBAM.bam            11  M                   11.0000             2    1.00
+exampleBAM.bam            12  M                   12.0000             4    0.00
+exampleBAM.bam            13  M                   13.0000             3    0.00
+exampleBAM.bam            14  M                   14.0000             1    0.00
+exampleBAM.bam            15  M                   15.0000             5    0.00
+exampleBAM.bam            16  M                   16.0000            10    1.00
+exampleBAM.bam            17  M                   17.0000             6    1.00
+exampleBAM.bam            18  M                   18.0000             7    1.00
+exampleBAM.bam            19  M                   19.0000            15    1.00
+exampleBAM.bam            20  M                   20.0000             5    1.00
+exampleBAM.bam            21  M                   21.0000            17    0.00
+exampleBAM.bam            22  M                   22.0000             9    0.00
+exampleBAM.bam            23  M                   23.0000            15    0.00
+exampleBAM.bam            24  M                   24.0000            20    1.00
+exampleBAM.bam            25  M                   25.0000            15    0.00
+exampleBAM.bam            26  M                   26.0000             6    0.00
+exampleBAM.bam            27  M                   27.0000            22    0.00
+exampleBAM.bam            28  M                   28.0000            15    0.00
+exampleBAM.bam            29  M                   29.0000            20    0.00
+exampleBAM.bam            30  M                   30.0000            20    0.00
+exampleBAM.bam            31  M                   31.0000            25    0.00
+exampleBAM.bam            32  M                   32.0000            32    0.00
+exampleBAM.bam            33  M                   33.0000            35    0.00
+exampleBAM.bam            34  M                   34.0000            36    0.00
+exampleBAM.bam            45  I                   45.0000           368    0.00
+exampleBAM.bam            45  D                   45.0000           368    0.00
+
+#:GATKTable:8:952:%s:%s:%s:%s:%s:%.4f:%d:%.2f:;
+#:GATKTable:RecalTable2:
+ReadGroup       QualityScore  CovariateValue  CovariateName  EventType  EmpiricalQuality  Observations  Errors
+exampleBAM.bam             6  AA              Context        M                    6.0000             1    0.00
+exampleBAM.bam             6  GA              Context        M                    6.0000             1    0.00
+exampleBAM.bam             6  GC              Context        M                    6.0000             2    2.00
+exampleBAM.bam             6  TG              Context        M                    6.0000             1    0.00
+exampleBAM.bam             6  AT              Context        M                    6.0000             1    0.00
+exampleBAM.bam             6  CT              Context        M                    6.0000             1    0.00
+exampleBAM.bam             6  GT              Context        M                    6.0000             2    0.00
+exampleBAM.bam             6  TT              Context        M                    6.0000             2    1.00
+exampleBAM.bam             8  AA              Context        M                    8.0000             1    0.00
+exampleBAM.bam             8  GA              Context        M                    8.0000             2    0.00
+exampleBAM.bam             8  GC              Context        M                    8.0000             1    0.00
+exampleBAM.bam             8  TG              Context        M                    8.0000             1    1.00
+exampleBAM.bam             8  GT              Context        M                    8.0000             2    0.00
+exampleBAM.bam             9  TG              Context        M                    9.0000             1    0.00
+exampleBAM.bam             9  AT              Context        M                    9.0000             1    0.00
+exampleBAM.bam             9  CT              Context        M                    9.0000             1    0.00
+exampleBAM.bam             9  GT              Context        M                    9.0000             1    0.00
+exampleBAM.bam            10  TT              Context        M                   10.0000             1    0.00
+exampleBAM.bam            11  TC              Context        M                   11.0000             1    1.00
+exampleBAM.bam            11  GT              Context        M                   11.0000             1    0.00
+exampleBAM.bam            12  GA              Context        M                   12.0000             1    0.00
+exampleBAM.bam            12  CC              Context        M                   12.0000             1    0.00
+exampleBAM.bam            12  TC              Context        M                   12.0000             1    0.00
+exampleBAM.bam            12  AG              Context        M                   12.0000             1    0.00
+exampleBAM.bam            13  AA              Context        M                   13.0000             1    0.00
+exampleBAM.bam            13  AG              Context        M                   13.0000             1    0.00
+exampleBAM.bam            13  AT              Context        M                   13.0000             1    0.00
+exampleBAM.bam            14  GA              Context        M                   14.0000             1    0.00
+exampleBAM.bam            15  AA              Context        M                   15.0000             2    0.00
+exampleBAM.bam            15  GA              Context        M                   15.0000             1    0.00
+exampleBAM.bam            15  GT              Context        M                   15.0000             2    0.00
+exampleBAM.bam            16  AA              Context        M                   16.0000             1    0.00
+exampleBAM.bam            16  TA              Context        M                   16.0000             4    1.00
+exampleBAM.bam            16  TC              Context        M                   16.0000             1    0.00
+exampleBAM.bam            16  GG              Context        M                   16.0000             1    0.00
+exampleBAM.bam            16  TG              Context        M                   16.0000             1    0.00
+exampleBAM.bam            16  CT              Context        M                   16.0000             1    0.00
+exampleBAM.bam            16  GT              Context        M                   16.0000             1    0.00
+exampleBAM.bam            17  CA              Context        M                   17.0000             1    0.00
+exampleBAM.bam            17  TA              Context        M                   17.0000             1    0.00
+exampleBAM.bam            17  TG              Context        M                   17.0000             1    1.00
+exampleBAM.bam            17  GT              Context        M                   17.0000             1    0.00
+exampleBAM.bam            17  TT              Context        M                   17.0000             2    0.00
+exampleBAM.bam            18  AC              Context        M                   18.0000             1    0.00
+exampleBAM.bam            18  TC              Context        M                   18.0000             1    1.00
+exampleBAM.bam            18  AT              Context        M                   18.0000             1    0.00
+exampleBAM.bam            18  GT              Context        M                   18.0000             1    0.00
+exampleBAM.bam            18  TT              Context        M                   18.0000             2    0.00
+exampleBAM.bam            19  AA              Context        M                   19.0000             2    0.00
+exampleBAM.bam            19  CA              Context        M                   19.0000             2    0.00
+exampleBAM.bam            19  GA              Context        M                   19.0000             2    0.00
+exampleBAM.bam            19  TA              Context        M                   19.0000             3    0.00
+exampleBAM.bam            19  GC              Context        M                   19.0000             1    0.00
+exampleBAM.bam            19  GG              Context        M                   19.0000             1    0.00
+exampleBAM.bam            19  TG              Context        M                   19.0000             2    1.00
+exampleBAM.bam            19  GT              Context        M                   19.0000             1    0.00
+exampleBAM.bam            19  TT              Context        M                   19.0000             1    0.00
+exampleBAM.bam            20  AA              Context        M                   20.0000             1    0.00
+exampleBAM.bam            20  CA              Context        M                   20.0000             1    0.00
+exampleBAM.bam            20  CC              Context        M                   20.0000             1    0.00
+exampleBAM.bam            20  TG              Context        M                   20.0000             1    0.00
+exampleBAM.bam            20  TT              Context        M                   20.0000             1    1.00
+exampleBAM.bam            21  CA              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  GA              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  TA              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  CC              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  TC              Context        M                   21.0000             2    0.00
+exampleBAM.bam            21  AG              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  GG              Context        M                   21.0000             4    0.00
+exampleBAM.bam            21  TG              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  AT              Context        M                   21.0000             2    0.00
+exampleBAM.bam            21  CT              Context        M                   21.0000             1    0.00
+exampleBAM.bam            21  GT              Context        M                   21.0000             2    0.00
+exampleBAM.bam            22  CA              Context        M                   22.0000             1    0.00
+exampleBAM.bam            22  GA              Context        M                   22.0000             3    0.00
+exampleBAM.bam            22  TA              Context        M                   22.0000             1    0.00
+exampleBAM.bam            22  GC              Context        M                   22.0000             1    0.00
+exampleBAM.bam            22  GG              Context        M                   22.0000             1    0.00
+exampleBAM.bam            22  TG              Context        M                   22.0000             1    0.00
+exampleBAM.bam            22  TT              Context        M                   22.0000             1    0.00
+exampleBAM.bam            23  AA              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  CA              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  TA              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  CC              Context        M                   23.0000             2    0.00
+exampleBAM.bam            23  GC              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  TC              Context        M                   23.0000             2    0.00
+exampleBAM.bam            23  GG              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  TG              Context        M                   23.0000             3    0.00
+exampleBAM.bam            23  AT              Context        M                   23.0000             1    0.00
+exampleBAM.bam            23  TT              Context        M                   23.0000             2    0.00
+exampleBAM.bam            24  CA              Context        M                   24.0000             3    0.00
+exampleBAM.bam            24  GA              Context        M                   24.0000             2    0.00
+exampleBAM.bam            24  TA              Context        M                   24.0000             2    1.00
+exampleBAM.bam            24  GC              Context        M                   24.0000             1    0.00
+exampleBAM.bam            24  AG              Context        M                   24.0000             2    0.00
+exampleBAM.bam            24  CG              Context        M                   24.0000             1    0.00
+exampleBAM.bam            24  GG              Context        M                   24.0000             3    0.00
+exampleBAM.bam            24  AT              Context        M                   24.0000             1    0.00
+exampleBAM.bam            24  CT              Context        M                   24.0000             1    0.00
+exampleBAM.bam            24  GT              Context        M                   24.0000             1    0.00
+exampleBAM.bam            24  TT              Context        M                   24.0000             3    0.00
+exampleBAM.bam            25  AA              Context        M                   25.0000             2    0.00
+exampleBAM.bam            25  CA              Context        M                   25.0000             1    0.00
+exampleBAM.bam            25  GG              Context        M                   25.0000             2    0.00
+exampleBAM.bam            25  TG              Context        M                   25.0000             2    0.00
+exampleBAM.bam            25  AT              Context        M                   25.0000             2    0.00
+exampleBAM.bam            25  GT              Context        M                   25.0000             1    0.00
+exampleBAM.bam            25  TT              Context        M                   25.0000             5    0.00
+exampleBAM.bam            26  TA              Context        M                   26.0000             1    0.00
+exampleBAM.bam            26  GG              Context        M                   26.0000             1    0.00
+exampleBAM.bam            26  TG              Context        M                   26.0000             1    0.00
+exampleBAM.bam            26  AT              Context        M                   26.0000             1    0.00
+exampleBAM.bam            26  GT              Context        M                   26.0000             1    0.00
+exampleBAM.bam            26  TT              Context        M                   26.0000             1    0.00
+exampleBAM.bam            27  AA              Context        M                   27.0000             2    0.00
+exampleBAM.bam            27  CA              Context        M                   27.0000             1    0.00
+exampleBAM.bam            27  TA              Context        M                   27.0000             1    0.00
+exampleBAM.bam            27  TC              Context        M                   27.0000             2    0.00
+exampleBAM.bam            27  AG              Context        M                   27.0000             3    0.00
+exampleBAM.bam            27  GG              Context        M                   27.0000             3    0.00
+exampleBAM.bam            27  TG              Context        M                   27.0000             2    0.00
+exampleBAM.bam            27  AT              Context        M                   27.0000             4    0.00
+exampleBAM.bam            27  CT              Context        M                   27.0000             2    0.00
+exampleBAM.bam            27  TT              Context        M                   27.0000             2    0.00
+exampleBAM.bam            28  AA              Context        M                   28.0000             1    0.00
+exampleBAM.bam            28  CA              Context        M                   28.0000             1    0.00
+exampleBAM.bam            28  TA              Context        M                   28.0000             2    0.00
+exampleBAM.bam            28  AG              Context        M                   28.0000             3    0.00
+exampleBAM.bam            28  GG              Context        M                   28.0000             3    0.00
+exampleBAM.bam            28  TG              Context        M                   28.0000             1    0.00
+exampleBAM.bam            28  GT              Context        M                   28.0000             4    0.00
+exampleBAM.bam            29  CA              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  TA              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  AC              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  CC              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  GC              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  AG              Context        M                   29.0000             3    0.00
+exampleBAM.bam            29  CG              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  GG              Context        M                   29.0000             4    0.00
+exampleBAM.bam            29  TG              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  AT              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  GT              Context        M                   29.0000             1    0.00
+exampleBAM.bam            29  TT              Context        M                   29.0000             4    0.00
+exampleBAM.bam            30  AA              Context        M                   30.0000             2    0.00
+exampleBAM.bam            30  CA              Context        M                   30.0000             1    0.00
+exampleBAM.bam            30  AC              Context        M                   30.0000             4    0.00
+exampleBAM.bam            30  CC              Context        M                   30.0000             1    0.00
+exampleBAM.bam            30  TC              Context        M                   30.0000             2    0.00
+exampleBAM.bam            30  AG              Context        M                   30.0000             3    0.00
+exampleBAM.bam            30  GG              Context        M                   30.0000             1    0.00
+exampleBAM.bam            30  TG              Context        M                   30.0000             1    0.00
+exampleBAM.bam            30  AT              Context        M                   30.0000             2    0.00
+exampleBAM.bam            30  CT              Context        M                   30.0000             2    0.00
+exampleBAM.bam            30  GT              Context        M                   30.0000             1    0.00
+exampleBAM.bam            31  CA              Context        M                   31.0000             1    0.00
+exampleBAM.bam            31  GA              Context        M                   31.0000             1    0.00
+exampleBAM.bam            31  CC              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  GC              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  AG              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  GG              Context        M                   31.0000             6    0.00
+exampleBAM.bam            31  TG              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  AT              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  CT              Context        M                   31.0000             2    0.00
+exampleBAM.bam            31  GT              Context        M                   31.0000             1    0.00
+exampleBAM.bam            31  TT              Context        M                   31.0000             3    0.00
+exampleBAM.bam            32  CA              Context        M                   32.0000             2    0.00
+exampleBAM.bam            32  TA              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  AC              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  CC              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  TC              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  AG              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  CG              Context        M                   32.0000             1    0.00
+exampleBAM.bam            32  GG              Context        M                   32.0000             8    0.00
+exampleBAM.bam            32  TG              Context        M                   32.0000             3    0.00
+exampleBAM.bam            32  AT              Context        M                   32.0000             4    0.00
+exampleBAM.bam            32  CT              Context        M                   32.0000             2    0.00
+exampleBAM.bam            32  TT              Context        M                   32.0000             6    0.00
+exampleBAM.bam            33  CA              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  GA              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  TA              Context        M                   33.0000             1    0.00
+exampleBAM.bam            33  AC              Context        M                   33.0000             1    0.00
+exampleBAM.bam            33  CC              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  GC              Context        M                   33.0000             1    0.00
+exampleBAM.bam            33  TC              Context        M                   33.0000             3    0.00
+exampleBAM.bam            33  AG              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  CG              Context        M                   33.0000             1    0.00
+exampleBAM.bam            33  GG              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  TG              Context        M                   33.0000             5    0.00
+exampleBAM.bam            33  AT              Context        M                   33.0000             2    0.00
+exampleBAM.bam            33  CT              Context        M                   33.0000             4    0.00
+exampleBAM.bam            33  GT              Context        M                   33.0000             1    0.00
+exampleBAM.bam            33  TT              Context        M                   33.0000             4    0.00
+exampleBAM.bam            34  AA              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  CA              Context        M                   34.0000             3    0.00
+exampleBAM.bam            34  GA              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  TA              Context        M                   34.0000             2    0.00
+exampleBAM.bam            34  AC              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  CC              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  GC              Context        M                   34.0000             2    0.00
+exampleBAM.bam            34  TC              Context        M                   34.0000             6    0.00
+exampleBAM.bam            34  AG              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  CG              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  GG              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  TG              Context        M                   34.0000             4    0.00
+exampleBAM.bam            34  AT              Context        M                   34.0000             4    0.00
+exampleBAM.bam            34  CT              Context        M                   34.0000             2    0.00
+exampleBAM.bam            34  GT              Context        M                   34.0000             1    0.00
+exampleBAM.bam            34  TT              Context        M                   34.0000             5    0.00
+exampleBAM.bam            45  AAA             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  AAA             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  CAA             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  CAA             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  GAA             Context        I                   45.0000             2    0.00
+exampleBAM.bam            45  GAA             Context        D                   45.0000             2    0.00
+exampleBAM.bam            45  TAA             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  TAA             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  ACA             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  ACA             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  CCA             Context        I                   45.0000             8    0.00
+exampleBAM.bam            45  CCA             Context        D                   45.0000             8    0.00
+exampleBAM.bam            45  GCA             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  GCA             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  TCA             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  TCA             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  AGA             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  AGA             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  GGA             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  GGA             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  TGA             Context        I                   45.0000            10    0.00
+exampleBAM.bam            45  TGA             Context        D                   45.0000            10    0.00
+exampleBAM.bam            45  ATA             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  ATA             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  CTA             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  CTA             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  GTA             Context        I                   45.0000             2    0.00
+exampleBAM.bam            45  GTA             Context        D                   45.0000             2    0.00
+exampleBAM.bam            45  TTA             Context        I                   45.0000            11    0.00
+exampleBAM.bam            45  TTA             Context        D                   45.0000            11    0.00
+exampleBAM.bam            45  CAC             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  CAC             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  GAC             Context        I                   45.0000             2    0.00
+exampleBAM.bam            45  GAC             Context        D                   45.0000             2    0.00
+exampleBAM.bam            45  TAC             Context        I                   45.0000             1    0.00
+exampleBAM.bam            45  TAC             Context        D                   45.0000             1    0.00
+exampleBAM.bam            45  ACC             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  ACC             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  CCC             Context        I                   45.0000             1    0.00
+exampleBAM.bam            45  CCC             Context        D                   45.0000             1    0.00
+exampleBAM.bam            45  GCC             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  GCC             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  TCC             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  TCC             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  AGC             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  AGC             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  GGC             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  GGC             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  TGC             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  TGC             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  ATC             Context        I                   45.0000             7    0.00
+exampleBAM.bam            45  ATC             Context        D                   45.0000             7    0.00
+exampleBAM.bam            45  CTC             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  CTC             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  GTC             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  GTC             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  TTC             Context        I                   45.0000             9    0.00
+exampleBAM.bam            45  TTC             Context        D                   45.0000             9    0.00
+exampleBAM.bam            45  AAG             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  AAG             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  CAG             Context        I                   45.0000             7    0.00
+exampleBAM.bam            45  CAG             Context        D                   45.0000             7    0.00
+exampleBAM.bam            45  GAG             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  GAG             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  TAG             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  TAG             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  TCG             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  TCG             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  AGG             Context        I                   45.0000             7    0.00
+exampleBAM.bam            45  AGG             Context        D                   45.0000             7    0.00
+exampleBAM.bam            45  CGG             Context        I                   45.0000             3    0.00
+exampleBAM.bam            45  CGG             Context        D                   45.0000             3    0.00
+exampleBAM.bam            45  GGG             Context        I                   45.0000            16    0.00
+exampleBAM.bam            45  GGG             Context        D                   45.0000            16    0.00
+exampleBAM.bam            45  TGG             Context        I                   45.0000            16    0.00
+exampleBAM.bam            45  TGG             Context        D                   45.0000            16    0.00
+exampleBAM.bam            45  ATG             Context        I                   45.0000             8    0.00
+exampleBAM.bam            45  ATG             Context        D                   45.0000             8    0.00
+exampleBAM.bam            45  CTG             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  CTG             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  GTG             Context        I                   45.0000             8    0.00
+exampleBAM.bam            45  GTG             Context        D                   45.0000             8    0.00
+exampleBAM.bam            45  TTG             Context        I                   45.0000            11    0.00
+exampleBAM.bam            45  TTG             Context        D                   45.0000            11    0.00
+exampleBAM.bam            45  AAT             Context        I                   45.0000             7    0.00
+exampleBAM.bam            45  AAT             Context        D                   45.0000             7    0.00
+exampleBAM.bam            45  CAT             Context        I                   45.0000             6    0.00
+exampleBAM.bam            45  CAT             Context        D                   45.0000             6    0.00
+exampleBAM.bam            45  GAT             Context        I                   45.0000             8    0.00
+exampleBAM.bam            45  GAT             Context        D                   45.0000             8    0.00
+exampleBAM.bam            45  TAT             Context        I                   45.0000             9    0.00
+exampleBAM.bam            45  TAT             Context        D                   45.0000             9    0.00
+exampleBAM.bam            45  ACT             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  ACT             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  CCT             Context        I                   45.0000             4    0.00
+exampleBAM.bam            45  CCT             Context        D                   45.0000             4    0.00
+exampleBAM.bam            45  GCT             Context        I                   45.0000             2    0.00
+exampleBAM.bam            45  GCT             Context        D                   45.0000             2    0.00
+exampleBAM.bam            45  TCT             Context        I                   45.0000             8    0.00
+exampleBAM.bam            45  TCT             Context        D                   45.0000             8    0.00
+exampleBAM.bam            45  AGT             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  AGT             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  CGT             Context        I                   45.0000             2    0.00
+exampleBAM.bam            45  CGT             Context        D                   45.0000             2    0.00
+exampleBAM.bam            45  GGT             Context        I                   45.0000            13    0.00
+exampleBAM.bam            45  GGT             Context        D                   45.0000            13    0.00
+exampleBAM.bam            45  TGT             Context        I                   45.0000             5    0.00
+exampleBAM.bam            45  TGT             Context        D                   45.0000             5    0.00
+exampleBAM.bam            45  ATT             Context        I                   45.0000             9    0.00
+exampleBAM.bam            45  ATT             Context        D                   45.0000             9    0.00
+exampleBAM.bam            45  CTT             Context        I                   45.0000             7    0.00
+exampleBAM.bam            45  CTT             Context        D                   45.0000             7    0.00
+exampleBAM.bam            45  GTT             Context        I                   45.0000            17    0.00
+exampleBAM.bam            45  GTT             Context        D                   45.0000            17    0.00
+exampleBAM.bam            45  TTT             Context        I                   45.0000            12    0.00
+exampleBAM.bam            45  TTT             Context        D                   45.0000            12    0.00
+exampleBAM.bam             6  -4              Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  31              Cycle          M                    6.0000             1    1.00
+exampleBAM.bam             6  36              Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  -52             Cycle          M                    6.0000             1    1.00
+exampleBAM.bam             6  -62             Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  63              Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  -63             Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  -65             Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  67              Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             6  -68             Cycle          M                    6.0000             1    1.00
+exampleBAM.bam             6  75              Cycle          M                    6.0000             1    0.00
+exampleBAM.bam             8  17              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             8  46              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             8  57              Cycle          M                    8.0000             1    1.00
+exampleBAM.bam             8  58              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             8  60              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             8  63              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             8  71              Cycle          M                    8.0000             1    0.00
+exampleBAM.bam             9  -16             Cycle          M                    9.0000             1    0.00
+exampleBAM.bam             9  38              Cycle          M                    9.0000             1    0.00
+exampleBAM.bam             9  52              Cycle          M                    9.0000             1    0.00
+exampleBAM.bam             9  69              Cycle          M                    9.0000             1    0.00
+exampleBAM.bam            10  -75             Cycle          M                   10.0000             1    0.00
+exampleBAM.bam            11  -20             Cycle          M                   11.0000             1    0.00
+exampleBAM.bam            11  -40             Cycle          M                   11.0000             1    1.00
+exampleBAM.bam            12  25              Cycle          M                   12.0000             1    0.00
+exampleBAM.bam            12  40              Cycle          M                   12.0000             1    0.00
+exampleBAM.bam            12  62              Cycle          M                   12.0000             1    0.00
+exampleBAM.bam            12  68              Cycle          M                   12.0000             1    0.00
+exampleBAM.bam            13  39              Cycle          M                   13.0000             1    0.00
+exampleBAM.bam            13  55              Cycle          M                   13.0000             1    0.00
+exampleBAM.bam            13  75              Cycle          M                   13.0000             1    0.00
+exampleBAM.bam            14  -33             Cycle          M                   14.0000             1    0.00
+exampleBAM.bam            15  -8              Cycle          M                   15.0000             1    0.00
+exampleBAM.bam            15  -14             Cycle          M                   15.0000             1    0.00
+exampleBAM.bam            15  35              Cycle          M                   15.0000             1    0.00
+exampleBAM.bam            15  68              Cycle          M                   15.0000             1    0.00
+exampleBAM.bam            15  74              Cycle          M                   15.0000             1    0.00
+exampleBAM.bam            16  7               Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  19              Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  -34             Cycle          M                   16.0000             1    1.00
+exampleBAM.bam            16  -47             Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  51              Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  -55             Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  -58             Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  -65             Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  70              Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            16  73              Cycle          M                   16.0000             1    0.00
+exampleBAM.bam            17  -4              Cycle          M                   17.0000             1    0.00
+exampleBAM.bam            17  -20             Cycle          M                   17.0000             1    0.00
+exampleBAM.bam            17  58              Cycle          M                   17.0000             1    0.00
+exampleBAM.bam            17  62              Cycle          M                   17.0000             1    0.00
+exampleBAM.bam            17  -63             Cycle          M                   17.0000             1    0.00
+exampleBAM.bam            17  -76             Cycle          M                   17.0000             1    1.00
+exampleBAM.bam            18  -1              Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  10              Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  -19             Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  22              Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  36              Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  -56             Cycle          M                   18.0000             1    0.00
+exampleBAM.bam            18  -58             Cycle          M                   18.0000             1    1.00
+exampleBAM.bam            19  5               Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  -7              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  10              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  21              Cycle          M                   19.0000             2    0.00
+exampleBAM.bam            19  -30             Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  32              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  33              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  49              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  54              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  61              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  65              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  -70             Cycle          M                   19.0000             1    1.00
+exampleBAM.bam            19  -71             Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            19  72              Cycle          M                   19.0000             1    0.00
+exampleBAM.bam            20  9               Cycle          M                   20.0000             1    0.00
+exampleBAM.bam            20  -28             Cycle          M                   20.0000             1    1.00
+exampleBAM.bam            20  -29             Cycle          M                   20.0000             1    0.00
+exampleBAM.bam            20  -57             Cycle          M                   20.0000             1    0.00
+exampleBAM.bam            20  69              Cycle          M                   20.0000             1    0.00
+exampleBAM.bam            21  -3              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  11              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  17              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  29              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  -42             Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  -44             Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  48              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  -50             Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  59              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  -60             Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  -61             Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  64              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  66              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  67              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  71              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  73              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            21  74              Cycle          M                   21.0000             1    0.00
+exampleBAM.bam            22  -9              Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  -15             Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  -23             Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  38              Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  44              Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  -44             Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  51              Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  -59             Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            22  -70             Cycle          M                   22.0000             1    0.00
+exampleBAM.bam            23  -12             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -15             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  18              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  19              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -35             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  37              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -38             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  56              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  59              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  61              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  64              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -64             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  66              Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -67             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            23  -75             Cycle          M                   23.0000             1    0.00
+exampleBAM.bam            24  3               Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  5               Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  6               Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -6              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -10             Cycle          M                   24.0000             1    1.00
+exampleBAM.bam            24  13              Cycle          M                   24.0000             2    0.00
+exampleBAM.bam            24  -13             Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -25             Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  27              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  33              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  41              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  45              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -48             Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -49             Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  50              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  52              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  53              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  56              Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            24  -62             Cycle          M                   24.0000             1    0.00
+exampleBAM.bam            25  -9              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  14              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -21             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -24             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  31              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -32             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -36             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  37              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  46              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  47              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -51             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -52             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  55              Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -73             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            25  -74             Cycle          M                   25.0000             1    0.00
+exampleBAM.bam            26  -3              Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            26  7               Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            26  20              Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            26  -44             Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            26  50              Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            26  -67             Cycle          M                   26.0000             1    0.00
+exampleBAM.bam            27  11              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  14              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  16              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -17             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -18             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  22              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -27             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  28              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  30              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -31             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  40              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  53              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -53             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -55             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -56             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  57              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  65              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -66             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -69             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -72             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  -73             Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            27  76              Cycle          M                   27.0000             1    0.00
+exampleBAM.bam            28  -2              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -11             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  25              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -27             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  30              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  34              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  39              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -41             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  47              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  48              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -50             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -53             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  54              Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -61             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            28  -71             Cycle          M                   28.0000             1    0.00
+exampleBAM.bam            29  4               Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -5              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  6               Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -7              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -8              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  9               Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  12              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -24             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  27              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -28             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -37             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  42              Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -43             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -45             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -47             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -48             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -54             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -60             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -68             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            29  -76             Cycle          M                   29.0000             1    0.00
+exampleBAM.bam            30  -9              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  12              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -17             Cycle          M                   30.0000             2    0.00
+exampleBAM.bam            30  18              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  20              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -21             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  23              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  24              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  26              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -30             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  32              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  34              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  35              Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -35             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -42             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -45             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -52             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -54             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            30  -69             Cycle          M                   30.0000             1    0.00
+exampleBAM.bam            31  -1              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  4               Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -5              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -6              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  8               Cycle          M                   31.0000             2    0.00
+exampleBAM.bam            31  -10             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -11             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -12             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -13             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  15              Cycle          M                   31.0000             2    0.00
+exampleBAM.bam            31  -16             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -19             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -25             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  26              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -26             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -32             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -34             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -39             Cycle          M                   31.0000             2    0.00
+exampleBAM.bam            31  43              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -45             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  60              Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            31  -66             Cycle          M                   31.0000             1    0.00
+exampleBAM.bam            32  1               Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  2               Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -2              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -14             Cycle          M                   32.0000             2    0.00
+exampleBAM.bam            32  -15             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  16              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -16             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -18             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -19             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  23              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  24              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  28              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -28             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -30             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -31             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -33             Cycle          M                   32.0000             2    0.00
+exampleBAM.bam            32  -36             Cycle          M                   32.0000             2    0.00
+exampleBAM.bam            32  41              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -41             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  43              Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -43             Cycle          M                   32.0000             2    0.00
+exampleBAM.bam            32  -46             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -49             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -51             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -53             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -54             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -57             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            32  -72             Cycle          M                   32.0000             1    0.00
+exampleBAM.bam            33  1               Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -1              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  2               Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  3               Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -7              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -8              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -10             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -12             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -18             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -22             Cycle          M                   33.0000             2    0.00
+exampleBAM.bam            33  -23             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -24             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -29             Cycle          M                   33.0000             2    0.00
+exampleBAM.bam            33  -31             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -32             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -35             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -37             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -39             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -40             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  42              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  44              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  45              Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -46             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -48             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -49             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -57             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -59             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -66             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -67             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -69             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -72             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -73             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            33  -76             Cycle          M                   33.0000             1    0.00
+exampleBAM.bam            34  -2              Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -3              Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -4              Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -5              Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -6              Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -11             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -13             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -20             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -21             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -23             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -25             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -26             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -27             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -34             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -38             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -40             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -41             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -42             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -47             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -50             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -51             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -55             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -56             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -58             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -59             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -60             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -61             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -62             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -63             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -64             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -65             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -68             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -70             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -71             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -74             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            34  -75             Cycle          M                   34.0000             1    0.00
+exampleBAM.bam            45  5               Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  5               Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -5              Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -5              Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  6               Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  6               Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -6              Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -6              Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  7               Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  7               Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -7              Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -7              Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  8               Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  8               Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -8              Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -8              Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  9               Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  9               Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -9              Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -9              Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  10              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  10              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -10             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -10             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  11              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  11              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -11             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -11             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  12              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  12              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -12             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -12             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  13              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  13              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -13             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -13             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  14              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  14              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -14             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -14             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  15              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  15              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -15             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -15             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  16              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  16              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -16             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -16             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  17              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  17              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -17             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -17             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  18              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  18              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -18             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -18             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  19              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  19              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -19             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -19             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  20              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  20              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -20             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -20             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  21              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  21              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -21             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -21             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  22              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  22              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -22             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -22             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  23              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  23              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -23             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -23             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  24              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  24              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -24             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -24             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  25              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  25              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -25             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -25             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  26              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  26              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -26             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -26             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  27              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  27              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -27             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -27             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  28              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  28              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -28             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -28             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  29              Cycle          I                   45.0000             1    0.00
+exampleBAM.bam            45  29              Cycle          D                   45.0000             1    0.00
+exampleBAM.bam            45  -29             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -29             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  30              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  30              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -30             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -30             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  31              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  31              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -31             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -31             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  32              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  32              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -32             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -32             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  33              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  33              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -33             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -33             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  34              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  34              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -34             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -34             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  35              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  35              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -35             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -35             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  36              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  36              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -36             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -36             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  37              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  37              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -37             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -37             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  38              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  38              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -38             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -38             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  39              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  39              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -39             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -39             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  40              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  40              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -40             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -40             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  41              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  41              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -41             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -41             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  42              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  42              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -42             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -42             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  43              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  43              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -43             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -43             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  44              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  44              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -44             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -44             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  45              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  45              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -45             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -45             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  46              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  46              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -46             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -46             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  47              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  47              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -47             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -47             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  48              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  48              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -48             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -48             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  49              Cycle          I                   45.0000             1    0.00
+exampleBAM.bam            45  49              Cycle          D                   45.0000             1    0.00
+exampleBAM.bam            45  -49             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -49             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  50              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  50              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -50             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -50             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  51              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  51              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -51             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -51             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  52              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  52              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -52             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -52             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  53              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  53              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -53             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -53             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  54              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  54              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -54             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -54             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  55              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  55              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -55             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -55             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  56              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  56              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -56             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -56             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  57              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  57              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -57             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -57             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  58              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  58              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -58             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -58             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  59              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  59              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -59             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -59             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  60              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  60              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -60             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -60             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  61              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  61              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -61             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -61             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  62              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  62              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -62             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -62             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  63              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  63              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -63             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -63             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  64              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  64              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -64             Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  -64             Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  65              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  65              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -65             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -65             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  66              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  66              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -66             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -66             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  67              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  67              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -67             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -67             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  68              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  68              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -68             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -68             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  69              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  69              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -69             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -69             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  70              Cycle          I                   45.0000             1    0.00
+exampleBAM.bam            45  70              Cycle          D                   45.0000             1    0.00
+exampleBAM.bam            45  -70             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -70             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  71              Cycle          I                   45.0000             2    0.00
+exampleBAM.bam            45  71              Cycle          D                   45.0000             2    0.00
+exampleBAM.bam            45  -71             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -71             Cycle          D                   45.0000             3    0.00
+exampleBAM.bam            45  72              Cycle          I                   45.0000             1    0.00
+exampleBAM.bam            45  72              Cycle          D                   45.0000             1    0.00
+exampleBAM.bam            45  -72             Cycle          I                   45.0000             3    0.00
+exampleBAM.bam            45  -72             Cycle          D                   45.0000             3    0.00
+
