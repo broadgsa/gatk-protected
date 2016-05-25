@@ -1,0 +1,12 @@
+org/broadinstitute/gatk/engine/filters/package-info.class
+org/broadinstitute/gatk/engine/datasources/reads/package-info.class
+org/broadinstitute/gatk/engine/alignment/package-info.class
+org/broadinstitute/gatk/engine/iterators/package-info.class
+org/broadinstitute/gatk/engine/datasources/providers/package-info.class
+org/broadinstitute/gatk/engine/datasources/rmd/package-info.class
+org/broadinstitute/gatk/engine/package-info.class
+org/broadinstitute/gatk/engine/datasources/package-info.class
+org/broadinstitute/gatk/engine/datasources/reads/utilities/package-info.class
+org/broadinstitute/gatk/engine/executive/package-info.class
+org/broadinstitute/gatk/engine/datasources/reference/package-info.class
+org/broadinstitute/gatk/engine/traversals/package-info.class

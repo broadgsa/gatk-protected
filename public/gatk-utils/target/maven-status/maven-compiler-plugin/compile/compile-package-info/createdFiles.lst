@@ -1,0 +1,6 @@
+org/broadinstitute/gatk/utils/threading/package-info.class
+org/broadinstitute/gatk/utils/commandline/package-info.class
+org/broadinstitute/gatk/utils/fasta/package-info.class
+org/broadinstitute/gatk/utils/refdata/package-info.class
+org/broadinstitute/gatk/utils/sam/package-info.class
+org/broadinstitute/gatk/utils/package-info.class
