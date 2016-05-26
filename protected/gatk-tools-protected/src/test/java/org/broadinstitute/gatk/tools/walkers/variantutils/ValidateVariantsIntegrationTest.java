@@ -51,16 +51,19 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import htsjdk.samtools.util.TestUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class ValidateVariantsIntegrationTest extends WalkerTest {
 
@@ -279,7 +282,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ALLOW_SEQ_DICT_INCOMPATIBILITY ",
-                0, Arrays.asList(EMPTY_MD5));
+                0, Collections.singletonList(EMPTY_MD5));
         executeTest("test to allow wrong header contig length, not checking dictionary incompatibility", spec);
     }
 
@@ -288,7 +291,78 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ",
-                0, Arrays.asList(EMPTY_MD5));
+                0, Collections.singletonList(EMPTY_MD5));
         executeTest("test to allow wrong header contig length, no compatibility checks", spec);
     }
+
+    @Test
+    public void testGoodGvcf()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.g.vcf", "ALL", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList("d41d8cd98f00b204e9800998ecf8427e"));
+        executeTest("tests correct gvcf", spec);
+    }
+
+    @Test
+    public void testGoodGvcfExcludingAlleles()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.g.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList("d41d8cd98f00b204e9800998ecf8427e"));
+        executeTest("tests correct gvcf", spec);
+    }
+
+
+    @Test(expectedExceptions = RuntimeException.class )
+    public void testBadGvcfMissingNON_REF()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.BAD_MISSING_NON_REF.g.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of missing NON_REF allele", spec);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class )
+    public void testBadGvcfRegions() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("diploid-gvcf.bad-IncompleteRegion.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region", spec);
+    }
+
+   @Test(expectedExceptions = RuntimeException.class )
+    public void testNonOverlappingRegions()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet_BAD_INCOMPLETE_REGION.g.vcf", "-ALLELES", "Y:4966254-4967190", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region", spec);
+    }
+
+    @Test
+    public void testNonOverlappingRegionsBP_RESOLUTION()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("gvcf.basepairResolution.vcf", "-ALLELES", "20:10000000-10010000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region, on BP_RESOLUTION gvcf", spec);
+    }
+    @Test
+    public void testCorrectCreationOfBlocks() throws IOException {
+        final File tempDir = IOUtils.tempDir("RefBlocks", "test", new File(privateTestDir));
+        tempDir.mkdir();
+        tempDir.deleteOnExit();
+        final File output = File.createTempFile("RefBlocks", ".g.vcf", tempDir);
+        String baseIntervals = " 1:1-100 -L 5:1-200 ";
+        String intervalString = " -L " + baseIntervals;
+        final WalkerTestSpec hc = new WalkerTestSpec("-T HaplotypeCaller " + intervalString + " -I " + privateTestDir + "NA12878.4.snippet.bam " +
+                " -R /humgen/1kg/reference/human_g1k_v37_decoy.fasta -ERC GVCF -o " + output, Collections.singletonList(EMPTY_MD5));
+        executeTest("running hc", hc);
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(tempDir.getName() + "/" + output.getName(), "-ALLELES", baseIntervals, b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("testing the correct creation of reference blocks", spec);
+
+        TestUtil.recursiveDelete(tempDir);
+    }
+
 }
