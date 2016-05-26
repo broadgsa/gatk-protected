@@ -53,11 +53,12 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.Allele;
-import org.broadinstitute.gatk.utils.genotyper.*;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
+import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
@@ -472,14 +473,24 @@ public class ReadLikelihoodsUnitTest
                         secondBestLk = lk;
                     }
                 }
-                final double expectedNonRefLk = Double.isInfinite(secondBestLk) ? bestLk : secondBestLk;
+                final Median median = new Median();
+                final List<Double> qualifylingLikelihoods = new ArrayList<>();
+                for (int a = 0; a < ordinaryAlleleCount; a++) {
+                    if (originalLikelihoods[s][a][r] >= bestLk) continue;
+                    qualifylingLikelihoods.add(originalLikelihoods[s][a][r]);
+                }
+                final double medianLikelihood = median.evaluate(qualifylingLikelihoods.stream().mapToDouble(d -> d).toArray());
+                // NaN is returned in cases whether there is no elements in qualifyingLikelihoods.
+                // In such case we set the NON-REF likelihood to -Inf.
+                final double expectedNonRefLk = !Double.isNaN(medianLikelihood) ? medianLikelihood
+                        : ordinaryAlleleCount <= 1 ? Double.NaN : bestLk;
                 newLikelihoods[s][ordinaryAlleleCount][r] = expectedNonRefLk;
             }
         }
         testLikelihoodMatrixQueries(samples,result,newLikelihoods);
     }
 
-    private void testLikelihoodMatrixQueries(String[] samples, ReadLikelihoods<Allele> result, final double[][][] likelihoods) {
+    private void testLikelihoodMatrixQueries(final String[] samples, final ReadLikelihoods<Allele> result, final double[][][] likelihoods) {
         for (final String sample : samples) {
             final int sampleIndex = result.sampleIndex(sample);
             final int sampleReadCount = result.sampleReadCount(sampleIndex);
@@ -487,9 +498,14 @@ public class ReadLikelihoodsUnitTest
             Assert.assertEquals(result.alleleCount(), alleleCount);
             for (int a = 0; a < alleleCount; a++) {
                 Assert.assertEquals(result.sampleReadCount(sampleIndex),sampleReadCount);
-                for (int r = 0; r < sampleReadCount; r++)
-                    Assert.assertEquals(result.sampleMatrix(sampleIndex).get(a,r),
-                            likelihoods == null ? 0.0 : likelihoods[sampleIndex][a][r], EPSILON);
+                for (int r = 0; r < sampleReadCount; r++) {
+                    if (Double.isNaN(result.sampleMatrix(sampleIndex).get(a, r))) {
+                        Assert.assertTrue(likelihoods != null && Double.isNaN(likelihoods[sampleIndex][a][r]));
+                    } else {
+                        Assert.assertEquals(result.sampleMatrix(sampleIndex).get(a, r),
+                                likelihoods == null ? 0.0 : likelihoods[sampleIndex][a][r], EPSILON);
+                    }
+                }
             }
         }
     }
