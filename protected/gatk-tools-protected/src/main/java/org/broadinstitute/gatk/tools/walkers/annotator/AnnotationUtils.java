@@ -66,6 +66,7 @@ import org.broadinstitute.gatk.tools.walkers.variantutils.GenotypeGVCFs;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCaller;
+import org.broadinstitute.gatk.tools.walkers.cancer.m2.MuTect2;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 
 import java.util.ArrayList;
@@ -75,7 +76,7 @@ import java.util.Set;
 
 public class AnnotationUtils {
 
-    public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotypeCaller";
+    public static final String ANNOTATION_HC_WARN_MSG = " annotation will not be calculated, must be called from HaplotypeCaller or MuTect2";
     public static final int WARNINGS_LOGGED_SIZE = 3;
 
     /**
@@ -154,7 +155,7 @@ public class AnnotationUtils {
             throw new ReviewedGATKException("Warnings logged array must have at least " + WARNINGS_LOGGED_SIZE + " elements, but has " + warningsLogged.length);
         }
 
-        if ( !(walker instanceof HaplotypeCaller) ) {
+        if ( !(walker instanceof HaplotypeCaller) && !(walker instanceof MuTect2)) {
             if ( !warningsLogged[0] ) {
                 logger.warn(annotation + ANNOTATION_HC_WARN_MSG + ", not " + walker.getClass().getSimpleName());
                 warningsLogged[0] = true;
