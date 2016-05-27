@@ -86,7 +86,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Generate base recalibration table to compensate for systematic errors in basecalling confidences
+ * Detect systematic errors in base quality scores
  *
  * <p>
  * Variant calling algorithms rely heavily on the quality scores assigned to the individual base calls in each sequence

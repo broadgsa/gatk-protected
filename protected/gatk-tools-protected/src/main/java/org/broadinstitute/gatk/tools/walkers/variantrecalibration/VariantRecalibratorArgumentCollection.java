@@ -203,7 +203,8 @@ public class VariantRecalibratorArgumentCollection {
 
     /////////////////////////////
     // Deprecated Arguments
-    // Keeping them here is meant to provide users with error messages that are more informative than "arg not defined" when they use an argument that has been put out of service
+    // Keeping them here is meant to provide users with error messages that are more informative than "arg not defined"
+    // when they use an argument that has been put out of service
     /////////////////////////////
 
     @Hidden

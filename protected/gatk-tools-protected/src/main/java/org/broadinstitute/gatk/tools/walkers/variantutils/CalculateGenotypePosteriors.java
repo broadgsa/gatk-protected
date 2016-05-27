@@ -186,7 +186,7 @@ import java.util.*;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
 
     /**

@@ -106,7 +106,7 @@ import java.util.*;
  * </pre>
  *
  */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class}, gotoDev = HelpConstants.EB)
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class})
 @Reference(window=@Window(start=-200,stop=200))
 public class SimulateReadsForVariants extends RodWalker<Integer, Integer> {
     private static Logger logger = Logger.getLogger(SimulateReadsForVariants.class);
