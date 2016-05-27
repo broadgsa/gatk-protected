@@ -51,19 +51,19 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
+import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.AlleleList;
 import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
-import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.GenomeLocParser;
-import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.EventMap;
@@ -82,6 +82,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     protected static final int ALLELE_EXTENSION = 2;
     private static final String phase01 = "0|1";
     private static final String phase10 = "1|0";
+    private static final int MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG = 20;
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
@@ -188,7 +189,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
     @Ensures("result != null")
     // TODO - can this be refactored? this is hard to follow!
-    public CalledHaplotypes assignGenotypeLikelihoods( final List<Haplotype> haplotypes,
+    CalledHaplotypes assignGenotypeLikelihoods( final List<Haplotype> haplotypes,
                                                        final ReadLikelihoods<Haplotype> readLikelihoods,
                                                        final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
                                                        final byte[] ref,
@@ -241,9 +242,6 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
                 final GenotypeLikelihoodsCalculationModel.Model calculationModel = mergedVC.isSNP()
                         ? GenotypeLikelihoodsCalculationModel.Model.SNP : GenotypeLikelihoodsCalculationModel.Model.INDEL;
 
-                if (emitReferenceConfidence)
-                    mergedVC = addNonRefSymbolicAllele(mergedVC);
-
                 final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
                 mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
                 for(int iii = 0; iii < eventsAtThisLoc.size(); iii++) {
@@ -256,39 +254,25 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
                     if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
-                ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
+                final ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
                 if (configuration.isSampleContaminationPresent())
                     readAlleleLikelihoods.contaminationDownsampling(configuration.getSampleContamination());
 
+                final boolean someAllelesWereDropped = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES < readAlleleLikelihoods.alleleCount() - 1;
 
-                if (emitReferenceConfidence)
+                if (someAllelesWereDropped) {
+                    reduceNumberOfAlternativeAllelesBasedOnLikelihoods(readAlleleLikelihoods, genomeLocParser.createGenomeLoc(mergedVC));
+                }
+
+                if (emitReferenceConfidence) {
+                    mergedVC = addNonRefSymbolicAllele(mergedVC);
                     readAlleleLikelihoods.addNonReferenceAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+                }
 
-                final GenotypesContext genotypes = calculateGLsForThisEvent( readAlleleLikelihoods, mergedVC, noCallAlleles );
-                final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).genotypes(genotypes).make(), calculationModel);
-                if( call != null ) {
-
-                    readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
-                            genomeLocParser, emitReferenceConfidence, alleleMapper, readAlleleLikelihoods, call);
-
-                    ReferenceContext referenceContext = new ReferenceContext(genomeLocParser, genomeLocParser.createGenomeLoc(mergedVC.getChr(), mergedVC.getStart(), mergedVC.getEnd()), refLoc, ref);
-                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(referenceContext, tracker,readAlleleLikelihoods, call, emitReferenceConfidence);
-
-                    if( call.getAlleles().size() != mergedVC.getAlleles().size() )
-                       annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
-
-                    // maintain the set of all called haplotypes
-                    for ( final Allele calledAllele : call.getAlleles() ) {
-                        final List<Haplotype> haplotypeList = alleleMapper.get(calledAllele);
-                        if (haplotypeList == null) continue;
-                        calledHaplotypes.addAll(haplotypeList);
-                    }
-
-                    if ( !emitReferenceConfidence ) {
-                        // set GTs to no-call when GQ is 0 in normal mode
-                        annotatedCall = clearUnconfidentGenotypeCalls(annotatedCall);
-                    }
-
+                final GenotypesContext genotypes = calculateGLsForThisEvent(readAlleleLikelihoods, noCallAlleles );
+                final VariantContext call = calculateGenotypes(new VariantContextBuilder(mergedVC).alleles(readAlleleLikelihoods.alleles()).genotypes(genotypes).make(), calculationModel);
+                if ( call != null ) {
+                    final VariantContext annotatedCall = annotateCall(readLikelihoods, perSampleFilteredReadList, ref, refLoc, genomeLocParser, tracker, emitReferenceConfidence, calledHaplotypes, mergedVC, alleleMapper, readAlleleLikelihoods, someAllelesWereDropped, call);
                     returnCalls.add( annotatedCall );
                 }
             }
@@ -296,6 +280,148 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
 
         final List<VariantContext> phasedCalls = doPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
         return new CalledHaplotypes(phasedCalls, calledHaplotypes);
+    }
+
+    private VariantContext annotateCall(final ReadLikelihoods<Haplotype> readLikelihoods,
+                                        final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+                                        final byte[] ref, final GenomeLoc refLoc, final GenomeLocParser genomeLocParser,
+                                        final RefMetaDataTracker tracker,
+                                        final boolean emitReferenceConfidence,
+                                        final Set<Haplotype> calledHaplotypes, final VariantContext mergedVC,
+                                        final Map<Allele, List<Haplotype>> alleleMapper,
+                                        final ReadLikelihoods<Allele> readAlleleLikelihoods,
+                                        final boolean someAlternativeAllelesWereAlreadyDropped,
+                                        final VariantContext call) {
+        final int initialAlleleNumber = readAlleleLikelihoods.alleleCount();
+        final ReadLikelihoods<Allele> readAlleleLikelihoodsForAnnotation = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
+                genomeLocParser, emitReferenceConfidence, alleleMapper, readAlleleLikelihoods, call);
+
+        ReferenceContext referenceContext = new ReferenceContext(genomeLocParser, genomeLocParser.createGenomeLoc(mergedVC), refLoc, ref);
+        final boolean someAlternativeAllelesWereDropped = call.getAlleles().size() != initialAlleleNumber;
+        VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(referenceContext, tracker,readAlleleLikelihoodsForAnnotation, call, emitReferenceConfidence);
+        if (someAlternativeAllelesWereDropped || someAlternativeAllelesWereAlreadyDropped)
+           annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
+
+        // maintain the set of all called haplotypes
+        for ( final Allele calledAllele : call.getAlleles() ) {
+            final List<Haplotype> haplotypeList = alleleMapper.get(calledAllele);
+            if (haplotypeList == null) continue;
+            calledHaplotypes.addAll(haplotypeList);
+        }
+
+        return !emitReferenceConfidence ? clearUnconfidentGenotypeCalls(annotatedCall) : annotatedCall;
+    }
+
+    /**
+     * Reduce the number alternative alleles in a read-likelihoods collection to the maximum-alt-allele user parameter value.
+     * <p>
+     *     We always keep the reference allele.
+     *     As for the other alleles we keep the ones with the highest AF estimated as
+     *     described in {@link #excessAlternativeAlleles(GenotypingLikelihoods, int)}
+     * </p>
+     * @param readAlleleLikelihoods the target read-likelihood collection.
+     */
+    private void reduceNumberOfAlternativeAllelesBasedOnLikelihoods(final ReadLikelihoods<Allele> readAlleleLikelihoods, final GenomeLoc location) {
+        final GenotypingLikelihoods<Allele> genotypeLikelihoods = genotypingModel.calculateLikelihoods(readAlleleLikelihoods, new GenotypingData<>(ploidyModel,readAlleleLikelihoods));
+        final Set<Allele> allelesToDrop = excessAlternativeAlleles(genotypeLikelihoods, configuration.genotypeArgs.MAX_ALTERNATE_ALLELES);
+        final String allelesToDropString;
+        if (allelesToDrop.size() < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG) {
+            allelesToDropString = StringUtil.join(", ", allelesToDrop);
+        } else {
+            final Iterator<Allele> it = allelesToDrop.iterator();
+            final StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG; i++) {
+                builder.append(it.next().toString()).append(", ");
+            }
+            allelesToDropString = builder.append(it.next().toString()).append(" and ").append(allelesToDrop.size() - 20).append(" more").toString();
+        }
+        logger.warn(String.format("location %s: too many alternative alleles found (%d) larger than the maximum requested with -%s (%d), the following will be dropped: %s.", location,
+                readAlleleLikelihoods.alleleCount() - 1, GenotypeCalculationArgumentCollection.MAX_ALTERNATE_ALLELES_SHORT_NAME, configuration.genotypeArgs.MAX_ALTERNATE_ALLELES,
+                allelesToDropString));
+        readAlleleLikelihoods.dropAlleles(allelesToDrop);
+    }
+
+    /**
+     * Returns the set of alleles that should be dropped in order to bring down the number
+     * of alternative alleles to the maximum allowed.
+     *
+     * <p>
+     *     The alleles that put forward for removal are those with the lowest estimated allele count.
+     * </p>
+     * <p>
+     *     Allele counts are estimated herein as the weighted average count
+     *     across samples and phased genotypes where the weight is the genotype likelihood-- we apply
+     *     a uniform prior to all genotypes configurations.
+     * </p>
+     * <p>
+     *     In case of a tie, unlikely for non trivial likelihoods, we keep the alleles with the lower index.
+     * </p>
+     *
+     * @param genotypeLikelihoods target genotype likelihoods.
+     * @param maxAlternativeAlleles maximum number of alternative alleles allowed.
+     * @return never {@code null}.
+     */
+    private Set<Allele> excessAlternativeAlleles(final GenotypingLikelihoods<Allele> genotypeLikelihoods, final int maxAlternativeAlleles) {
+        final int alleleCount = genotypeLikelihoods.alleleCount();
+        final int excessAlternativeAlleleCount = Math.max(0, alleleCount - 1 - maxAlternativeAlleles);
+        if (excessAlternativeAlleleCount <= 0) {
+            return Collections.emptySet();
+        }
+
+        final double log10NumberOfAlleles = MathUtils.Log10Cache.get(alleleCount); // log10(Num of Alleles); e.g. log10(2) for diploids.
+        final double[] log10EstimatedACs = new double[alleleCount]; // where we store the AC estimates.
+        // Set allele counts to 0 (i.e. exp(-Inf)) at the start.
+        Arrays.fill(log10EstimatedACs, Double.NEGATIVE_INFINITY);
+
+        for (int i = 0; i < genotypeLikelihoods.sampleCount(); i++) {
+            final GenotypeLikelihoodCalculator calculator = GenotypeLikelihoodCalculators.getInstance(genotypeLikelihoods.samplePloidy(i), alleleCount);
+            final int numberOfUnphasedGenotypes = calculator.genotypeCount();
+            // unphased genotype log10 likelihoods
+            final double[] log10Likelihoods = genotypeLikelihoods.sampleLikelihoods(i).getAsVector();
+            // total number of phased genotypes for all possible combinations of allele counts.
+            final double log10NumberOfPhasedGenotypes = calculator.ploidy() * log10NumberOfAlleles;
+            for (int j = 0; j < numberOfUnphasedGenotypes; j++) {
+                final GenotypeAlleleCounts alleleCounts = calculator.genotypeAlleleCountsAt(j);
+                // given the current unphased genotype, how many phased genotypes there are:
+                final double log10NumberOfPhasedGenotypesForThisUnphasedGenotype = alleleCounts.log10CombinationCount();
+                final double log10GenotypeLikelihood = log10Likelihoods[j];
+                for (int k = 0; k < alleleCounts.distinctAlleleCount(); k++) {
+                    final int alleleIndex = alleleCounts.alleleIndexAt(k);
+                    final int alleleCallCount = alleleCounts.alleleCountAt(k);
+                    final double log10AlleleCount = MathUtils.Log10Cache.get(alleleCallCount);
+                    final double log10Weight = log10GenotypeLikelihood + log10NumberOfPhasedGenotypesForThisUnphasedGenotype
+                            - log10NumberOfPhasedGenotypes;
+                    // update the allele AC adding the contribution of this unphased genotype at this sample.
+                    log10EstimatedACs[alleleIndex] = MathUtils.log10sumLog10(log10EstimatedACs[alleleIndex],
+                            log10Weight + log10AlleleCount);
+                }
+            }
+        }
+
+        final PriorityQueue<Allele> lessFrequentFirst = new PriorityQueue<>(alleleCount, new Comparator<Allele>() {
+            @Override
+            public int compare(final Allele a1, final Allele a2) {
+                final int index1 = genotypeLikelihoods.alleleIndex(a1);
+                final int index2 = genotypeLikelihoods.alleleIndex(a2);
+                final double freq1 = log10EstimatedACs[index1];
+                final double freq2 = log10EstimatedACs[index2];
+                if (freq1 != freq2) {
+                    return Double.compare(freq1, freq2);
+                } else {
+                    return Integer.compare(index2, index1);
+                }
+            }
+        });
+
+        for (int i = 1; i < alleleCount; i++) {
+            lessFrequentFirst.add(genotypeLikelihoods.alleleAt(i));
+        }
+
+        final Set<Allele> result = new HashSet<>(excessAlternativeAlleleCount);
+        for (int i = 0; i < excessAlternativeAlleleCount; i++) {
+            result.add(lessFrequentFirst.remove());
+        }
+        return result;
     }
 
     /**
@@ -325,13 +451,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      * @param calledHaplotypes  the set of haplotypes used for calling
      * @return non-null Map
      */
-    protected static Map<VariantContext, Set<Haplotype>> constructHaplotypeMapping(final List<VariantContext> originalCalls,
+    @VisibleForTesting
+    static Map<VariantContext, Set<Haplotype>> constructHaplotypeMapping(final List<VariantContext> originalCalls,
                                                                                    final Set<Haplotype> calledHaplotypes) {
         final Map<VariantContext, Set<Haplotype>> haplotypeMap = new HashMap<>(originalCalls.size());
         for ( final VariantContext call : originalCalls ) {
             // don't try to phase if there is not exactly 1 alternate allele
             if ( ! isBiallelic(call) ) {
-                haplotypeMap.put(call, Collections.<Haplotype>emptySet());
+                haplotypeMap.put(call, Collections.emptySet());
                 continue;
             }
 
@@ -362,10 +489,11 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      *                         note that it is okay for this method NOT to populate the phaseSetMapping at all (e.g. in an impossible-to-phase situation)
      * @return the next incremental unique index
      */
-    protected static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
-                                                  final Map<VariantContext, Set<Haplotype>> haplotypeMap,
-                                                  final int totalAvailableHaplotypes,
-                                                  final Map<VariantContext, Pair<Integer, String>> phaseSetMapping) {
+    @VisibleForTesting
+    static int constructPhaseSetMapping(final List<VariantContext> originalCalls,
+                                        final Map<VariantContext, Set<Haplotype>> haplotypeMap,
+                                        final int totalAvailableHaplotypes,
+                                        final Map<VariantContext, Pair<Integer, String>> phaseSetMapping) {
 
         final int numCalls = originalCalls.size();
         int uniqueCounter = 0;
@@ -457,9 +585,10 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      * @param indexTo          last index (exclusive) of phase group IDs
      * @return a non-null list which represents the possibly phased version of the calls
      */
-    protected static List<VariantContext> constructPhaseGroups(final List<VariantContext> originalCalls,
-                                                               final Map<VariantContext, Pair<Integer, String>> phaseSetMapping,
-                                                               final int indexTo) {
+    @VisibleForTesting
+    static List<VariantContext> constructPhaseGroups(final List<VariantContext> originalCalls,
+                                                     final Map<VariantContext, Pair<Integer, String>> phaseSetMapping,
+                                                     final int indexTo) {
         final List<VariantContext> phasedCalls = new ArrayList<>(originalCalls);
 
         // if we managed to find any phased groups, update the VariantContexts
@@ -559,6 +688,10 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
             if (emitReferenceConfidence)
                 readAlleleLikelihoodsForAnnotations.addNonReferenceAllele(
                         GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+        }
+
+        if (call.getAlleles().size() != readAlleleLikelihoodsForAnnotations.alleleCount()) {
+            readAlleleLikelihoodsForAnnotations.updateNonRefAlleleLikelihoods(new IndexedAlleleList<>(new HashSet<>(call.getAlleles())));
         }
 
         // Skim the filtered map based on the location so that we do not add filtered read that are going to be removed
@@ -687,15 +820,12 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     /**
      * For a particular event described in inputVC, form PL vector for each sample by looking into allele read map and filling likelihood matrix for each allele
      * @param readLikelihoods          Allele map describing mapping from reads to alleles and corresponding likelihoods
-     * @param mergedVC               Input VC with event to genotype
      * @return                       GenotypesContext object wrapping genotype objects with PLs
      */
     @Requires({"readLikelihoods!= null", "mergedVC != null"})
     @Ensures("result != null")
-    protected GenotypesContext calculateGLsForThisEvent( final ReadLikelihoods<Allele> readLikelihoods, final VariantContext mergedVC, final List<Allele> noCallAlleles ) {
-        final List<Allele> vcAlleles = mergedVC.getAlleles();
-        final AlleleList<Allele> alleleList = readLikelihoods.alleleCount() == vcAlleles.size() ? readLikelihoods : new IndexedAlleleList<>(vcAlleles);
-        final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(alleleList,new GenotypingData<>(ploidyModel,readLikelihoods));
+    private GenotypesContext  calculateGLsForThisEvent(final ReadLikelihoods<Allele> readLikelihoods, final List<Allele> noCallAlleles) {
+        final GenotypingLikelihoods<Allele> likelihoods = genotypingModel.calculateLikelihoods(readLikelihoods, new GenotypingData<>(ploidyModel, readLikelihoods));
         final int sampleCount = samples.sampleCount();
         final GenotypesContext result = GenotypesContext.create(sampleCount);
         for (int s = 0; s < sampleCount; s++)
@@ -709,7 +839,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      */
     // TODO - split into input haplotypes and output haplotypes as not to share I/O arguments
     @Requires("haplotypes != null")
-    protected static void cleanUpSymbolicUnassembledEvents( final List<Haplotype> haplotypes ) {
+    private static void cleanUpSymbolicUnassembledEvents(final List<Haplotype> haplotypes) {
         final List<Haplotype> haplotypesToRemove = new ArrayList<>();
         for( final Haplotype h : haplotypes ) {
             for( final VariantContext vc : h.getEventMap().getVariantContexts() ) {
@@ -742,9 +872,9 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
 
         final Map<Event, List<Haplotype>> eventMapper = new LinkedHashMap<>(eventsAtThisLoc.size()+1);
         final Event refEvent = new Event(null);
-        eventMapper.put(refEvent, new ArrayList<Haplotype>());
+        eventMapper.put(refEvent, new ArrayList<>());
         for( final VariantContext vc : eventsAtThisLoc ) {
-            eventMapper.put(new Event(vc), new ArrayList<Haplotype>());
+            eventMapper.put(new Event(vc), new ArrayList<>());
         }
 
         for( final Haplotype h : haplotypes ) {
@@ -764,11 +894,12 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     }
 
     @Deprecated
-    protected static Map<Integer,VariantContext> generateVCsFromAlignment( final Haplotype haplotype, final byte[] ref, final GenomeLoc refLoc, final String sourceNameToAdd ) {
+    @VisibleForTesting
+    static Map<Integer,VariantContext> generateVCsFromAlignment(final Haplotype haplotype, final byte[] ref, final GenomeLoc refLoc, final String sourceNameToAdd) {
         return new EventMap(haplotype, ref, refLoc, sourceNameToAdd);
     }
 
-    protected static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {
+    private static boolean containsVCWithMatchingAlleles( final List<VariantContext> list, final VariantContext vcToTest ) {
         for( final VariantContext vc : list ) {
             if( vc.hasSameAllelesAs(vcToTest) ) {
                 return true;
@@ -780,7 +911,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     protected static class Event {
         public VariantContext vc;
 
-        public Event( final VariantContext vc ) {
+        @VisibleForTesting
+        Event( final VariantContext vc ) {
             this.vc = vc;
         }
 
@@ -800,7 +932,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      *
      * @return never {@code null}.
      */
-    public PloidyModel getPloidyModel() {
+    PloidyModel getPloidyModel() {
         return ploidyModel;
     }
 
@@ -809,7 +941,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      *
      * @return never {@code null}.
      */
-    public GenotypingModel getGenotypingModel() {
+    GenotypingModel getGenotypingModel() {
         return genotypingModel;
     }
 

@@ -53,6 +53,9 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingLikelihoods;
+import org.broadinstitute.gatk.utils.SimpleTimer;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypesContext;
@@ -128,6 +131,7 @@ public abstract class AFCalculator implements Cloneable {
      * @return result (for programming convenience)
      */
     public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors) {
+
         if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
         if ( vc.getNAlleles() == 1 ) throw new IllegalArgumentException("VariantContext has only a single reference allele, but getLog10PNonRef requires at least one at all " + vc);
         if ( log10AlleleFrequencyPriors == null ) throw new IllegalArgumentException("priors vector cannot be null");
@@ -135,6 +139,9 @@ public abstract class AFCalculator implements Cloneable {
         // reset the result, so we can store our new result there
         final StateTracker stateTracker = getStateTracker(true,maximumAlternativeAlleles);
 
+        //TODO All implementations of the reduce-scope seems to employ a bad criterion to
+        //TODO decide what alleles to keep. This must be changed eventually.
+        //TODO issue {@see https://github.com/broadinstitute/gsa-unstable/issues/1376}
         final VariantContext vcWorking = reduceScope(vc,defaultPloidy, maximumAlternativeAlleles);
 
         callTimer.start();

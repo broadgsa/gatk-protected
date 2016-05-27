@@ -174,7 +174,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiSampleGGA() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf" +
                 " -isr INTERSECTION -L " + GGA_INTERVALS_FILE,
-                "6d3cea3ee76b6eba14c1dfe230cff96b");
+                "af3f54bee3347cafb34734dc7d3516a9");
     }
 
     @Test
@@ -186,7 +186,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testHaplotypeCallerMultiSampleGGATetraploid() throws IOException {
         HCTest(CEUTRIO_BAM, "--max_alternate_alleles 3 -gt_mode GENOTYPE_GIVEN_ALLELES -ploidy 4 -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -isr INTERSECTION -L 20:10080000-10100000",
-                "9315d146a66c7baf3b615eb480c54dc1");
+                "d7c3aac002701bec6b6d0539c65207be");
     }
 
     @Test

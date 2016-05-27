@@ -54,9 +54,13 @@ package org.broadinstitute.gatk.tools.walkers.genotyper;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.AlleleListUtils;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Genotyping Likelihoods collection.

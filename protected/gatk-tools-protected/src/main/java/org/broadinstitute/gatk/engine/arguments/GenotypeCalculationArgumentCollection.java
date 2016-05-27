@@ -61,6 +61,9 @@ import java.util.List;
 
 public class GenotypeCalculationArgumentCollection implements Cloneable{
 
+
+    public static final String MAX_ALTERNATE_ALLELES_SHORT_NAME = "maxAltAlleles";
+
     /**
      * Depending on the value of the --max_alternate_alleles argument, we may genotype only a fraction of the alleles being sent on for genotyping.
      * Using this argument instructs the genotyper to annotate (in the INFO field) the number of alternate alleles that were originally discovered at the site.
@@ -122,7 +125,7 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      * As of GATK 2.2 the genotyper can handle a very large number of events, so the default maximum has been increased to 6.
      */
     @Advanced
-    @Argument(fullName = "max_alternate_alleles", shortName = "maxAltAlleles", doc = "Maximum number of alternate alleles to genotype", required = false)
+    @Argument(fullName = "max_alternate_alleles", shortName = MAX_ALTERNATE_ALLELES_SHORT_NAME, doc = "Maximum number of alternate alleles to genotype", required = false)
     public int MAX_ALTERNATE_ALLELES = 6;
 
     /**
