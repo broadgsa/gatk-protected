@@ -7,6 +7,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This class implements BAM index querying API
+ * by wrapping a class BrowseableBAMIndex from HTSJDK.
+ *
+ * @version 0.1
+ */
 public class GATKBAMIndexFromDataSource extends GATKBAMIndex {
     private File sourceFile;
     private SAMFileHeader sourceHeader;

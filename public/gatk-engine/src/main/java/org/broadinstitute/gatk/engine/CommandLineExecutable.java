@@ -68,6 +68,9 @@ public abstract class CommandLineExecutable extends CommandLineProgram {
 
     protected static Logger logger = Logger.getLogger(CommandLineExecutable.class);
 
+    /**
+     * Set GATK version to be used as part of user agent for network requests
+     */
     static {
         SRAAccession.setAppVersionString("GATK " + getVersionNumber());
     }

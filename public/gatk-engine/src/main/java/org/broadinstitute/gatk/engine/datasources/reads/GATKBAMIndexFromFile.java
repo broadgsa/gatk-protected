@@ -41,7 +41,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A basic interface for querying BAM indices.
+ * This class implements BAM index querying API
+ * by reading .bai file directly.
  * Very much not thread-safe.
  *
  * @author mhanna
