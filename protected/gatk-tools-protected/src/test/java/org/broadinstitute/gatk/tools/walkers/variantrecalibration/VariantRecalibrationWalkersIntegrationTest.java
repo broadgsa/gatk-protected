@@ -196,7 +196,7 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
             "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
-            "48c21792897bdbb9adcc64886d03c5d1",  // recal file
+            "051a3b8c15988ee4cd86ae918bec896b",  // recal file
             "93a6e7ab6cbd6ae24a5b2a6f0fd29d92"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
