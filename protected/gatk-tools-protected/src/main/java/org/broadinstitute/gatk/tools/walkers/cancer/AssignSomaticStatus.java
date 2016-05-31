@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.cancer;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
+import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -66,6 +67,8 @@ import org.broadinstitute.gatk.engine.SampleUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -78,6 +81,7 @@ import java.util.*;
 /**
  * Assigns somatic status to a set of calls
  */
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class}, enable = false )
 public class AssignSomaticStatus extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
     @ArgumentCollection
     protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();

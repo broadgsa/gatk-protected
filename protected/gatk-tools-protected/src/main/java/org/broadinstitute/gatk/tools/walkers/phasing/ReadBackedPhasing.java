@@ -112,8 +112,20 @@ import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
  *
  * <h3>Output</h3>
  * <p>
- * Phased VCF file.
+ * Phased VCF file using HP tags to link alleles at (possibly non-consecutive) genotypes of the same sample.
  * </p>
+ * <h4>Example</h4>
+ * <pre>
+ *     GT:GQ:HP    0/1:99:17690409-1,17690409-2
+ *     GT:GQ:HP    0/1:99:17690409-2,17690409-1:1258.14
+ * </pre>
+ * <p>The second site's alternate allele (1) is on the same physical haplotype as the first site's reference allele (0),
+ * and vice versa [second site's 0 goes with first site's 1]. This is based on the fact that the HP pairs line up in
+ * reverse order between these two genotypes.</p>
+ * <p>In an old notation that RBP used to output in much earlier versions, the genotypes would have been: 0/1 and 1|0,
+ * respectively. This was changed because depending on the case it caused ambiguity, incompleteness, and possible
+ * inconsistency with trio-based phasing. In contrast, the HP tag is much more explicitl for linking alleles, especially
+ * if the genotypes are non-consecutive.</p>
  *
  * <h3>Usage example</h3>
  * <pre>

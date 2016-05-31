@@ -79,7 +79,7 @@ import java.util.*;
 /**
  * Phred-scaled p-value for exact test of excess heterozygosity
  *
- * This annotation estimates excess heterozygosity in a population of samples. It is related to but distinct from InbreedingCoeff, which estimates evidence for inbreeding in a population. ExcessHet scales more reliably to large cohort sizes.
+ * <p>This annotation estimates excess heterozygosity in a population of samples. It is related to but distinct from InbreedingCoeff, which estimates evidence for inbreeding in a population. ExcessHet scales more reliably to large cohort sizes.</p>
  *
  * <h3>Statistical notes</h3>
  * <p>This annotation is a one-sided phred-scaled p-value using an exact test of the Hardy-Weinberg Equilibrium. The null hypothesis is that the number of heterozygotes follows the Hardy-Weinberg Equilibrium. The p-value is the probability of getting the same or more heterozygotes as was observed, given the null hypothesis. </p>

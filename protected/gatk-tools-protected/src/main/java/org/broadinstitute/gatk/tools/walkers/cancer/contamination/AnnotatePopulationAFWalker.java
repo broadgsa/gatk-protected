@@ -52,6 +52,9 @@
 package org.broadinstitute.gatk.tools.walkers.cancer.contamination;
 
 
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Input;
 import org.broadinstitute.gatk.utils.commandline.Output;
@@ -78,6 +81,7 @@ import java.util.*;
 /**
  * Given a input VCF representing a collection of populations, split the input into each population, and annotate each record with population allele frequencies
  */
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class}, enable = false  )
 // @Requires(DataSource.SAMPLE) <- require the sample data when this works
 public class AnnotatePopulationAFWalker extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
     // control the output

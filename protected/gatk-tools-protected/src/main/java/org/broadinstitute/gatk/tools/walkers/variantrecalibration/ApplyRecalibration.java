@@ -119,27 +119,27 @@ import java.util.regex.Pattern;
  *
  * <h3>Usage example for filtering SNPs</h3>
  * <pre>
- * java -Xmx3g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T ApplyRecalibration \
  *   -R reference.fasta \
- *   -input NA12878.HiSeq.WGS.bwa.cleaned.raw.subset.b37.vcf \
+ *   -input raw_variants.vcf \
  *   --ts_filter_level 99.0 \
- *   -tranchesFile path/to/output.tranches \
- *   -recalFile path/to/output.recal \
+ *   -tranchesFile output.tranches \
+ *   -recalFile output.recal \
  *   -mode SNP \
  *   -o path/to/output.recalibrated.filtered.vcf
  * </pre>
  *
  * <h3>Allele-specific usage</h3>
  * <pre>
- * java -Xmx3g -jar GenomeAnalysisTK.jar \
+ * java -jar GenomeAnalysisTK.jar \
  *   -T ApplyRecalibration \
  *   -R reference.fasta \
- *   -input rawVariants.withASannotations.vcf \
+ *   -input raw_variants.withASannotations.vcf \
  *   -AS \
  *   --ts_filter_level 99.0 \
- *   -tranchesFile path/to/output.AS.tranches \
- *   -recalFile path/to/output.AS.recal \
+ *   -tranchesFile output.AS.tranches \
+ *   -recalFile output.AS.recal \
  *   -mode SNP \
  *   -o path/to/output.recalibrated.ASfiltered.vcf
  * </pre>
@@ -153,12 +153,11 @@ import java.util.regex.Pattern;
  * <h3>Caveats</h3>
  *
  * <ul>
- * <li>The tranche values used in the example above is only a general example. You should determine the level of sensitivity
+ * <li>The tranche values used in the example above are only meant to be a general example. You should determine the level of sensitivity
  * that is appropriate for your specific project. Remember that higher sensitivity (more power to detect variants, yay!) comes
  * at the cost of specificity (more false negatives, boo!). You have to choose at what point you want to set the tradeoff.</li>
  * <li>In order to create the tranche reporting plots (which are only generated for SNPs, not indels!) Rscript needs to be
- * in your environment PATH (this is the scripting version of R, not the interactive version).
- * See <a target="r-project" href="http://www.r-project.org">http://www.r-project.org</a> for more info on how to download and install R.</li>
+ * in your environment PATH (this is the scripting version of R, not the interactive version).</li>
  * </ul>
  */
 

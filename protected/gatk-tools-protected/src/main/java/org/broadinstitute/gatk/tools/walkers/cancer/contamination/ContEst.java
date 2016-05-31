@@ -80,7 +80,7 @@ import java.util.*;
 /**
  * Estimate cross-sample contamination
  *
- * This tool determine the percent contamination of an input bam by sample, by lane, or in aggregate across all the input reads.
+ * <p>This tool determine the percent contamination of an input bam by sample, by lane, or in aggregate across all the input reads.</p>
  *
  * <h3>Usage examples</h3>
  * <p>These are example commands that show how to run ContEst for typical use cases. Square brackets ("[ ]")
