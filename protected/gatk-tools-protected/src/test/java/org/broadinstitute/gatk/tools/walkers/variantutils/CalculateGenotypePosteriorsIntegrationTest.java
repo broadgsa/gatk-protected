@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -74,7 +74,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("3e60ca3e04fecf5d6004c08d6f7503ca"));
+                Arrays.asList("43fa27382e654081af69ea05bd26e281"));
         executeTest("testUsingDiscoveredAF", spec);
     }
 
@@ -89,7 +89,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("1cca249ebc2599c7f24210d4f3204049"));
+                Arrays.asList("d63893f530fb749505ec685a5c57ff69"));
         executeTest("testMissingPriors", spec);
     }
 
@@ -103,7 +103,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + validationDataLocation + "NA12878.Jan2013.haplotypeCaller.subset.indels.vcf" +
                         " -supporting " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("cc59ceb6dab620a353edf03ef14090f1"));
+                Arrays.asList("a5d7bcad5a2a194441d00eb6574b8300"));
         executeTest("testInputINDELs", spec);
     }
 
@@ -117,7 +117,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + CEUtrioTest +
                         " -supporting " + CEUtrioPopPriorsTest,
                 1,
-                Arrays.asList("c7d35ce5f3675528fc484baa1c5df7b4"));
+                Arrays.asList("98bf63fd2ae3fa1cc42e66fa6b4f50f5"));
         executeTest("testFamilyPriors", spec);
     }
 
@@ -131,7 +131,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + getThreeMemberNonTrioTest +
                         " -skipPop",
                 1,
-                Arrays.asList("c523b99da1f7e0c0ea4090b916ae7379"));
+                Arrays.asList("e71420099fcfc824f1cf92ff2010b69e"));
         executeTest("testFamilyPriors", spec);
     }
 

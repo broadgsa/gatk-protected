@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,16 +51,19 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import htsjdk.samtools.util.TestUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class ValidateVariantsIntegrationTest extends WalkerTest {
 
@@ -198,12 +201,12 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test(description = "Checks out of order header contigs")
-    public void testOutOfOrderHeaderContigsError() {
-
+    public void testOutOfOrderHeaderContigs() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("complexEvents-outOfOrder.vcf", "ALL", DEFAULT_REGION, b37KGReference),
-                0, UserException.LexicographicallySortedSequenceDictionary.class);
-        executeTest("test out of order header contigs error", spec);
+                0,
+                Arrays.asList(EMPTY_MD5));
+        executeTest("test out of order header contigs", spec);
     }
 
     @Test(description = "Fixes '''bug''' reported in story https://www.pivotaltracker.com/story/show/68725164")
@@ -279,7 +282,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ALLOW_SEQ_DICT_INCOMPATIBILITY ",
-                0, Arrays.asList(EMPTY_MD5));
+                0, Collections.singletonList(EMPTY_MD5));
         executeTest("test to allow wrong header contig length, not checking dictionary incompatibility", spec);
     }
 
@@ -288,7 +291,78 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
 
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString("longAlleles-wrongLength.vcf", "ALL", "1", b37KGReference) + "  --reference_window_stop 208 -U ",
-                0, Arrays.asList(EMPTY_MD5));
+                0, Collections.singletonList(EMPTY_MD5));
         executeTest("test to allow wrong header contig length, no compatibility checks", spec);
     }
+
+    @Test
+    public void testGoodGvcf()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.g.vcf", "ALL", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList("d41d8cd98f00b204e9800998ecf8427e"));
+        executeTest("tests correct gvcf", spec);
+    }
+
+    @Test
+    public void testGoodGvcfExcludingAlleles()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.g.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList("d41d8cd98f00b204e9800998ecf8427e"));
+        executeTest("tests correct gvcf", spec);
+    }
+
+
+    @Test(expectedExceptions = RuntimeException.class )
+    public void testBadGvcfMissingNON_REF()  {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet.BAD_MISSING_NON_REF.g.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of missing NON_REF allele", spec);
+    }
+
+    @Test(expectedExceptions = RuntimeException.class )
+    public void testBadGvcfRegions() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("diploid-gvcf.bad-IncompleteRegion.vcf", "-ALLELES", "20:10433000-10437000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region", spec);
+    }
+
+   @Test(expectedExceptions = RuntimeException.class )
+    public void testNonOverlappingRegions()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("NA12891.AS.chr20snippet_BAD_INCOMPLETE_REGION.g.vcf", "-ALLELES", "Y:4966254-4967190", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region", spec);
+    }
+
+    @Test
+    public void testNonOverlappingRegionsBP_RESOLUTION()  {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString("gvcf.basepairResolution.vcf", "-ALLELES", "20:10000000-10010000", b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("tests capture of non-complete region, on BP_RESOLUTION gvcf", spec);
+    }
+    @Test
+    public void testCorrectCreationOfBlocks() throws IOException {
+        final File tempDir = IOUtils.tempDir("RefBlocks", "test", new File(privateTestDir));
+        tempDir.mkdir();
+        tempDir.deleteOnExit();
+        final File output = File.createTempFile("RefBlocks", ".g.vcf", tempDir);
+        String baseIntervals = " 1:1-100 -L 5:1-200 ";
+        String intervalString = " -L " + baseIntervals;
+        final WalkerTestSpec hc = new WalkerTestSpec("-T HaplotypeCaller " + intervalString + " -I " + privateTestDir + "NA12878.4.snippet.bam " +
+                " -R /humgen/1kg/reference/human_g1k_v37_decoy.fasta -ERC GVCF -o " + output, Collections.singletonList(EMPTY_MD5));
+        executeTest("running hc", hc);
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(tempDir.getName() + "/" + output.getName(), "-ALLELES", baseIntervals, b37KGReference) + " -gvcf  --reference_window_stop 208 -U ",
+                0, Collections.singletonList(EMPTY_MD5));
+        executeTest("testing the correct creation of reference blocks", spec);
+
+        TestUtil.recursiveDelete(tempDir);
+    }
+
 }

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.broadinstitute.gatk</groupId>
         <artifactId>gatk-aggregator</artifactId>
-        <version>3.5</version>
+        <version>3.6-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
@@ -60,6 +60,11 @@
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
+        </dependency>
+        <!-- Used in ONE unit test (grr) -->
+        <dependency>
+            <groupId>colt</groupId>
+            <artifactId>colt</artifactId>
         </dependency>
         <!--
         Some cofoja annotations (ex: PreconditionError) are ONLY in used tests.

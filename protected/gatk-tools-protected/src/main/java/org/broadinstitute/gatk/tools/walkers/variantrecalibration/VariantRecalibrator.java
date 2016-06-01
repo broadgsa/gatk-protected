@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
+import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
@@ -64,6 +65,8 @@ import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.R.RScriptExecutor;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.report.GATKReport;
+import org.broadinstitute.gatk.utils.report.GATKReportTable;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -79,19 +82,13 @@ import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.*;
 
+import Jama.Matrix;
+
 /**
  * Build a recalibration model to score variant quality for filtering purposes
  *
  * <p>
- * This tool performs the first pass in a two-stage process called VQSR; the second pass is performed by the
- * <a href='https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_variantrecalibration_ApplyRecalibration.php'>ApplyRecalibration</a> tool.
- * In brief, the first pass consists of creating a Gaussian mixture model by looking at the distribution of annotation
- * values over a high quality subset of the input call set, and then scoring all input variants according to the model.
- * The second pass consists of filtering variants based on score cutoffs identified in the first pass.
- *</p>
- *
- * <p>
- * The purpose of the variant recalibrator is to assign a well-calibrated probability to each variant call in a call set.
+ * The purpose of variant recalibration is to assign a well-calibrated probability to each variant call in a call set.
  * You can then create highly accurate call sets by filtering based on this single estimate for the accuracy of each call.
  * The approach taken by variant quality score recalibration is to develop a continuous, covarying estimate of the relationship
  * between SNP call annotations (such as QD, MQ, and ReadPosRankSum, for example) and the probability that a SNP is a true genetic
@@ -101,6 +98,14 @@ import java.util.*;
  * probability that each call is real. The score that gets added to the INFO field of each variant is called the VQSLOD. It is
  * the log odds of being a true variant versus being false under the trained Gaussian mixture model.
  * </p>
+ * 
+ * <p>
+ * This tool performs the first pass in a two-stage process called VQSR; the second pass is performed by the
+ * <a href='https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_variantrecalibration_ApplyRecalibration.php'>ApplyRecalibration</a> tool.
+ * In brief, the first pass consists of creating a Gaussian mixture model by looking at the distribution of annotation
+ * values over a high quality subset of the input call set, and then scoring all input variants according to the model.
+ * The second pass consists of filtering variants based on score cutoffs identified in the first pass.
+ *</p>
  *
  * <p>VQSR is probably the hardest part of the Best Practices to get right, so be sure to read the
  * <a href='https://www.broadinstitute.org/gatk/guide/article?id=39'>method documentation</a>,
@@ -110,7 +115,10 @@ import java.util.*;
  *
  * <h3>Inputs</h3>
  * <ul>
- * <li>The input raw variants to be recalibrated.</li>
+ * <li>The input raw variants to be recalibrated. These variant calls must be annotated with the annotations that will be used for modeling. 
+ * If the calls come from multiple samples, they must have been obtained by joint calling the samples, either directly (running HaplotypeCaller 
+ * on all samples together) or via the GVCF workflow (HaplotypeCaller with -ERC GVCF per-sample then GenotypeGVCFs on the resulting gVCFs) 
+ * which is more scalable.</li>
  * <li>Known, truth, and training sets to be used by the algorithm. See the method documentation for more details.</li>
  * </ul>
  *
@@ -130,13 +138,33 @@ import java.util.*;
  *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
  *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
  *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
- *   -resource:dbsnp,known=true,training=false,truth=false,prior=6.0 dbsnp_135.b37.vcf \
+ *   -resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp_135.b37.vcf \
  *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
  *   -mode SNP \
  *   -recalFile output.recal \
  *   -tranchesFile output.tranches \
  *   -rscriptFile output.plots.R
  * </pre>
+ *
+ * <h3>Allele-specfic usage</h3>
+ * <pre>
+ * java -Xmx4g -jar GenomeAnalysisTK.jar \
+ *   -T VariantRecalibrator \
+ *   -R reference.fasta \
+ *   -input raw_variants.withASannotations.vcf \
+ *   -AS \
+ *   -resource:hapmap,known=false,training=true,truth=true,prior=15.0 hapmap_3.3.b37.sites.vcf \
+ *   -resource:omni,known=false,training=true,truth=false,prior=12.0 1000G_omni2.5.b37.sites.vcf \
+ *   -resource:1000G,known=false,training=true,truth=false,prior=10.0 1000G_phase1.snps.high_confidence.vcf
+ *   -resource:dbsnp,known=true,training=false,truth=false,prior=2.0 dbsnp_135.b37.vcf \
+ *   -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
+ *   -mode SNP \
+ *   -recalFile output.AS.recal \
+ *   -tranchesFile output.AS.tranches \
+ *   -rscriptFile output.plots.AS.R
+ * </pre>
+ * The input VCF must have been produced using allele-specific annotations in HaplotypeCaller.
+ * Note that each allele will have a separate line in the output .recal file with its own VQSLOD and culprit that will be transferred to the final VCF in ApplyRecalibration.
  *
  * <h3>Caveats</h3>
  *
@@ -166,9 +194,13 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     // Inputs
     /////////////////////////////
     /**
-     * These calls should be unfiltered and annotated with the error covariates that are intended to be used for modeling.
+     * These variant calls must be annotated with the annotations that will be used for modeling. If the calls come from multiple samples, 
+     * they must have been obtained by joint calling the samples, either directly (running HaplotypeCaller on all samples together) or 
+     * via the GVCF workflow (HaplotypeCaller with -ERC GVCF per-sample then GenotypeGVCFs on the resulting gVCFs) which is more scalable. 
+     * Note that the ability to pass multiple input files is only intended to facilitate scatter-gather parallelism (to enable e.g. running on VCFs 
+     * generated per-chromosome), not to combine different callsets. The variant calls in the separate input files should not overlap. 
      */
-    @Input(fullName="input", shortName = "input", doc="The raw input variants to be recalibrated", required=true)
+    @Input(fullName="input", shortName = "input", doc="One or more VCFs of raw input variants to be recalibrated", required=true)
     public List<RodBindingCollection<VariantContext>> inputCollections;
     final private List<RodBinding<VariantContext>> input = new ArrayList<>();
 
@@ -233,10 +265,37 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     @Output(fullName="rscript_file", shortName="rscriptFile", doc="The output rscript file generated by the VQSR to aid in visualization of the input data and learned model", required=false, defaultToStdout=false)
     private File RSCRIPT_FILE = null;
 
+    /**
+     *  This GATKReport gives information to describe the VQSR model fit. Normalized means for the positive model are
+     *  concatenated as one table and negative model normalized means as another table. Covariances are also concatenated
+     *  for positive and negative models, respectively. Tables of annotation means and standard deviations are provided
+     *  to help describe the normalization. The model fit report can be read in with our R gsalib package. Individual
+     *  model Gaussians can be subset by the value in the "Gaussian" column if desired.
+     */
+    @Argument(fullName="output_model", shortName = "outputModel", doc="If specified, the variant recalibrator will output the VQSR model fit to the file specified by -modelFile or to stdout", required=false)
+    private boolean outputModel = false;
+    @Output(fullName="model_file", shortName = "modelFile", doc="A GATKReport containing the positive and negative model fits", required=false)
+    protected PrintStream modelReport = null;
+
     @Hidden
     @Argument(fullName="replicate", shortName="replicate", doc="Used to debug the random number generation inside the VQSR. Do not use.", required=false)
     protected int REPLICATE = 200;
     private ArrayList<Double> replicate = new ArrayList<>();
+
+    /**
+     * The statistical model being built by this tool may fail due to simple statistical sampling
+     * issues. Rather than dying immediately when the initial model fails, this argument allows the
+     * tool to restart with a different random seed and try to build the model again. The first
+     * successfully built model will be kept.
+     *
+     * Note that the most common underlying cause of model building failure is that there is insufficient data to
+     * build a really robust model. This argument provides a workaround for that issue but it is
+     * preferable to provide this tool with more data (typically by including more samples or more territory)
+     * in order to generate a more robust model.
+     */
+    @Advanced
+    @Argument(fullName="max_attempts", shortName = "max_attempts", doc="Number of attempts to build a model before failing", required=false)
+    protected int max_attempts = 1;
 
     /////////////////////////////
     // Debug Arguments
@@ -341,29 +400,48 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
         for( final VariantContext vc : tracker.getValues(rods, context.getLocation()) ) {
             if( vc != null && ( IGNORE_ALL_FILTERS || vc.isNotFiltered() || ignoreInputFilterSet.containsAll(vc.getFilters()) ) ) {
-                if( VariantDataManager.checkVariationClass( vc, VRAC.MODE ) ) {
-                    final VariantDatum datum = new VariantDatum();
-
-                    // Populate the datum with lots of fields from the VariantContext, unfortunately the VC is too big so we just pull in only the things we absolutely need.
-                    dataManager.decodeAnnotations( datum, vc, true ); //BUGBUG: when run with HierarchicalMicroScheduler this is non-deterministic because order of calls depends on load of machine
-                    datum.loc = ( isInput ? getToolkit().getGenomeLocParser().createGenomeLoc(vc) : null );
-                    datum.originalQual = vc.getPhredScaledQual();
-                    datum.isSNP = vc.isSNP() && vc.isBiallelic();
-                    datum.isTransition = datum.isSNP && GATKVariantContextUtils.isTransition(vc);
-                    datum.isAggregate = !isInput;
-
-                    // Loop through the training data sets and if they overlap this loci then update the prior and training status appropriately
-                    dataManager.parseTrainingSets( tracker, context.getLocation(), vc, datum, TRUST_ALL_POLYMORPHIC );
-                    final double priorFactor = QualityUtils.qualToProb( datum.prior );
-                    datum.prior = Math.log10( priorFactor ) - Math.log10( 1.0 - priorFactor );
-
-                    variants.add( datum );
+                if( VariantDataManager.checkVariationClass( vc, VRAC.MODE ) && !VRAC.useASannotations) {
+                    addDatum(variants, isInput, tracker, context, vc, null, null);
+                }
+                else if(VRAC.useASannotations) {
+                    for(final Allele allele : vc.getAlternateAlleles()) {
+                        if(allele == Allele.SPAN_DEL)
+                            continue;
+                        if (VariantDataManager.checkVariationClass(vc, allele, VRAC.MODE))
+                            addDatum(variants, isInput, tracker, context, vc, vc.getReference(), allele);
+                    }
                 }
             }
         }
 
         return variants;
     }
+
+    /**
+     * add a datum representing a variant site (or allele) to the data in {@code variants}, which represents the callset to be recalibrated
+     * @param variants is modified by having a new VariantDatum added to it
+     */
+    private void addDatum(final ExpandingArrayList<VariantDatum> variants, final boolean isInput, final RefMetaDataTracker tracker, final AlignmentContext context, final VariantContext vc, final Allele refAllele, final Allele altAllele) {
+        final VariantDatum datum = new VariantDatum();
+
+        // Populate the datum with lots of fields from the VariantContext, unfortunately the VC is too big so we just pull in only the things we absolutely need.
+        datum.referenceAllele = refAllele;
+        datum.alternateAllele = altAllele;
+        dataManager.decodeAnnotations(datum, vc, true); //BUGBUG: when run with HierarchicalMicroScheduler this is non-deterministic because order of calls depends on load of machine
+        datum.loc = (isInput ? getToolkit().getGenomeLocParser().createGenomeLoc(vc) : null);
+        datum.originalQual = vc.getPhredScaledQual();
+        datum.isSNP = vc.isSNP() && vc.isBiallelic();
+        datum.isTransition = datum.isSNP && GATKVariantContextUtils.isTransition(vc);
+        datum.isAggregate = !isInput;
+
+        // Loop through the training data sets and if they overlap this locus (and allele, if applicable) then update the prior and training status appropriately
+        dataManager.parseTrainingSets(tracker, context.getLocation(), vc, datum, TRUST_ALL_POLYMORPHIC);
+        final double priorFactor = QualityUtils.qualToProb(datum.prior);
+        datum.prior = Math.log10(priorFactor) - Math.log10(1.0 - priorFactor);
+
+        variants.add(datum);
+    }
+
 
     //---------------------------------------------------------------------------------------------------------------
     //
@@ -396,51 +474,154 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     @Override
     public void onTraversalDone( final ExpandingArrayList<VariantDatum> reduceSum ) {
-        dataManager.setData( reduceSum );
-        dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
+        for (int i = 1; i <= max_attempts; i++) {
+            try {
+                dataManager.setData(reduceSum);
+                dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
 
-        // Generate the positive model using the training data and evaluate each variant
-        final List<VariantDatum> positiveTrainingData = dataManager.getTrainingData();
-        final GaussianMixtureModel goodModel = engine.generateModel( positiveTrainingData, VRAC.MAX_GAUSSIANS );
-        engine.evaluateData( dataManager.getData(), goodModel, false );
+                // Generate the positive model using the training data and evaluate each variant
+                final List<VariantDatum> positiveTrainingData = dataManager.getTrainingData();
+                final GaussianMixtureModel goodModel = engine.generateModel(positiveTrainingData, VRAC.MAX_GAUSSIANS);
+                engine.evaluateData(dataManager.getData(), goodModel, false);
 
-        // Generate the negative model using the worst performing data and evaluate each variant contrastively
-        final List<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants();
-        final GaussianMixtureModel badModel = engine.generateModel( negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
-        dataManager.dropAggregateData(); // Don't need the aggregate data anymore so let's free up the memory
-        engine.evaluateData( dataManager.getData(), badModel, true );
+                // Generate the negative model using the worst performing data and evaluate each variant contrastively
+                final List<VariantDatum> negativeTrainingData = dataManager.selectWorstVariants();
+                final GaussianMixtureModel badModel = engine.generateModel(negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
+                dataManager.dropAggregateData(); // Don't need the aggregate data anymore so let's free up the memory
+                engine.evaluateData(dataManager.getData(), badModel, true);
 
-        if( badModel.failedToConverge || goodModel.failedToConverge ) {
-            throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --minNumBadVariants 5000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example).") );
+                if (badModel.failedToConverge || goodModel.failedToConverge) {
+                    throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --minNumBadVariants 5000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example)."));
+                }
+
+                if (outputModel) {
+                    GATKReport report = writeModelReport(goodModel, badModel, USE_ANNOTATIONS);
+                    report.print(modelReport);
+                }
+
+                engine.calculateWorstPerformingAnnotation(dataManager.getData(), goodModel, badModel);
+
+                // Find the VQSLOD cutoff values which correspond to the various tranches of calls requested by the user
+                final int nCallsAtTruth = TrancheManager.countCallsAtTruth(dataManager.getData(), Double.NEGATIVE_INFINITY);
+                final TrancheManager.SelectionMetric metric = new TrancheManager.TruthSensitivityMetric(nCallsAtTruth);
+                final List<Tranche> tranches = TrancheManager.findTranches(dataManager.getData(), TS_TRANCHES, metric, VRAC.MODE);
+                tranchesStream.print(Tranche.tranchesString(tranches));
+
+                logger.info("Writing out recalibration table...");
+                dataManager.writeOutRecalibrationTable(recalWriter);
+                if (RSCRIPT_FILE != null) {
+                    logger.info("Writing out visualization Rscript file...");
+                    createVisualizationScript(dataManager.getRandomDataForPlotting(1000, positiveTrainingData, negativeTrainingData, dataManager.getEvaluationData()), goodModel, badModel, 0.0, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.size()]));
+                }
+
+                if (VRAC.MODE == VariantRecalibratorArgumentCollection.Mode.INDEL) {
+                    // Print out an info message to make it clear why the tranches plot is not generated
+                    logger.info("Tranches plot will not be generated since we are running in INDEL mode");
+                } else {
+                    // Execute the RScript command to plot the table of truth values
+                    RScriptExecutor executor = new RScriptExecutor();
+                    executor.addScript(new Resource(PLOT_TRANCHES_RSCRIPT, VariantRecalibrator.class));
+                    executor.addArgs(TRANCHES_FILE.getAbsoluteFile(), TARGET_TITV);
+                    // Print out the command line to make it clear to the user what is being executed and how one might modify it
+                    logger.info("Executing: " + executor.getApproximateCommandLine());
+                    executor.exec();
+                }
+                return;
+            } catch (Exception e) {
+                if (i == max_attempts) {
+                    throw e;
+                } else {
+                    logger.info(String.format("Exception occurred on attempt %d of %d. Trying again. Message was: '%s'", i, max_attempts, e.getMessage()));
+                }
+            }
+        }
+    }
+
+    protected GATKReport writeModelReport(final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, List<String> annotationList) {
+        final String formatString = "%.3f";
+        final GATKReport report = new GATKReport();
+
+        if (dataManager != null) {  //for unit test
+            final double[] meanVector = dataManager.getMeanVector();
+            GATKReportTable annotationMeans = makeVectorTable("AnnotationMeans", "Mean for each annotation, used to normalize data", dataManager.annotationKeys, meanVector, "Mean", formatString);
+            report.addTable(annotationMeans);
+
+            final double[] varianceVector = dataManager.getVarianceVector();  //"varianceVector" is actually stdev
+            GATKReportTable annotationVariances = makeVectorTable("AnnotationStdevs", "Standard deviation for each annotation, used to normalize data", dataManager.annotationKeys, varianceVector, "Standard deviation", formatString);
+            report.addTable(annotationVariances);
         }
 
-        engine.calculateWorstPerformingAnnotation( dataManager.getData(), goodModel, badModel );
+        //The model and Gaussians don't know what the annotations are, so get them from this class
+        //VariantDataManager keeps the annotation in the same order as the argument list
+        GATKReportTable positiveMeans = makeMeansTable("PositiveModelMeans", "Vector of annotation values to describe the (normalized) mean for each Gaussian in the positive model", annotationList, goodModel, formatString);
+        report.addTable(positiveMeans);
 
-        // Find the VQSLOD cutoff values which correspond to the various tranches of calls requested by the user
-        final int nCallsAtTruth = TrancheManager.countCallsAtTruth( dataManager.getData(), Double.NEGATIVE_INFINITY );
-        final TrancheManager.SelectionMetric metric = new TrancheManager.TruthSensitivityMetric( nCallsAtTruth );
-        final List<Tranche> tranches = TrancheManager.findTranches( dataManager.getData(), TS_TRANCHES, metric, VRAC.MODE );
-        tranchesStream.print(Tranche.tranchesString( tranches ));
+        GATKReportTable positiveCovariance = makeCovariancesTable("PositiveModelCovariances", "Matrix to describe the (normalized) covariance for each Gaussian in the positive model; covariance matrices are joined by row", annotationList, goodModel, formatString);
+        report.addTable(positiveCovariance);
 
-        logger.info( "Writing out recalibration table..." );
-        dataManager.writeOutRecalibrationTable( recalWriter );
-        if( RSCRIPT_FILE != null ) {
-            logger.info( "Writing out visualization Rscript file...");
-            createVisualizationScript( dataManager.getRandomDataForPlotting( 1000, positiveTrainingData, negativeTrainingData, dataManager.getEvaluationData() ), goodModel, badModel, 0.0, dataManager.getAnnotationKeys().toArray(new String[USE_ANNOTATIONS.size()]) );
+        //do the same for the negative model means
+        GATKReportTable negativeMeans = makeMeansTable("NegativeModelMeans", "Vector of annotation values to describe the (normalized) mean for each Gaussian in the negative model", annotationList, badModel, formatString);
+        report.addTable(negativeMeans);
+
+        GATKReportTable negativeCovariance = makeCovariancesTable("NegativeModelCovariances", "Matrix to describe the (normalized) covariance for each Gaussian in the negative model; covariance matrices are joined by row", annotationList, badModel, formatString);
+        report.addTable(negativeCovariance);
+
+        return report;
+    }
+
+    protected GATKReportTable makeVectorTable(final String tableName, final String tableDescription, final List<String> annotationList, final double[] perAnnotationValues, final String columnName, final String formatString) {
+        GATKReportTable vectorTable = new GATKReportTable(tableName, tableDescription, annotationList.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
+        vectorTable.addColumn("Annotation");
+        vectorTable.addColumn(columnName, formatString);
+        for (int i = 0; i < perAnnotationValues.length; i++) {
+            vectorTable.addRowIDMapping(annotationList.get(i), i, true);
+            vectorTable.set(i, 1, perAnnotationValues[i]);
         }
+        return vectorTable;
+    }
 
-        if(VRAC.MODE == VariantRecalibratorArgumentCollection.Mode.INDEL) {
-            // Print out an info message to make it clear why the tranches plot is not generated
-            logger.info("Tranches plot will not be generated since we are running in INDEL mode");
-        } else {
-            // Execute the RScript command to plot the table of truth values
-            RScriptExecutor executor = new RScriptExecutor();
-            executor.addScript(new Resource(PLOT_TRANCHES_RSCRIPT, VariantRecalibrator.class));
-            executor.addArgs(TRANCHES_FILE.getAbsoluteFile(), TARGET_TITV);
-            // Print out the command line to make it clear to the user what is being executed and how one might modify it
-            logger.info("Executing: " + executor.getApproximateCommandLine());
-            executor.exec();
+    private GATKReportTable makeMeansTable(final String tableName, final String tableDescription, final List<String> annotationList, final GaussianMixtureModel model, final String formatString) {
+        GATKReportTable meansTable = new GATKReportTable(tableName, tableDescription, annotationList.size(), GATKReportTable.TableSortingWay.DO_NOT_SORT);
+        meansTable.addColumn("Gaussian");
+        for (final String annotationName : annotationList) {
+            meansTable.addColumn(annotationName, formatString);
         }
+        final List<MultivariateGaussian> modelGaussians = model.getModelGaussians();
+        for (int i = 0; i < modelGaussians.size(); i++) {
+            final MultivariateGaussian gaussian = modelGaussians.get(i);
+            final double[] meanVec = gaussian.mu;
+            if (meanVec.length != annotationList.size())
+                throw new IllegalStateException("Gaussian mean vector does not have the same size as the list of annotations");
+            meansTable.addRowIDMapping(i, i, true);
+            for (int j = 0; j < annotationList.size(); j++)
+                meansTable.set(i, annotationList.get(j), meanVec[j]);
+        }
+        return meansTable;
+    }
+
+    private GATKReportTable makeCovariancesTable(final String tableName, final String tableDescription, final List<String> annotationList, final GaussianMixtureModel model, final String formatString) {
+        GATKReportTable modelCovariances = new GATKReportTable(tableName, tableDescription, annotationList.size()+2, GATKReportTable.TableSortingWay.DO_NOT_SORT); //+2 is for Gaussian and Annotation columns
+        modelCovariances.addColumn("Gaussian");
+        modelCovariances.addColumn("Annotation");
+        for (final String annotationName : annotationList) {
+            modelCovariances.addColumn(annotationName, formatString);
+        }
+        final List<MultivariateGaussian> modelGaussians = model.getModelGaussians();
+        for (int i = 0; i < modelGaussians.size(); i++) {
+            final MultivariateGaussian gaussian = modelGaussians.get(i);
+            final Matrix covMat = gaussian.sigma;
+            if (covMat.getRowDimension() != annotationList.size() || covMat.getColumnDimension() != annotationList.size())
+                throw new IllegalStateException("Gaussian covariance matrix does not have the same size as the list of annotations");
+            for (int j = 0; j < annotationList.size(); j++) {
+                modelCovariances.set(j + i * annotationList.size(), "Gaussian", i);
+                modelCovariances.set(j + i * annotationList.size(), "Annotation", annotationList.get(j));
+                for (int k = 0; k < annotationList.size(); k++) {
+                    modelCovariances.set(j + i * annotationList.size(), annotationList.get(k), covMat.get(j, k));
+
+                }
+            }
+        }
+        return modelCovariances;
     }
 
     private void createVisualizationScript( final List<VariantDatum> randomData, final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, final double lodCutoff, final String[] annotationKeys ) {

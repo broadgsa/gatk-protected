@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -80,7 +80,7 @@ import java.util.*;
 /**
  * Estimate cross-sample contamination
  *
- * This tool determine the percent contamination of an input bam by sample, by lane, or in aggregate across all the input reads.
+ * <p>This tool determine the percent contamination of an input bam by sample, by lane, or in aggregate across all the input reads.</p>
  *
  * <h3>Usage examples</h3>
  * <p>These are example commands that show how to run ContEst for typical use cases. Square brackets ("[ ]")
@@ -264,14 +264,14 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
             useSequencingGenotypes = true;
             // if were not using arrays, we need to figure out what samples are what
             for(SAMReaderID id : getToolkit().getReadsDataSource().getReaderIDs()) {
-                if (id.getTags().getPositionalTags().size() == 0)
+                if (id.getTags().getPositionalTags().isEmpty())
                     throw new UserException.BadInput("BAMs must be tagged with " + GENOTYPE_BAM_TAG + " and " + EVAL_BAM_TAG + " when running in array-free mode. Please see the ContEst documentation for more details");
 
                 // now sort out what tags go with what bam
                 for (String tag : id.getTags().getPositionalTags()) {
                     if (GENOTYPE_BAM_TAG.equalsIgnoreCase(tag)) {
                         try {
-                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().size() == 0)
+                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().isEmpty())
                                 throw new RuntimeException("No Read Groups found for Genotyping BAM -- Read Groups are Required in sequencing genotype mode!");
                             genotypeSample = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
                         } catch (NullPointerException npe) {
@@ -279,7 +279,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
                         }
                     } else if (EVAL_BAM_TAG.equalsIgnoreCase(tag)) {
                         try {
-                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().size() == 0)
+                            if (getToolkit().getReadsDataSource().getHeader(id).getReadGroups().isEmpty())
                                 throw new RuntimeException("No Read Groups found for Genotyping BAM -- Read Groups are Required in sequencing genotype mode!");
                             evalSample = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
                         } catch (NullPointerException npe) {
@@ -410,7 +410,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
                                 namePair.getKey(),
                                 populationsToEvaluate);
 
-                if (results.size() > 0) {
+                if (!results.isEmpty()) {
                     countResults++;
                     stats.put(namePair.getKey(), results);
                 }
@@ -498,7 +498,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
     private static Genotype getGenotypeFromArray(RefMetaDataTracker tracker, RodBinding<VariantContext> genotypes, boolean verifiedSampleName, boolean verifySample, String sampleName) {
         // get the truthForSample and the hapmap information for this site; if either are null we can't move forward
         Collection<VariantContext> truths = tracker.getValues(genotypes);
-        if (truths == null || truths.size() == 0) return null;
+        if (truths == null || truths.isEmpty()) return null;
 
         VariantContext truthForSample = truths.iterator().next();
 
@@ -506,7 +506,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
         if (!verifiedSampleName && verifySample) {
             if (!truthForSample.getSampleNames().contains(sampleName))
                 throw new UserException.BadInput("The sample name was set to " + sampleName + " but this sample isn't in your genotypes file.  Please Verify your sample name");
-                verifiedSampleName = true;
+            verifiedSampleName = true;
         }
 
         GenotypesContext gt = truthForSample.getGenotypes();
@@ -622,6 +622,9 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
 
         for (String pop : pops) {
             PopulationFrequencyInfo info = parsePopulationFrequencyInfo(popVC, pop);
+            if ( info == null )
+                throw new RuntimeException("No population frequency annotation for " + pop + " in " + popVC.toString());
+
             double alleleFreq = info.getMinorAlleleFrequency();
             if (alleleFreq > 0.5) {
                 throw new RuntimeException("Minor allele frequency is greater than 0.5, this is an error; we saw AF of " + alleleFreq);
@@ -708,7 +711,7 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
             }
 
 
-            if (newMap.size() > 0)
+            if (!newMap.isEmpty())
                 cleanedMap.put(entry.getKey(), newMap);
             else
                 out.println("Warning: We're throwing out lane " + entry.getKey() + " since it has fewer than " + minBaseCount +

@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -55,27 +55,24 @@ import com.google.java.contract.Ensures;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
+import org.broadinstitute.gatk.engine.filters.BadMateFilter;
 import org.broadinstitute.gatk.engine.io.DirectOutputTracker;
 import org.broadinstitute.gatk.engine.io.stubs.SAMFileWriterStub;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.downsampling.AlleleBiasedDownsamplingUtils;
-import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
-import org.broadinstitute.gatk.utils.downsampling.DownsamplingUtils;
-import org.broadinstitute.gatk.engine.filters.BadMateFilter;
-import org.broadinstitute.gatk.utils.genotyper.*;
-import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
 import org.broadinstitute.gatk.engine.io.stubs.VariantContextWriterStub;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
+import org.broadinstitute.gatk.engine.iterators.ReadTransformer;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardHCAnnotation;
 import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.FixedAFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
@@ -88,22 +85,35 @@ import org.broadinstitute.gatk.utils.activeregion.ActiveRegionReadState;
 import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
 import org.broadinstitute.gatk.utils.clipping.ReadClipper;
 import org.broadinstitute.gatk.utils.commandline.*;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
+import org.broadinstitute.gatk.utils.downsampling.AlleleBiasedDownsamplingUtils;
+import org.broadinstitute.gatk.utils.downsampling.DownsampleType;
+import org.broadinstitute.gatk.utils.downsampling.DownsamplingUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.gatk.utils.fragments.FragmentCollection;
 import org.broadinstitute.gatk.utils.fragments.FragmentUtils;
+import org.broadinstitute.gatk.utils.genotyper.*;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.gvcf.GVCFWriter;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
+import org.broadinstitute.gatk.utils.haplotypeBAMWriter.DroppedReadsTracker;
 import org.broadinstitute.gatk.utils.haplotypeBAMWriter.HaplotypeBAMWriter;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.sam.ReadUtils;
-import org.broadinstitute.gatk.utils.variant.*;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
+import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
@@ -177,6 +187,19 @@ import java.util.*;
  *     [--dbsnp dbSNP.vcf] \
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.g.vcf
+ * </pre>
+ *
+ * <h4>Single-sample GVCF calling on DNAseq with allele-specific annotations (for allele-specific cohort analysis workflow)</h4>
+ * <pre>
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -R reference.fasta \
+ *     -T HaplotypeCaller \
+ *     -I sample1.bam \
+ *     --emitRefConfidence GVCF \
+ *     [--dbsnp dbSNP.vcf] \
+ *     [-L targets.interval_list] \
+ *     -G Standard -G AS_Standard \
+ *     -o output.raw.snps.indels.AS.g.vcf
  * </pre>
  *
  * <h4>Variant-only calling on DNAseq</h4>
@@ -313,7 +336,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{ "Standard", "StandardHCAnnotation" }));
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{StandardAnnotation.class.getSimpleName(), StandardHCAnnotation.class.getSimpleName() }));
 
     @ArgumentCollection
     private HaplotypeCallerArgumentCollection HCAC = new HaplotypeCallerArgumentCollection();
@@ -879,12 +902,21 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         final ActiveRegion regionForGenotyping = assemblyResult.getRegionForGenotyping();
 
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.TRIMMMED, originalActiveRegion.getReads(), regionForGenotyping.getReads());
+        }
+
         // filter out reads from genotyping which fail mapping quality based criteria
         //TODO - why don't do this before any assembly is done? Why not just once at the beginning of this method
         //TODO - on the originalActiveRegion?
         //TODO - if you move this up you might have to consider to change referenceModelForNoVariation
         //TODO - that does also filter reads.
         final Collection<GATKSAMRecord> filteredReads = filterNonPassingReads( regionForGenotyping );
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReads(DroppedReadsTracker.Reason.FILTERED, filteredReads);
+        }
+
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample( filteredReads );
 
         // abort early if something is out of the acceptable range
@@ -913,6 +945,14 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         // Realign reads to their best haplotype.
         final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getReferenceHaplotype(), assemblyResult.getPaddedReferenceLoc());
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(
+                    DroppedReadsTracker.Reason.REALIGNMENT_FAILURE,
+                    regionForGenotyping.getReads(),
+                    readRealignments.values());
+        }
+
         readLikelihoods.changeReads(readRealignments);
 
         // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
@@ -943,6 +983,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
                     haplotypes,
                     calledHaplotypeSet,
                     readLikelihoods);
+
+            if ( HCAC.emitDroppedReads ) {
+                haplotypeBAMWriter.writeDroppedReads();
+            }
         }
 
         if( HCAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
@@ -1116,6 +1160,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
     @Override
     public void onTraversalDone(Integer result) {
+        genotypingEngine.printFinalMaxNumPLValuesWarning();
         if ( HCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) ((GVCFWriter)vcfWriter).close(false); // GROSS -- engine forces us to close our own VCF writer since we wrapped it
         referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
@@ -1167,6 +1212,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         // TODO -- Performance optimization: we partition the reads by sample 4 times right now; let's unify that code.
 
         final List<GATKSAMRecord> downsampledReads = DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart);
+
+        if ( HCAC.bamWriter != null && HCAC.emitDroppedReads ) {
+            haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.DOWNSAMPLED, activeRegion.getReads(), downsampledReads);
+        }
 
         // handle overlapping read pairs from the same fragment
         cleanOverlappingReadPairs(downsampledReads);
@@ -1245,10 +1294,15 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     /**
      * Is writing to an output GVCF file?
      *
-     * @return true if the VCF output file has a .g.vcf or .g.vcf.gz extension
+     * @return true if the VCF output file has a .g.vcf or .g.vcf.gz extension or if no output file
      */
     private boolean isGVCF() {
-        String fileName = ((VariantContextWriterStub) vcfWriter).getOutputFile().getName();
-        return ( fileName.endsWith("." + GATKVCFUtils.GVCF_EXT) || fileName.endsWith("." + GATKVCFUtils.GVCF_GZ_EXT) );
+        final File file = ((VariantContextWriterStub) vcfWriter).getOutputFile();
+        if ( file == null ){
+            return true;
+        } else {
+            final String fileName = file.getName();
+            return ( fileName.endsWith("." + GATKVCFUtils.GVCF_EXT) || fileName.endsWith("." + GATKVCFUtils.GVCF_GZ_EXT) );
+        }
     }
 }

@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
+import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
@@ -83,7 +84,11 @@ import java.util.Map;
  */
 public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalAnnotation {
 
+    private final static Logger logger = Logger.getLogger(HomopolymerRun.class);
+
     private boolean ANNOTATE_INDELS = true;
+    
+    private final static int BAD_RUN_LENGTH = -1;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -103,6 +108,9 @@ public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalA
         } else {
             return null;
         }
+
+        if ( run == BAD_RUN_LENGTH )
+            return null;
         
         Map<String, Object> map = new HashMap<>();
         map.put(getKeyNames().get(0), String.format("%d", run));
@@ -149,15 +157,13 @@ public class HomopolymerRun extends InfoFieldAnnotation implements ExperimentalA
         GenomeLoc window = ref.getWindow();
         int refBasePos = (int) (locus.getStart() - window.getStart())+1;
         if ( vc.isSimpleDeletion() ) {
-            // check that deleted bases are the same
-            byte dBase = bases[refBasePos];
-            for ( int i = 0; i < vc.getReference().length(); i ++ ) {
-                if ( bases[refBasePos+i] != dBase ) {
-                    return 0;
-                }
+            if ( refBasePos + vc.getReference().length() - 1 >= bases.length ) {
+                logger.warn("Encountered a homopolymer at " + locus.toString() + " longer than the tool's default window size, so the position was skipped. " +
+                        "To process this position, add --reference_window_stop to your command with a value equal or greater than " + vc.getReference().length());
+                return BAD_RUN_LENGTH;
             }
 
-            return computeHomopolymerRun(dBase, ref);
+            return computeHomopolymerRun(bases[refBasePos], ref);
         } else {
             // check that inserted bases are the same
             byte insBase = vc.getAlternateAllele(0).getBases()[0];

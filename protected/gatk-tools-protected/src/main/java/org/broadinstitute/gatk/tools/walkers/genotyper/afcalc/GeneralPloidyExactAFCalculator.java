@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -58,14 +58,15 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalcula
 import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
-
-    static final int MAX_LENGTH_FOR_POOL_PL_LOGGING = 100; // if PL vectors longer than this # of elements, don't log them
 
     protected GeneralPloidyExactAFCalculator() {
     }
@@ -491,6 +492,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
                                                           final boolean assignGenotypes, final double[] newLikelihoods) {
 
         final GenotypeBuilder gb = new GenotypeBuilder(g);
+        final String sampleName = g.getSampleName();
 
         // add likelihoods
         gb.PL(newLikelihoods);
@@ -500,7 +502,7 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
         if (newSACs != null)
             gb.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, newSACs);
         if (assignGenotypes)
-            assignGenotype(gb, newLikelihoods, allelesToUse, ploidy);
+            assignGenotype(gb, vc, sampleName, newLikelihoods, allelesToUse, ploidy);
         else
             gb.alleles(GATKVariantContextUtils.noCallAlleles(ploidy));
 
@@ -528,13 +530,18 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
     }
 
     /**
-     * Assign genotypes (GTs) to the samples in the Variant Context greedily based on the PLs
+     * Assign genotypes (GTs) to the samples in the VariantContext greedily based on the PLs
      *
+     * @param gb                   the GenotypeBuilder to modify
+     * @param vc                   the VariantContext
+     * @param sampleName           the sample name
      * @param newLikelihoods       the PL array
      * @param allelesToUse         the list of alleles to choose from (corresponding to the PLs)
      * @param numChromosomes       Number of chromosomes per pool
      */
     private void assignGenotype(final GenotypeBuilder gb,
+                                final VariantContext vc,
+                                final String sampleName,
                                 final double[] newLikelihoods,
                                 final List<Allele> allelesToUse,
                                 final int numChromosomes) {
@@ -547,13 +554,10 @@ public class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
 
         gb.alleles(alleleCounts.asAlleleList(allelesToUse));
 
-        // remove PLs if necessary
-        if (newLikelihoods.length > MAX_LENGTH_FOR_POOL_PL_LOGGING)
-            gb.noPL();
+        removePLsIfMaxNumPLValuesExceeded(gb, vc, sampleName, newLikelihoods);
 
         // TODO - deprecated so what is the appropriate method to call?
         if ( numNewAltAlleles > 0 )
             gb.log10PError(GenotypeLikelihoods.getGQLog10FromLikelihoods(PLindex, newLikelihoods));
     }
-
 }

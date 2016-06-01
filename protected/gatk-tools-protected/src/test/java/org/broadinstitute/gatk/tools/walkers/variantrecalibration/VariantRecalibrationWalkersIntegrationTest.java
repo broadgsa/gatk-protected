@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -196,8 +196,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
 
     VRTest bcfTest = new VRTest(privateTestDir + "vqsr.bcf_test.snps.unfiltered.bcf",
             "3ad7f55fb3b072f373cbce0b32b66df4",  // tranches
-            "73489f9365e4884b2dd89477350a7fe0",  // recal file
-            "0bd2067f831e5388b790e7bb7f45d98f"); // cut VCF
+            "051a3b8c15988ee4cd86ae918bec896b",  // recal file
+            "93a6e7ab6cbd6ae24a5b2a6f0fd29d92"); // cut VCF
 
     @DataProvider(name = "VRBCFTest")
     public Object[][] createVRBCFTest() {
@@ -344,6 +344,42 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
                 Assert.assertTrue(VC.isNotFiltered()); // there should only be unfiltered records in the output VCF file
             }
         }
+    }
+
+    @Test(enabled = true)
+    public void testApplyRecalibrationAlleleSpecificSNPmode() {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 3:113005755-195507036" +
+                " -mode SNP -AS" +
+                " -ts_filter_level 99.7" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.AStest.input.vcf" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.AStest.snps.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.AStest.snps.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("dbcf0cb5c2a0eb2312e6ca7d4e3aeeda"));
+        final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificSNPmode", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
+    }
+
+    @Test(enabled = true)
+    public void testApplyRecalibrationAlleleSpecificINDELmode() {
+        final String base = "-R " + b37KGReference +
+                " -T ApplyRecalibration" +
+                " -L 3:113005755-195507036" +
+                " -mode INDEL -AS" +
+                " -ts_filter_level 99.3" +
+                " --no_cmdline_in_header" +
+                " -input " + privateTestDir + "VQSR.AStest.postSNPinput.vcf" +
+                " -o %s" +
+                " -tranchesFile " + privateTestDir + "VQSR.AStest.indels.tranches" +
+                " -recalFile " + privateTestDir + "VQSR.AStest.indels.recal";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("38d4b8e89dbf8acb6a36dfa1bb55c54c"));
+        final List<File> outputFiles = executeTest("testApplyRecalibrationAlleleSpecificINDELmode", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
     }
 
     private void setPDFsForDeletion( final List<File> walkerOutputFiles ) {

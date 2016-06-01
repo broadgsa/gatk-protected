@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -54,10 +54,14 @@ package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.GenotypingLikelihoods;
 import org.broadinstitute.gatk.utils.SimpleTimer;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.utils.SimpleTimer;
 
 import java.io.File;
 import java.util.List;
@@ -67,10 +71,13 @@ import java.util.List;
  * Generic interface for calculating the probability of alleles segregating given priors and genotype likelihoods
  */
 public abstract class AFCalculator implements Cloneable {
-    private final static Logger defaultLogger = Logger.getLogger(AFCalculator.class);
-
+    private static final Logger defaultLogger = Logger.getLogger(AFCalculator.class);
+    public static final int MAX_NUM_PL_VALUES_DEFAULT = 100;
 
     protected Logger logger = defaultLogger;
+    protected int maxNumPLValues = MAX_NUM_PL_VALUES_DEFAULT; // if PL vectors longer than this # of elements, don't log them
+    protected static int maxNumPLValuesObserved = 0;
+    protected static long numTimesMaxNumPLValuesExceeded = 0;
 
     private SimpleTimer callTimer = new SimpleTimer();
     private StateTracker stateTracker;
@@ -102,8 +109,17 @@ public abstract class AFCalculator implements Cloneable {
      *
      * @param logger
      */
-    public void setLogger(Logger logger) {
+    public void setLogger(final Logger logger) {
         this.logger = logger;
+    }
+
+    /**
+     * Set the maximum number of PL values to log.  If the number of PL values exceeds this, no PL values will be logged.
+     * @param maxNumPLValues    maximum number of PL values to log
+     */
+    public AFCalculator setMaxNumPLValues(final int maxNumPLValues) {
+        this.maxNumPLValues = maxNumPLValues;
+        return this;
     }
 
     /**
@@ -115,6 +131,7 @@ public abstract class AFCalculator implements Cloneable {
      * @return result (for programming convenience)
      */
     public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors) {
+
         if ( vc == null ) throw new IllegalArgumentException("VariantContext cannot be null");
         if ( vc.getNAlleles() == 1 ) throw new IllegalArgumentException("VariantContext has only a single reference allele, but getLog10PNonRef requires at least one at all " + vc);
         if ( log10AlleleFrequencyPriors == null ) throw new IllegalArgumentException("priors vector cannot be null");
@@ -122,6 +139,9 @@ public abstract class AFCalculator implements Cloneable {
         // reset the result, so we can store our new result there
         final StateTracker stateTracker = getStateTracker(true,maximumAlternativeAlleles);
 
+        //TODO All implementations of the reduce-scope seems to employ a bad criterion to
+        //TODO decide what alleles to keep. This must be changed eventually.
+        //TODO issue {@see https://github.com/broadinstitute/gsa-unstable/issues/1376}
         final VariantContext vcWorking = reduceScope(vc,defaultPloidy, maximumAlternativeAlleles);
 
         callTimer.start();
@@ -242,4 +262,50 @@ public abstract class AFCalculator implements Cloneable {
         return getStateTracker(false,allele + 1).getAlleleCountsOfMAP()[allele];
     }
 
+    /**
+     * Strips PLs from the specified GenotypeBuilder if their number exceeds the maximum allowed.  Corresponding counters are updated.
+     * @param gb                the GenotypeBuilder to modify
+     * @param vc                the VariantContext
+     * @param sampleName        the sample name
+     * @param newLikelihoods    the PL array
+     */
+    protected void removePLsIfMaxNumPLValuesExceeded(final GenotypeBuilder gb, final VariantContext vc, final String sampleName, final double[] newLikelihoods) {
+        final int numPLValuesFound = newLikelihoods.length;
+        if (numPLValuesFound > maxNumPLValues) {
+            logMaxNumPLValuesWarning(vc, sampleName, numPLValuesFound);
+            numTimesMaxNumPLValuesExceeded++;
+            gb.noPL();
+            if (numPLValuesFound > maxNumPLValuesObserved) {
+                maxNumPLValuesObserved = numPLValuesFound;
+            }
+        }
+    }
+
+    private void logMaxNumPLValuesWarning(final VariantContext vc, final String sampleName, final int numPLValuesFound) {
+        final String message = String.format("Maximum allowed number of PLs (%d) exceeded for sample %s at %s:%d-%d with %d possible genotypes. " +
+                        "No PLs will be output for these genotypes (which may cause incorrect results in subsequent analyses) " +
+                        "unless the --max_num_PL_values argument is increased accordingly",
+                maxNumPLValues, sampleName, vc.getContig(), vc.getStart(), vc.getEnd(), numPLValuesFound);
+
+        if ( numTimesMaxNumPLValuesExceeded == 0 ) {
+            logger.warn(message + ". Unless the DEBUG logging level is used, this warning message is output just once per run and further warnings are suppressed.");
+        } else {
+            logger.debug(message);
+        }
+    }
+
+    /**
+     * Logs the number of times the maximum allowed number of PLs was exceeded and the largest number of PLs observed. The corresponding counters are reset.
+     */
+    public void printFinalMaxNumPLValuesWarning() {
+        if ( numTimesMaxNumPLValuesExceeded > 0 ) {
+            final String message = String.format("Maximum allowed number of PLs (%d) was exceeded %d time(s); the largest number of PLs found was %d. " +
+                            "No PLs will be output for these genotypes (which may cause incorrect results in subsequent analyses) " +
+                            "unless the --max_num_PL_values argument is increased accordingly",
+                    maxNumPLValues, numTimesMaxNumPLValuesExceeded, maxNumPLValuesObserved);
+            logger.warn(message);
+        }
+        maxNumPLValuesObserved = 0;
+        numTimesMaxNumPLValuesExceeded = 0;
+    }
 }

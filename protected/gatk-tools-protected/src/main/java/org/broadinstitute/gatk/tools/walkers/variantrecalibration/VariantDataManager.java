@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -58,7 +58,6 @@ import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import htsjdk.variant.vcf.VCFConstants;
-import org.broadinstitute.gatk.utils.exceptions.ReviewedGATKException;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
 import org.broadinstitute.gatk.utils.collections.ExpandingArrayList;
@@ -85,7 +84,7 @@ public class VariantDataManager {
     protected final static Logger logger = Logger.getLogger(VariantDataManager.class);
     protected final List<TrainingSet> trainingSets;
     private static final double SAFETY_OFFSET = 0.01;     //To use for example as 1/(X + SAFETY_OFFSET) to protect against dividing or taking log of X=0.
-    private static final double PRECISION = 0.01;         //To use mainly with MathUrils.compareDoubles(a,b,PRECISON)
+    private static final double PRECISION = 0.01;         //To use mainly with MathUtils.compareDoubles(a,b,PRECISION)
 
     public VariantDataManager( final List<String> annotationKeys, final VariantRecalibratorArgumentCollection VRAC ) {
         this.data = Collections.emptyList();
@@ -111,7 +110,7 @@ public class VariantDataManager {
             final double theSTD = standardDeviation(theMean, iii, true);
             logger.info( annotationKeys.get(iii) + String.format(": \t mean = %.2f\t standard deviation = %.2f", theMean, theSTD) );
             if( Double.isNaN(theMean) ) {
-                throw new UserException.BadInput("Values for " + annotationKeys.get(iii) + " annotation not detected for ANY training variant in the input callset. VariantAnnotator may be used to add these annotations. See " + HelpConstants.forumPost("discussion/49/using-variant-annotator"));
+                throw new UserException.BadInput("Values for " + annotationKeys.get(iii) + " annotation not detected for ANY training variant in the input callset. VariantAnnotator may be used to add these annotations.");
             }
 
             foundZeroVarianceAnnotation = foundZeroVarianceAnnotation || (theSTD < 1E-5);
@@ -146,6 +145,14 @@ public class VariantDataManager {
             datum.isNull = ArrayUtils.toPrimitive(reorderArray(ArrayUtils.toObject(datum.isNull), theOrder));
         }
         logger.info("Annotations are now ordered by their information content: " + annotationKeys.toString());
+    }
+
+    public double[] getMeanVector() {
+        return meanVector;
+    }
+
+    public double[] getVarianceVector() {
+        return varianceVector;
     }
 
     /**
@@ -336,7 +343,7 @@ public class VariantDataManager {
         int iii = 0;
         for( final String key : annotationKeys ) {
             isNull[iii] = false;
-            annotations[iii] = decodeAnnotation( key, vc, jitter, VRAC );
+            annotations[iii] = decodeAnnotation( key, vc, jitter, VRAC, datum );
             if( Double.isNaN(annotations[iii]) ) { isNull[iii] = true; }
             iii++;
         }
@@ -348,19 +355,31 @@ public class VariantDataManager {
         return Math.log((x - xmin)/(xmax - x));
     }
 
-    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter, final VariantRecalibratorArgumentCollection vrac ) {
+    private static double decodeAnnotation( final String annotationKey, final VariantContext vc, final boolean jitter, final VariantRecalibratorArgumentCollection vrac, final VariantDatum datum ) {
         double value;
 
         final double LOG_OF_TWO = 0.6931472;
 
         try {
-            value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
+            //if we're in allele-specific mode and an allele-specific annotation has been requested, parse the appropriate value from the list
+            if(vrac.useASannotations && annotationKey.startsWith(GATKVCFConstants.ALLELE_SPECIFIC_PREFIX)) {
+                final List<Object> valueList = vc.getAttributeAsList(annotationKey);
+                if (vc.hasAllele(datum.alternateAllele)) {
+                    final int altIndex = vc.getAlleleIndex(datum.alternateAllele)-1; //-1 is to convert the index from all alleles (including reference) to just alternate alleles
+                    value = Double.parseDouble((String)valueList.get(altIndex));
+                }
+                //if somehow our alleles got mixed up
+                else
+                    throw new IllegalStateException("VariantDatum allele " + datum.alternateAllele + " is not contained in the input VariantContext.");
+            }
+            else
+                value = vc.getAttributeAsDouble( annotationKey, Double.NaN );
             if( Double.isInfinite(value) ) { value = Double.NaN; }
-            if( jitter && annotationKey.equalsIgnoreCase("HaplotypeScore") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("FS") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("InbreedingCoeff") && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
-            if( jitter && annotationKey.equalsIgnoreCase("SOR") && MathUtils.compareDoubles(value, LOG_OF_TWO, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
-            if( jitter && annotationKey.equalsIgnoreCase("MQ")) {
+            if( jitter && annotationKey.equalsIgnoreCase(GATKVCFConstants.HAPLOTYPE_SCORE_KEY) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && (annotationKey.equalsIgnoreCase(GATKVCFConstants.FISHER_STRAND_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_FILTER_STATUS_KEY)) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && annotationKey.equalsIgnoreCase(GATKVCFConstants.INBREEDING_COEFFICIENT_KEY) && MathUtils.compareDoubles(value, 0.0, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }
+            if( jitter && (annotationKey.equalsIgnoreCase(GATKVCFConstants.STRAND_ODDS_RATIO_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_STRAND_ODDS_RATIO_KEY)) && MathUtils.compareDoubles(value, LOG_OF_TWO, PRECISION) == 0 ) { value += 0.01 * Utils.getRandomGenerator().nextGaussian(); }   //min SOR is 2.0, then we take ln
+            if( jitter && (annotationKey.equalsIgnoreCase(VCFConstants.RMS_MAPPING_QUALITY_KEY) || annotationKey.equalsIgnoreCase(GATKVCFConstants.AS_RMS_MAPPING_QUALITY_KEY))) {
                 if( vrac.MQ_CAP > 0) {
                     value = logitTransform(value, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET);
                     if (MathUtils.compareDoubles(value, logitTransform(vrac.MQ_CAP, -SAFETY_OFFSET, vrac.MQ_CAP + SAFETY_OFFSET), PRECISION) == 0 ) {
@@ -386,6 +405,8 @@ public class VariantDataManager {
 
         for( final TrainingSet trainingSet : trainingSets ) {
             for( final VariantContext trainVC : tracker.getValues(trainingSet.rodBinding, genomeLoc) ) {
+                if (VRAC.useASannotations && !doAllelesMatch(trainVC, datum))
+                    continue;
                 if( isValidVariant( evalVC, trainVC, TRUST_ALL_POLYMORPHIC ) ) {
                     datum.isKnown = datum.isKnown || trainingSet.isKnown;
                     datum.atTruthSite = datum.atTruthSite || trainingSet.isTruth;
@@ -403,6 +424,11 @@ public class VariantDataManager {
     private boolean isValidVariant( final VariantContext evalVC, final VariantContext trainVC, final boolean TRUST_ALL_POLYMORPHIC) {
         return trainVC != null && trainVC.isNotFiltered() && trainVC.isVariant() && checkVariationClass( evalVC, trainVC ) &&
                 (TRUST_ALL_POLYMORPHIC || !trainVC.hasGenotypes() || trainVC.isPolymorphicInSamples());
+    }
+
+    private boolean doAllelesMatch(final VariantContext trainVC, final VariantDatum datum) {
+        //only do this check in the allele-specific case, where each datum represents one allele
+        return datum.alternateAllele == null || trainVC.getAlternateAlleles().contains(datum.alternateAllele);
     }
 
     protected static boolean checkVariationClass( final VariantContext evalVC, final VariantContext trainVC ) {
@@ -428,7 +454,21 @@ public class VariantDataManager {
             case BOTH:
                 return true;
             default:
-                throw new ReviewedGATKException( "Encountered unknown recal mode: " + mode );
+                throw new IllegalStateException( "Encountered unknown recal mode: " + mode );
+        }
+    }
+
+    protected static boolean checkVariationClass( final VariantContext evalVC, final Allele allele, final VariantRecalibratorArgumentCollection.Mode mode ) {
+        switch( mode ) {
+            case SNP:
+                //note that spanning deletions are considered SNPs by this logic
+                return evalVC.getReference().length() == allele.length();
+            case INDEL:
+                return (evalVC.getReference().length() != allele.length()) || allele.isSymbolic();
+            case BOTH:
+                return true;
+            default:
+                throw new IllegalStateException( "Encountered unknown recal mode: " + mode );
         }
     }
 
@@ -440,9 +480,11 @@ public class VariantDataManager {
             }} );
 
         // create dummy alleles to be used
-        final List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
+        List<Allele> alleles = Arrays.asList(Allele.create("N", true), Allele.create("<VQSR>", false));
 
         for( final VariantDatum datum : data ) {
+            if (VRAC.useASannotations)
+                alleles = Arrays.asList(datum.referenceAllele, datum.alternateAllele); //use the alleles to distinguish between multiallelics in AS mode
             VariantContextBuilder builder = new VariantContextBuilder("VQSR", datum.loc.getContig(), datum.loc.getStart(), datum.loc.getStop(), alleles);
             builder.attribute(VCFConstants.END_KEY, datum.loc.getStop());
             builder.attribute(GATKVCFConstants.VQS_LOD_KEY, String.format("%.4f", datum.lod));

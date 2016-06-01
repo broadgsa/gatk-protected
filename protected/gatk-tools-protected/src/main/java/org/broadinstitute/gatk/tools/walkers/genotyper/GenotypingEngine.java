@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -56,22 +56,22 @@ import com.google.java.contract.Requires;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.SampleList;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
-import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
+import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
+import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
+import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -85,7 +85,7 @@ import java.util.*;
  */
 public abstract class GenotypingEngine<Config extends StandardCallerArgumentCollection> {
 
-    protected final AFCalculatorProvider afCalculatorProvider   ;
+    protected final AFCalculatorProvider afCalculatorProvider;
 
     protected Logger logger;
 
@@ -103,6 +103,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     private final AFPriorProvider log10AlleleFrequencyPriorsIndels;
 
     protected final GenomeLocParser genomeLocParser;
+
+    protected static int maxNumPLValuesObserved = 0;
+    protected static int numTimesMaxNumPLValuesExceeded = 0;
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
@@ -210,7 +213,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @param vc                                 Input VC
      * @param model                              GL calculation model
      * @param inheritAttributesFromInputVC       Output VC will contain attributes inherited from input vc
-     * @return                                   VC with assigned genotypes
+     * @return                                   VC with assigned genotypes (may be null if QUAL<emit threshold or MLEAF==0)
      */
     protected VariantCallContext calculateGenotypes(final RefMetaDataTracker tracker, final ReferenceContext refContext,
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
@@ -226,7 +229,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
-        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles);
+        final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
         final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
@@ -244,8 +248,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         // Add 0.0 removes -0.0 occurrences.
         final double phredScaledConfidence = (-10.0 * log10Confidence) + 0.0;
 
+
         // return a null call if we don't pass the confidence cutoff or the most likely allele frequency is zero
-        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()) {
+        //skip this if we are already looking at a vc with a NON_REF allele i.e. if we are in GenotypeGVCFs
+        if ( !passesEmitThreshold(phredScaledConfidence, outputAlternativeAlleles.siteIsMonomorphic) && !forceSiteEmission()
+                && outputAlternativeAlleles.alleles[0] != GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) {
             // technically, at this point our confidence in a reference call isn't accurately estimated
             //  because it didn't take into account samples with no data, so let's get a better estimate
             final double[] AFpriors = getAlleleFrequencyPriors(vc, defaultPloidy, model);
@@ -336,7 +343,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
 
     /**
-     * Provided the exact mode computations it returns the appropiate subset of alleles that progress to genotyping.
+     * Provided the exact mode computations it returns the appropriate subset of alleles that progress to genotyping.
      * @param afcr the exact model calcualtion result.
      * @return never {@code null}.
      */
@@ -350,8 +357,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         boolean siteIsMonomorphic = true;
         for (final Allele alternativeAllele : alleles) {
             if (alternativeAllele.isReference()) continue;
+            // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
+            // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
+            final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && alternativeAllele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE;
             final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
-            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele);
+            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele) || isNonRefWhichIsLoneAltAllele;
 
             siteIsMonomorphic &= ! isPlausible;
             if (!toOutput) continue;
@@ -397,14 +407,14 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @throws NullPointerException if {@code vc} is {@code null}.
      *
      * @return {@code true} iff there is too many alternative alleles based on
-     * {@link GenotypeLikelihoods#MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED}.
+     * {@link GenotypeLikelihoods#MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED}.
      */
     @Requires("vc != null")
     protected final boolean hasTooManyAlternativeAlleles(final VariantContext vc) {
         // protect against too many alternate alleles that we can't even run AF on:
-        if (vc.getNAlleles() <= GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
+        if (vc.getNAlleles() <= GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED)
             return false;
-        logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
+        logger.warn("Attempting to genotype more than "+GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED +
              " alleles. Site will be skipped at location "+vc.getChr()+":"+vc.getStart());
         return true;
     }
@@ -521,7 +531,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     @Ensures("MathUtils.goodLog10Probability(result)")
     protected final double estimateLog10ReferenceConfidenceForOneSample(final int depth, final double log10OfTheta) {
         final double log10PofNonRef = log10OfTheta + getRefBinomialProbLog10(depth);
-        return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));
+        return MathUtils.log10OneMinusX(Math.pow(10.0, log10PofNonRef));  //TODO: this 10^log(PofNonRef) seems inefficient
     }
 
     /**
@@ -723,5 +733,16 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
             return 1.0 - Math.pow(10.0, normalizedLog10ACeq0Posterior);
         }
+    }
+
+    /**
+     * Logs the number of times the maximum allowed number of PLs was exceeded and the largest number of PLs observed. The corresponding counters are reset.
+     */
+    public void printFinalMaxNumPLValuesWarning() {
+        final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
+        final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
+        final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
+        final AFCalculator afCalculator = afCalculatorProvider.getInstance(defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
+        afCalculator.printFinalMaxNumPLValuesWarning();
     }
 }

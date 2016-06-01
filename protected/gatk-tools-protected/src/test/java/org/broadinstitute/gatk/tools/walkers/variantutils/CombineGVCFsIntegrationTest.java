@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -100,7 +100,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "tetraploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
                 1,
-                Arrays.asList("f3538bcaf27f5e8b036d4c1f8734e4c2"));
+                Arrays.asList("787aca81ad51cd40267f92f3309fa47e"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -112,7 +112,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "diploid-gvcf-3.vcf" +
                         " -L " + privateTestDir + "tetraploid-gvcfs.intervals",
                 1,
-                Arrays.asList("32cd060d6662bdc835f70a848d48fb0e"));
+                Arrays.asList("d52f018643ffed072f43dfd4d33ca082"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -190,7 +190,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testMD5s() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("82fa951ce741451267dbf30335e0f71d"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("021ec495e70044039d092ebd5ef4b82a"));
         spec.disableShadowBCF();
         executeTest("testMD5s", spec);
     }
@@ -198,7 +198,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionOutput() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791 --convertToBasePairResolution");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("8e1bfa842d53f86d46b2166574c0c66c"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d5bc938a26cd197d9b1c80cb8dfefbba"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionOutput", spec);
     }
@@ -206,7 +206,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBreakBlocks() throws Exception {
         final String cmd = baseTestString(" -L 1:69485-69791 --breakBandsAtMultiplesOf 5");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("76d78f83c7db247ce12087d6118dc5df"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("31c2f26e6b172a957a3f504734df5eff"));
         spec.disableShadowBCF();
         executeTest("testBreakBlocks", spec);
     }
@@ -217,7 +217,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                 "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.1.g.vcf -V " + privateTestDir + "spanningDel.2.g.vcf",
                 1,
-                Arrays.asList("cb46cb8fd6506ab3e80bd50f9231643c"));
+                Arrays.asList("097160606e65547722a1726e031529ec"));
         spec.disableShadowBCF();
         executeTest("testSpanningDeletions", spec);
     }
@@ -228,7 +228,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                 "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.many.g.vcf",
                 1,
-                Arrays.asList("5aeb14d64b9103b62d053aeb6158e5de"));
+                Arrays.asList("f517c2d361defeaac245916c835811d5"));
         spec.disableShadowBCF();
         executeTest("testMultipleSpanningDeletionsForOneSample", spec);
     }
@@ -239,7 +239,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                 "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.many.haploid.g.vcf",
                 1,
-                Arrays.asList("3fca32a67922bf30f72fe066fe7159fe"));
+                Arrays.asList("0a8d217b2833070dcaa3bbc1e7602b1c"));
         spec.disableShadowBCF();
         executeTest("testMultipleSpanningDeletionsForOneSampleHaploid", spec);
     }
@@ -250,7 +250,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
                 "-T CombineGVCFs --no_cmdline_in_header -o %s -R " + b37KGReference +
                         " -V " + privateTestDir + "spanningDel.many.tetraploid.g.vcf",
                 1,
-                Arrays.asList("6891eaaef2991d7f967c7876fd2e4f5c"));
+                Arrays.asList("3fd437ad1f9e18303fec517653a30b6d"));
         spec.disableShadowBCF();
         executeTest("testMultipleSpanningDeletionsForOneSampleTetraploid", spec);
     }
@@ -259,7 +259,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testWrongReferenceBaseBugFix() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input1.vcf"
                 + " -V " + (privateTestDir + "combine-gvcf-wrong-ref-input2.vcf") + " -o %s --no_cmdline_in_header");
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("224c3d6e06f7ce4bdb55411b2e376577"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("129879954e5b453d30326f100cbc2e83"));
         spec.disableShadowBCF();
         executeTest("testWrongReferenceBaseBugFix",spec);
 
@@ -268,7 +268,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testBasepairResolutionInput() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V " + privateTestDir + "gvcf.basepairResolution.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d3244d99e9423b45099a220f19fac516"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d5b4abe639081e6bf9c8970ca8405dbe"));
         spec.disableShadowBCF();
         executeTest("testBasepairResolutionInput", spec);
     }
@@ -277,8 +277,28 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("cbb2571eeb95e661acee8f9e1d1cbfbd"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f6a7fa62c33de963c55262820effe44a"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
+
+    @Test
+    public void testASMateRankSumAnnotation() throws Exception {
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest -V "
+                + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.MateRankSum.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("2c264ed0057c93276c647f55998c4f25"));
+        spec.disableShadowBCF();
+        executeTest("testASMateRankSumAnnotation", spec);
+    }
+
+    @Test
+    public void testASInsertSizeRankSumAnnotation() throws Exception {
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -V "
+                + privateTestDir + "NA12878.AS.InsertSizeRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12891.AS.InsertSizeRankSum.chr20snippet.g.vcf";
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("ff5ca958e81e406cfe010d5649b5c0d1"));
+        spec.disableShadowBCF();
+        executeTest("testASInsertSizeRankSumAnnotation", spec);
+    }
+
+
 }

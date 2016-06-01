@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper.afcalc;
 
 import org.broadinstitute.gatk.utils.MathUtils;
+import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
@@ -72,7 +73,7 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
                                                final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
         final int numAlternateAlleles = vc.getNAlleles() - 1;
 
-        final ArrayList<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true);
+        final ArrayList<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true, vc.hasAllele(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE));
         final int numSamples = genotypeLikelihoods.size()-1;
         final int numChr = 2*numSamples;
 
@@ -283,19 +284,29 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
                           final int PLsetIndex,
                           final ArrayList<double[]> genotypeLikelihoods) {
         final int totalK = targetSet.getACsum();
+        final double[] targetLog10Likelihoods = targetSet.getLog10Likelihoods();
+        final double[] dependentLog10Likelihoods = dependentSet.getLog10Likelihoods();
+        final int[] targetACcounts = targetSet.getACcounts().getCounts();
 
-        for ( int j = 1; j < targetSet.getLog10Likelihoods().length; j++ ) {
+        // skip impossible conformations, namely those for which there aren't enough possible chromosomes (2*j in the if loop below)
+        // to fill up the totalK alternate alleles needed; we do want to ensure that there's at least one sample included (hence the Math.max)
+        final int firstIndex = Math.max(1, (totalK + 1) / 2);
 
-            if ( totalK <= 2*j ) { // skip impossible conformations
-                final double[] gl = genotypeLikelihoods.get(j);
-                final double conformationValue =
-                        determineCoefficient(PLsetIndex, j, targetSet.getACcounts().getCounts(), totalK) + dependentSet.getLog10Likelihoods()[j-1] + gl[PLsetIndex];
-                targetSet.getLog10Likelihoods()[j] = MathUtils.approximateLog10SumLog10(targetSet.getLog10Likelihoods()[j], conformationValue);
-            }
+        // find the 2 alleles that are represented by this PL index
+        final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLsetIndex);
+        // if neither allele is reference then the coefficient is constant throughout this invocation
+        final Double constantCoefficient = (alleles.alleleIndex1 == 0) ? null : determineCoefficient(alleles, 0, targetACcounts, totalK);
+
+        for ( int j = firstIndex; j < targetLog10Likelihoods.length; j++ ) {
+            final double[] gl = genotypeLikelihoods.get(j);
+            final double coefficient = (constantCoefficient != null) ? constantCoefficient : determineCoefficient(alleles, j, targetACcounts, totalK);
+
+            final double conformationValue = coefficient + dependentLog10Likelihoods[j-1] + gl[PLsetIndex];
+            targetLog10Likelihoods[j] = MathUtils.approximateLog10SumLog10(targetLog10Likelihoods[j], conformationValue);
         }
     }
 
-    private double determineCoefficient(int PLindex, final int j, final int[] ACcounts, final int totalK) {
+    private double determineCoefficient(final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles, final int j, final int[] ACcounts, final int totalK) {
         // the closed form representation generalized for multiple alleles is as follows:
         // AA: (2j - totalK) * (2j - totalK - 1)
         // AB: 2k_b * (2j - totalK)
@@ -303,9 +314,6 @@ public abstract class DiploidExactAFCalculator extends ExactAFCalculator {
         // BB: k_b * (k_b - 1)
         // BC: 2 * k_b * k_c
         // CC: k_c * (k_c - 1)
-
-        // find the 2 alleles that are represented by this PL index
-        GenotypeLikelihoods.GenotypeLikelihoodsAllelePair alleles = GenotypeLikelihoods.getAllelePair(PLindex);
 
         // *** note that throughout this method we subtract one from the alleleIndex because ACcounts ***
         // *** doesn't consider the reference allele whereas the GenotypeLikelihoods PL cache does.   ***

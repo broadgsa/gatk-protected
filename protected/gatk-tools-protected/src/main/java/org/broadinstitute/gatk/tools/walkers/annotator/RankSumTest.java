@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -51,7 +51,6 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.*;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -61,8 +60,6 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.MannWhitneyU;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
-import htsjdk.variant.vcf.VCFHeaderLine;
-import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.Allele;
@@ -79,7 +76,6 @@ import java.util.*;
 //TODO: will eventually implement ReducibleAnnotation in order to preserve accuracy for CombineGVCFs and GenotypeGVCFs -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
 public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     static final boolean DEBUG = false;
-    protected boolean useDithering = true;
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -122,13 +118,7 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         if ( refQuals.isEmpty() && altQuals.isEmpty() )
             return null;
 
-        final MannWhitneyU mannWhitneyU = new MannWhitneyU(useDithering);
-        for (final Double qual : altQuals) {
-            mannWhitneyU.add(qual, MannWhitneyU.USet.SET1);
-        }
-        for (final Double qual : refQuals) {
-            mannWhitneyU.add(qual, MannWhitneyU.USet.SET2);
-        }
+        final MannWhitneyU mannWhitneyU = new MannWhitneyU();
 
         if (DEBUG) {
             System.out.format("%s, REF QUALS:", this.getClass().getName());
@@ -142,12 +132,24 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
 
         }
         // we are testing that set1 (the alt bases) have lower quality scores than set2 (the ref bases)
-        final Pair<Double, Double> testResults = mannWhitneyU.runOneSidedTest(MannWhitneyU.USet.SET1);
+        final MannWhitneyU.Result result = mannWhitneyU.test(convertToArray(altQuals), convertToArray(refQuals), MannWhitneyU.TestType.FIRST_DOMINATES);
+        final double zScore = result.getZ();
+
 
         final Map<String, Object> map = new HashMap<>();
-        if (!Double.isNaN(testResults.first))
-            map.put(getKeyNames().get(0), String.format("%.3f", testResults.first));
+        if (!Double.isNaN(zScore))
+            map.put(getKeyNames().get(0), String.format("%.3f", zScore));
         return map;
+    }
+
+    public static double[] convertToArray(List<Double> list){
+        double[] ret = new double[list.size()];
+        Iterator<Double> iterator = list.iterator();
+        for (int i = 0; i < ret.length; i++)
+        {
+            ret[i] = iterator.next().doubleValue();
+        }
+        return ret;
     }
 
     private void fillQualsFromPileup(final List<Allele> alleles,
@@ -255,14 +257,4 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
                 read.getMappingQuality() == QualityUtils.MAPPING_QUALITY_UNAVAILABLE );
     }
 
-    /**
-     * Initialize the rank sum test annotation using walker and engine information. Right now this checks to see if
-     * engine randomization is turned off, and if so does not dither.
-     * @param walker            the walker
-     * @param toolkit           the GATK engine
-     * @param headerLines       the header lines
-     */
-    public void initialize ( AnnotatorCompatible walker, GenomeAnalysisEngine toolkit, Set<VCFHeaderLine> headerLines ) {
-        useDithering = ! toolkit.getArguments().disableDithering;
-    }
 }

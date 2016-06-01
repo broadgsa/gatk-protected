@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -74,10 +74,12 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
     public boolean USE_FILTERED_READ_MAP_FOR_ANNOTATIONS = false;
 
     /**
-     * The reference confidence mode makes it possible to emit a per-bp or summarized confidence estimate for a site being strictly homozygous-reference.
+     * The reference confidence mode makes it possible to emit variant calls in GVCF format, which includes either a per-base
+     * pair (BP_RESOLUTION) or a summarized (GVCF) confidence estimate for each position being strictly homozygous-reference.
      * See http://www.broadinstitute.org/gatk/guide/article?id=2940 for more details of how this works.
-     * Note that if you set -ERC GVCF, you also need to set -variant_index_type LINEAR and -variant_index_parameter 128000 (with those exact values!).
-     * This requirement is a temporary workaround for an issue with index compression.
+     * Note that if you use <code>-ERC</code> to emit a <code>GVCF</code> or <code>BP_RESOLUTION</code> output, you either
+     * need to give the output file the extension <code>.g.vcf</code> or set the parameters <code>-variant_index_type LINEAR</code>
+     * and <code>-variant_index_parameter 128000</code> (with those exact values!). This has to do with index compression.
      */
     @Advanced
     @Argument(fullName="emitRefConfidence", shortName="ERC", doc="Mode for emitting reference confidence scores", required = false)
@@ -89,41 +91,39 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
     }
 
     /**
-     * The assembled haplotypes and locally realigned reads will be written as BAM to this file if requested.  Really
-     * for debugging purposes only. Note that the output here does not include uninformative reads so that not every
-     * input read is emitted to the bam.
+     * The assembled haplotypes and locally realigned reads will be written as BAM to this file if requested.  This is
+     * intended to be used only for troubleshooting purposes, in specific areas where you want to better understand
+     * why the caller is making specific calls. Turning on this mode may result in serious performance cost for the
+     * caller, so we do NOT recommend using this argument systematically as it will significantly increase runtime.
      *
-     * Turning on this mode may result in serious performance cost for the caller.  It's really only appropriate to
-     * use in specific areas where you want to better understand why the caller is making specific calls.
+     * The candidate haplotypes (called or all, depending on mode) are emitted as single reads covering the entire
+     * active region, coming from sample "HC" and a special read group called "ArtificialHaplotype". This will increase
+     * the pileup depth compared to what would be expected from the reads only, especially in complex regions.
      *
      * The reads are written out containing an "HC" tag (integer) that encodes which haplotype each read best matches
      * according to the haplotype caller's likelihood calculation.  The use of this tag is primarily intended
      * to allow good coloring of reads in IGV.  Simply go to "Color Alignments By > Tag" and enter "HC" to more
-     * easily see which reads go with these haplotype.
+     * easily see which reads go with these haplotype. You can also tell IGV to group reads by sample, which will
+     * separate the potential haplotypes from the reads. These features are illustrated in
+     * <a href="https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png">this screenshot</a>.
      *
-     * Note that the haplotypes (called or all, depending on mode) are emitted as single reads covering the entire
-     * active region, coming from sample "HC" and a special read group called "ArtificialHaplotype". This will increase the
-     * pileup depth compared to what would be expected from the reads only, especially in complex regions.
+     * Note that only reads that are actually informative about the haplotypes are emitted with the HC tag.
+     * By informative we mean that there's a meaningful difference in the likelihood of the read coming from one
+     * haplotype compared to the next best haplotype. When coloring reads by HC tag in IGV, uninformative reads will
+     * remain grey.
      *
-     * Note also that only reads that are actually informative about the haplotypes are emitted.  By informative we mean
-     * that there's a meaningful difference in the likelihood of the read coming from one haplotype compared to
-     * its next best haplotype.
+     * Note also that not every input read is emitted to the bam in this mode. To include all trimmed, downsampled,
+     * filtered and uninformative reads, add the <code>--emitDroppedReads</code> argument.
      *
-     * If multiple BAMs are passed as input to the tool (as is common for M2), then they will be combined in the bamout
-     * output and tagged with the appropriate sample names.
-     *
-     * The best way to visualize the output of this mode is with IGV.  Tell IGV to color the alignments by tag,
-     * and give it the "HC" tag, so you can see which reads support each haplotype.  Finally, you can tell IGV
-     * to group by sample, which will separate the potential haplotypes from the reads.  All of this can be seen in
-     * <a href="https://www.dropbox.com/s/xvy7sbxpf13x5bp/haplotypecaller%20bamout%20for%20docs.png">this screenshot</a>
-     *
+     * If multiple BAMs are passed as input to the tool (as is common for MuTect2), then they will be combined in the
+     * <code>-bamout</code> output and tagged with the appropriate sample names.
      */
     @Advanced
     @Output(fullName="bamOutput", shortName="bamout", doc="File to which assembled haplotypes should be written", required = false, defaultToStdout = false)
     public GATKSAMFileWriter bamWriter = null;
 
     /**
-     * The type of BAM output we want to see. This determines whether HC will write out all of the haplotypes it
+     * The type of <code>-bamout</code> output we want to see. This determines whether HC will write out all of the haplotypes it
      * considered (top 128 max) or just the ones that were selected as alleles and assigned to samples.
      */
     @Advanced
@@ -131,10 +131,19 @@ public class AssemblyBasedCallerArgumentCollection extends StandardCallerArgumen
     public HaplotypeBAMWriter.Type bamWriterType = HaplotypeBAMWriter.Type.CALLED_HAPLOTYPES;
 
     /**
+     * Determines whether dropped reads will be tracked and emitted when <code>-bamout</code> is specified. Use this in combination
+     * with a specific interval of interest to avoid accumulating a large number of reads in the <code>-bamout</code> file.
+     */
+    @Advanced
+    @Argument(fullName="emitDroppedReads", shortName="edr", doc="Emit reads that are dropped for filtering, trimming, realignment failure", required = false)
+    public boolean emitDroppedReads = false;
+
+    /**
      * If set, certain "early exit" optimizations in HaplotypeCaller, which aim to save compute and time by skipping
-     * calculations if an ActiveRegion is determined to contain no variants, will be disabled. This is most likely to be useful if
-     * you're using the -bamout argument to examine the placement of reads following reassembly and are interested in seeing the mapping of
-     * reads in regions with no variations. Setting the -forceActive and -dontTrimActiveRegions flags may also be necessary.
+     * calculations if an ActiveRegion is determined to contain no variants, will be disabled. This is most likely to be
+     * useful if you're using the <code>-bamout</code> argument to examine the placement of reads following reassembly
+     * and are interested in seeing the mapping of reads in regions with no variations. Setting the <code>-forceActive</code>
+     * and <code>-dontTrimActiveRegions</code> flags may also be helpful.
      */
     @Advanced
     @Argument(fullName = "disableOptimizations", shortName="disableOptimizations", doc="Don't skip calculations in ActiveRegions with no variants",

@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -65,7 +65,10 @@ import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
+import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedGenotypingEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.GeneralPloidyFailOverAFCalculatorProvider;
@@ -130,7 +133,6 @@ import java.util.*;
 @Reference(window=@Window(start=-10,stop=10))
 @SuppressWarnings("unused")
 public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
-
     /**
      * The gVCF files to merge together
      */
@@ -169,7 +171,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * to provide a pedigree file for a pedigree-based annotation) may cause the run to fail.
      */
     @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{"Standard"}));
+    protected List<String> annotationGroupsToUse = new ArrayList<>(Arrays.asList(new String[]{StandardAnnotation.class.getSimpleName()}));
 
 
     /**
@@ -210,21 +212,20 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final GenomeAnalysisEngine toolkit = getToolkit();
         final Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(toolkit, variants);
 
-        final GATKVariantContextUtils.GenotypeMergeType mergeType;
-        if(uniquifySamples) {
-            mergeType = GATKVariantContextUtils.GenotypeMergeType.UNIQUIFY;
-        }
-        else
-            mergeType = GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE;
-
+        final GATKVariantContextUtils.GenotypeMergeType mergeType = uniquifySamples ?
+                GATKVariantContextUtils.GenotypeMergeType.UNIQUIFY : GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE;
         final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, mergeType));
-        // create the annotation engine
+
         annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, Collections.<String>emptyList(), this, toolkit);
 
         // create the genotyping engine
-        boolean doAlleleSpecificGenotyping = annotationsToUse.contains(GATKVCFConstants.AS_QUAL_BY_DEPTH_KEY) || annotationGroupsToUse.contains("AS_Standard");
-                genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(), GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger),
-                toolkit.getArguments().BAQMode, doAlleleSpecificGenotyping);
+        // when checking for presence of AS_StandardAnnotation we must deal with annoying feature that
+        // the class name with or without the trailing "Annotation" are both valid command lines
+        boolean doAlleleSpecificGenotyping = annotationsToUse.contains(GATKVCFConstants.AS_QUAL_BY_DEPTH_KEY)
+                || annotationGroupsToUse.contains(AS_StandardAnnotation.class.getSimpleName())
+                || annotationGroupsToUse.contains(AS_StandardAnnotation.class.getSimpleName().replace("Annotation", ""));
+        genotypingEngine = new UnifiedGenotypingEngine(createUAC(), samples, toolkit.getGenomeLocParser(),
+                GeneralPloidyFailOverAFCalculatorProvider.createThreadSafeProvider(toolkit, genotypeArgs, logger), toolkit.getArguments().BAQMode, doAlleleSpecificGenotyping);
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
@@ -249,15 +250,18 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         logger.info("Notice that the -ploidy parameter is ignored in " + getClass().getSimpleName() + " tool as this is automatically determined by the input variant files");
     }
 
+    // get VariantContexts from input gVCFs, merge, and regenotype
     public VariantContext map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
         if ( tracker == null ) // RodWalkers can make funky map calls
             return null;
 
         final GenomeLoc loc = ref.getLocus();
-        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(tracker.getPrioritizedValue(variants, loc), loc, INCLUDE_NON_VARIANTS ? ref.getBase() : null, true, uniquifySamples, annotationEngine);
-        if ( combinedVC == null )
-            return null;
-        return regenotypeVC(tracker, ref, combinedVC);
+        final List<VariantContext> vcsAtThisLocus = tracker.getPrioritizedValue(variants, loc);
+        final Byte refBase = INCLUDE_NON_VARIANTS ? ref.getBase() : null;
+        final boolean removeNonRefSymbolicAllele = !INCLUDE_NON_VARIANTS;
+        final VariantContext combinedVC = ReferenceConfidenceVariantContextMerger.merge(vcsAtThisLocus, loc,
+               refBase, removeNonRefSymbolicAllele, uniquifySamples, annotationEngine);
+        return combinedVC == null ? null : regenotypeVC(tracker, ref, combinedVC);
     }
 
     /**
@@ -269,65 +273,67 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * @return a new VariantContext or null if the site turned monomorphic and we don't want such sites
      */
     protected VariantContext regenotypeVC(final RefMetaDataTracker tracker, final ReferenceContext ref, final VariantContext originalVC) {
-        if ( originalVC == null ) throw new IllegalArgumentException("originalVC cannot be null");
-
-        VariantContext rawResult = originalVC;
-
-        // only re-genotype polymorphic sites
-        if ( rawResult.isVariant() ) {
-            VariantContext regenotypedVC = genotypingEngine.calculateGenotypes(rawResult);
-            if ( ! isProperlyPolymorphic(regenotypedVC) ) {
-                if (!INCLUDE_NON_VARIANTS)
-                    return null;
-            }
-            else {
-                rawResult = addGenotypingAnnotations(rawResult.getAttributes(), regenotypedVC);
-            }
+        if ( originalVC == null ) {
+            throw new IllegalArgumentException("originalVC cannot be null");
+        } else if (!isProperlyPolymorphic(originalVC) && !INCLUDE_NON_VARIANTS) {
+            return null;
         }
 
+        VariantContext result = originalVC;
+
+        //don't need to calculate quals for sites with no data whatsoever
+        if (result.getAttributeAsInt(VCFConstants.DEPTH_KEY,0) > 0 ) {
+            result = genotypingEngine.calculateGenotypes(originalVC);
+        } 
+
+        if (result == null || (!isProperlyPolymorphic(result) && !INCLUDE_NON_VARIANTS)) {
+            return null;
+        }
+
+        result = addGenotypingAnnotations(originalVC.getAttributes(), result);
         //At this point we should already have DP and AD annotated
-        VariantContext result = annotationEngine.finalizeAnnotations(rawResult, originalVC);
+        result = annotationEngine.finalizeAnnotations(result, originalVC);
         //do trimming after allele-specific annotation reduction or the mapping is difficult
         result = GATKVariantContextUtils.reverseTrimAlleles(result);
 
-        // if it turned monomorphic then we either need to ignore or fix such sites
-        boolean createRefGTs = false;
-        if ( result.isMonomorphicInSamples() ) {
-            if ( !INCLUDE_NON_VARIANTS )
-                return null;
-            createRefGTs = true;
-        }
 
         // Re-annotate and fix/remove some of the original annotations.
         // Note that the order of these actions matters and is different for polymorphic and monomorphic sites.
         // For polymorphic sites we need to make sure e.g. the SB tag is sent to the annotation engine and then removed later.
         // For monomorphic sites we need to make sure e.g. the hom ref genotypes are created and only then are passed to the annotation engine.
         // We could theoretically make 2 passes to re-create the genotypes, but that gets extremely expensive with large sample sizes.
-        if ( createRefGTs ) {
+        if (result.isPolymorphicInSamples()) {
+            result = annotationEngine.annotateContext(tracker, ref, null, result);
+            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, false)).make();
+        } else if (INCLUDE_NON_VARIANTS) {
             result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, true)).make();
             result = annotationEngine.annotateContext(tracker, ref, null, result);
         } else {
-            result = annotationEngine.annotateContext(tracker, ref, null, result);
-            result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, false)).make();
+            return null;
         }
-
         return result;
     }
 
     /**
-     * Determines whether the provided VariantContext has real alternate alleles
+     * Determines whether the provided VariantContext has real alternate alleles.
+     *
+     * There is a bit of a hack to handle the <NON-REF> case because it is not defined in htsjdk.Allele
+     * We check for this as a biallelic symbolic allele.
      *
      * @param vc  the VariantContext to evaluate
      * @return true if it has proper alternate alleles, false otherwise
      */
     private boolean isProperlyPolymorphic(final VariantContext vc) {
-        return ( vc != null &&
-                !vc.getAlternateAlleles().isEmpty() &&
-                (!vc.isBiallelic() ||
-                        (!vc.getAlternateAllele(0).equals(Allele.SPAN_DEL) &&
-                                !vc.getAlternateAllele(0).equals(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED))
-                )
-        );
+        //obvious cases
+        if (vc == null || vc.getAlternateAlleles().isEmpty()) {
+            return false;
+        } else if (vc.isBiallelic()) {
+            return !(vc.getAlternateAllele(0).equals(Allele.SPAN_DEL) ||
+                    vc.getAlternateAllele(0).equals(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED) ||
+                    vc.isSymbolic());
+        } else {
+            return true;
+        }
     }
 
     /**
@@ -429,6 +435,9 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     private UnifiedArgumentCollection createUAC() {
         UnifiedArgumentCollection uac = new UnifiedArgumentCollection();
         uac.genotypeArgs = genotypeArgs.clone();
+
+        //whether to emit non-variant sites is not contained in genotypeArgs and must be passed to uac separately
+        uac.outputMode = INCLUDE_NON_VARIANTS ? OutputMode.EMIT_ALL_CONFIDENT_SITES : OutputMode.EMIT_VARIANTS_ONLY;
         return uac;
     }
 

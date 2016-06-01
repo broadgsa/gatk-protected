@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -73,12 +73,14 @@ public class MuTect2IntegrationTest extends WalkerTest {
     final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
 
 
+    final String commandLine =
+            "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
 
     private void M2Test(String tumorBam, String normalBam, String intervals, String args, String md5) {
                 final String base = String.format(
-                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s",
-                REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
-                " -o %s ";
+                        commandLine,
+                        REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
+                    " -o %s ";
 
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
 
@@ -89,9 +91,37 @@ public class MuTect2IntegrationTest extends WalkerTest {
         executeTest("testM2: args=" + args, spec);
     }
 
+    private void m2TumorOnlyTest(String tumorBam, String intervals, String args, String md5) {
+        final String base = String.format(
+                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
+                REF, DBSNP, COSMIC, PON, tumorBam, intervals) +
+                " -o %s ";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
+
+        spec.disableShadowBCF();
+        executeTest("testM2TumorOnly: args=" + args, spec);
+    }
+
+    private void M2TestWithDroppedReads(String tumorBam, String normalBam, String intervals, String args, String md5Variants, String md5Bamout) {
+        final String base = String.format(
+                commandLine,
+                REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
+                " -o %s " +
+                "-bamout %s --emitDroppedReads";
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5Variants, md5Bamout));
+
+        // TODO: do we want to enable this and why?  It explodes with
+        // java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Double cannot be cast to java.lang.String
+        //    at htsjdk.variant.variantcontext.writer.BCF2FieldEncoder$StringOrCharacter.javaStringToBCF2String(BCF2FieldEncoder.java:312)
+        spec.disableShadowBCF();
+        executeTest("testM2Dropped: args=" + args, spec);
+    }
+
     @Test
     public void testMicroRegression() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "617054c6d056cad7448a463cb8d04a55");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "a7658ccfb75bf1ce8d3d3cfbf3b552f0");
     }
 
     /**
@@ -101,7 +131,17 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTruePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "f856432679e43445d2939772be4326cf");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "91dee82a13275e5568f5d2e680e3162b");
+    }
+
+    /**
+     * Test dropped read tracking on true positives and a narrow interval range.
+     */
+    @Test
+    public void testTruePositivesDream3TrackedDropped() {
+        M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
+                "4f1337df1de5dd4468e2d389403ca785",
+                "b536e76870326b4be01b8d6b83c1cf1c");
     }
 
     /**
@@ -110,15 +150,23 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "11357aa543e7c6b2725cd330adba23a0");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "6be3fc318e2c22a28098f58b76c9a5a1");
     }
 
-    /*
+    /**
      * Test that contamination downsampling reduces tumor LOD, rejects more variants
      */
     @Test
     public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "d7947ddf0240fe06a44621312831f44c");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "b1010a6614b0332c41fd6da9d5f6b14e");
+    }
+
+    /**
+     *  Test that tumor-only mode does not create an empty vcf
+     */
+    @Test
+    public void testTumorOnly(){
+        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "bb0cddfdc29500fbea68a0913d6706a3");
     }
 
 }

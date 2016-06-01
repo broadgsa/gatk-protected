@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -53,7 +53,6 @@ package org.broadinstitute.gatk.tools.walkers.annotator;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
@@ -100,7 +99,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample2.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("d6cd81fc2f483f29d44fbb27d1772841"));
+                Arrays.asList("b63baada372925a76c3f279e16eb631d"));
         executeTest("test file has annotations, asking for annotations, #1", spec);
     }
 
@@ -108,7 +107,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testHasAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("300836de4e2c8424734d2ee0ca4261c1"));
+                Arrays.asList("6f5856bc2d31f8aae4131717e5ab0b16"));
         executeTest("test file has annotations, asking for annotations, #2", spec);
     }
 
@@ -134,7 +133,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking1() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("192f393da4e28aecf16112562e65083a"));
+                Arrays.asList("7ec5470f742f80cdfbfb203213bea8cc"));
         executeTest("test file doesn't have annotations, asking for annotations, #1", spec);
     }
 
@@ -142,7 +141,8 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoAnnotsAsking2() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,000,000-10,050,000", 1,
-                Arrays.asList("52baff55535f7c87545a7818052a2d5c"));
+                Arrays.asList("afc47e4f253d0999961f26920be8e834"));
+
         executeTest("test file doesn't have annotations, asking for annotations, #2", spec);
     }
 
@@ -150,7 +150,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testExcludeAnnotations() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "-XA FisherStrand -XA ReadPosRankSumTest --variant " + privateTestDir + "vcfexample2empty.vcf -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("334915d90fa92ee9fa07d4647912ceac"));
+                Arrays.asList("a8a87e2a67436e14ed32ce9d355a3440"));
         executeTest("test exclude annotations", spec);
     }
 
@@ -183,7 +183,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testOverwritingHeader() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample4.vcf -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -L 1:10,001,292", 1,
-                Arrays.asList("ab84654ac412a0aaaec99e86e357f0fd"));
+                Arrays.asList("fc7958261af93681fde73c1fc6b578a0"));
         executeTest("test overwriting header", spec);
     }
 
@@ -191,7 +191,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testNoReads() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("489a09a8531d9c8ef683ad8cc81db3e8"));
+                Arrays.asList("2d535a48ec1c66aa9c707f6d498fc81d"));
         executeTest("not passing it any reads", spec);
     }
 
@@ -199,7 +199,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithDbsnp() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --dbsnp " + b36dbSNP129 + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("a7af6774ea1f7622d999cae1b7f8ea32"));
+                Arrays.asList("a2a2f9ce8e6f9c933ad46906719ce402"));
         executeTest("getting DB tag with dbSNP", spec);
     }
 
@@ -207,7 +207,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testMultipleIdsWithDbsnp() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --alwaysAppendDbsnpId --dbsnp " + b36dbSNP129 + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3withIDs.vcf -L " + privateTestDir + "vcfexample3withIDs.vcf", 1,
-                Arrays.asList("de8cfffe3b61b7c8832096a399e9d954"));
+                Arrays.asList("ed351765d63d92b1913784fa47b3d859"));
         executeTest("adding multiple IDs with dbSNP", spec);
     }
 
@@ -215,7 +215,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithHapMap() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --comp:H3 " + privateTestDir + "fakeHM3.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("25443af7099f7de184b8dcdfb659f62e"));
+                Arrays.asList("114d8300ec0fac613bb2e82f8951adc0"));
         executeTest("getting DB tag with HM3", spec);
     }
 
@@ -223,7 +223,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testDBTagWithTwoComps() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --comp:H3 " + privateTestDir + "fakeHM3.vcf --comp:foo " + privateTestDir + "fakeHM3.vcf " + STANDARD_ANNOTATIONS + " --variant " + privateTestDir + "vcfexample3empty.vcf -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("ea9b10d2b82a7846c01a017f6f3bb57e"));
+                Arrays.asList("af59185b6a03d4147d2755019dcc6bf9"));
         executeTest("getting DB tag with 2 comps", spec);
     }
 
@@ -239,7 +239,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpression() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -E foo.AF -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("f26d1f849cceca0ab115737f8db670ae"));
+                Arrays.asList("7bcbd8ad8388f371d1a990fde67d3273"));
         executeTest("using expression", spec);
     }
 
@@ -247,7 +247,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpressionAlleleMisMatch() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resourceAlleleConcordance --resource:foo " + privateTestDir + "targetAnnotations.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-mod.vcf -E foo.AF -L " + privateTestDir + "vcfexample3empty-mod.vcf", 1,
-                Arrays.asList("6f288c4b672ac3a22cb2385981f51d75"));
+                Arrays.asList("76f716569e33d88914e479b70e08ac88"));
         executeTest("using expression allele mismatch", spec);
     }
 
@@ -255,7 +255,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpressionMultiAllele() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations-multiAllele.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.AF -E foo.AC -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
-                Arrays.asList("af92a439f092f45da10adac0f9c8fc8f"));
+                Arrays.asList("0e3fc86349f5fd28159d00d22d278e84"));
         executeTest("using expression with multi-alleles", spec);
     }
 
@@ -264,7 +264,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
         /* The order of filters in the output seems platform-dependent. May need to change htsjdk to make the order consistent across platforms. [Sato] */
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "annotationResourceWithFilter.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty-multiAllele.vcf -E foo.FILTER -L " + privateTestDir + "vcfexample3empty-multiAllele.vcf", 1,
-                Arrays.asList("77bc144fd432b8886ab19ed20bfb9396"));
+                Arrays.asList("6fe67e72232165a829fde7c3b12c2275"));
         executeTest("annotate a vcf with the FILTER field of another vcf", spec);
     }
 
@@ -272,7 +272,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     public void testUsingExpressionWithID() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString() + " --resource:foo " + privateTestDir + "targetAnnotations.vcf" + STANDARD_ANNOTATIONS + "--variant " + privateTestDir + "vcfexample3empty.vcf -E foo.ID -L " + privateTestDir + "vcfexample3empty.vcf", 1,
-                Arrays.asList("58a86fe8a34c92127eb33e36107941dd"));
+                Arrays.asList("94b03ee63604ab8d61aacfd3297c5dca"));
         executeTest("using expression with ID", spec);
     }
 
@@ -300,7 +300,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
             validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf --snpEffFile  " + validationDataLocation +
             "snpEff2.0.5.AFR.unfiltered.vcf -L 1:1-1,500,000 -L 2:232,325,429",
             1,
-            Arrays.asList("6618f3ae9dc6d4ce6ebd4eb8f9495103")
+            Arrays.asList("db0c5f273583a54d0cefc4b3c01aae9a")
         );
         executeTest("Testing SnpEff annotations", spec);
     }
@@ -313,7 +313,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
             "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_gatk_mode.vcf " +
             "-L 1:10001292-10012424",
             1,
-            Arrays.asList("7533645a3791ce30d7407f789e1ffbb0")
+            Arrays.asList("5f952cfcd25653edcffd3916d52e94ec")
         );
         executeTest("Testing SnpEff annotations (unsupported version, GATK mode)", spec);
     }
@@ -326,14 +326,14 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
             "--snpEffFile  " + privateTestDir + "snpEff_unsupported_version_no_gatk_mode.vcf " +
             "-L 1:10001292-10012424",
             1,
-            Arrays.asList("0e201a91a2b2b130debcd5dd7d9328ab")
+            Arrays.asList("86fb28c2e3886eda194026b3b7d07c77")
         );
         executeTest("Testing SnpEff annotations (unsupported version, no GATK mode)", spec);
     }
 
     @Test(enabled = true)
     public void testTDTAnnotation() {
-        final String MD5 = "9532ca341b52be650b35e32d7c765030";
+        final String MD5 = "cf65fdfbcd822279e84326989b2f6378";
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantAnnotator -R " + b37KGReference + " -A TransmissionDisequilibriumTest --variant:vcf " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf" +
                         " -L " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf --no_cmdline_in_header -ped " + privateTestDir + "ug.random50000.family.ped -o %s", 1,
@@ -344,7 +344,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testChromosomeCountsPed() {
-        final String MD5 = "4ab0b4245ba2c5c62424775879f51379";
+        final String MD5 = "71045f20e4cd9f5fdaa367f6d7324e59";
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantAnnotator -R " + b37KGReference + " -A ChromosomeCounts --variant:vcf " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf" +
                         " -L " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf --no_cmdline_in_header -ped " + privateTestDir + "ug.random50000.family.ped -o %s", 1,
@@ -354,7 +354,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testInbreedingCoeffPed() {
-        final String MD5 = "914e6882f01bae43f1d6ba1b0023cf91";
+        final String MD5 = "0cf7c115316950abc0213935b20a653a";
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantAnnotator -R " + b37KGReference + " -A InbreedingCoeff --variant:vcf " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf" +
                         " -L " + privateTestDir + "ug.random50000.subset300bp.chr1.family.vcf --no_cmdline_in_header -ped " + privateTestDir + "ug.random50000.family.ped -o %s", 1,
@@ -364,7 +364,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testAlleleTrimming() {
-        final String MD5 = "90f9ee6c34c0820435dce7a0d63b4c1e";
+        final String MD5 = "5db0cd72ad0ffc711afb95df58de31fa";
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantAnnotator -R " + b37KGReference + " -A InbreedingCoeff --variant:vcf " + privateTestDir + "alleleTrim.vcf.gz" +
                         " -L 1:26608870-26608875 -no_cmdline_in_header --resource:exac " + privateTestDir +  "exacAlleleTrim.vcf.gz  -E exac.AC_Adj" +
@@ -422,36 +422,17 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testStrandAlleleCountsBySample() throws IOException {
+    public void testStrandAlleleCountsBySample() {
+        final String MD5 = "564aeeefad92353d66dbb2a2222d5108";
         final WalkerTestSpec spec = new WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering " +
                 String.format("-R %s -I %s ", REF, CEUTRIO_BAM) +
                 "--no_cmdline_in_header -o %s -L 20:10130000-10134800 " +
                 "-A StrandBiasBySample -A StrandAlleleCountsBySample",
-                1, Arrays.asList("")
+                1, Arrays.asList(MD5)
         );
-        spec.disableShadowBCF(); //TODO: Remove when BaseTest.assertAttributesEquals() works with SC
-        final File outputVCF = executeTest("testStrandAlleleCountsBySample", spec).getFirst().get(0);
-
-        //Confirm that SB and SAC are identical for bi-allelic variants
-        final VCFCodec codec = new VCFCodec();
-        final FileInputStream s = new FileInputStream(outputVCF);
-        final LineIterator lineIterator = codec.makeSourceFromStream(new PositionalBufferedStream(s));
-        codec.readHeader(lineIterator);
-
-        while (lineIterator.hasNext()) {
-            final String line = lineIterator.next();
-            Assert.assertFalse(line == null);
-            final VariantContext vc = codec.decode(line);
-
-            if (vc.isBiallelic()) {
-                for (final Genotype g : vc.getGenotypes()) {
-                    Assert.assertTrue(g.hasExtendedAttribute("SB"));
-                    Assert.assertTrue(g.hasExtendedAttribute("SAC"));
-                    Assert.assertEquals(g.getExtendedAttribute("SB").toString(), g.getExtendedAttribute("SAC").toString());
-                }
-            }
-        }
+        spec.disableShadowBCF();
+        executeTest("testStrandAlleleCountsBySample", spec);
     }
 
     @Test(enabled = false)
@@ -522,5 +503,23 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
         Assert.assertFalse(lineIterator.hasNext());
         Assert.assertFalse(lineIteratorAnn.hasNext());
+    }
+
+    @Test
+    public void testHomopolymerRunWindow() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantAnnotator -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " -A HomopolymerRun --variant:vcf " + privateTestDir + "problem_del.vcf  " +
+                        "-U ALLOW_SEQ_DICT_INCOMPATIBILITY -L chr18:44382010-44384010 --reference_window_stop 59 --no_cmdline_in_header -o %s", 1,
+                Arrays.asList("f3166721ef0380636590b3e860aa06af"));
+        executeTest("Testing testHomopolymerRunWindow", spec);
+    }
+
+    @Test
+    public void testHomopolymerRunTooBig() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantAnnotator -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " -A HomopolymerRun --variant:vcf " + privateTestDir + "problem_del.vcf  " +
+                        "-U ALLOW_SEQ_DICT_INCOMPATIBILITY -L chr18:44382010-44384010 --no_cmdline_in_header -o %s", 1,
+                Arrays.asList("3dba997d03779781c82a25ace69c838e"));
+        executeTest("Testing HomopolymerRunTooBig", spec);
     }
 }

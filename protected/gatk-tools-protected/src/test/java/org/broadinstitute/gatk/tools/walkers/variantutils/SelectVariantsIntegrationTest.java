@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -69,6 +69,8 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     private static final String INVERT_SELECTION_MD5 = "26d192b868746ab14133f145ae812e7c";
     private static final String MAX_FILTERED_GT_SELECTION_MD5 = "f83ac0deb7a8b022d6d40a85627a71ec";
     private static final String MIN_FILTERED_GT_SELECTION_MD5 = "346620b7a5d66dabf89d3f42d6e27db7";
+    private static final String NO_CALL_FILTERING_KEEP_ONE = "6e2401190c5ada6a3bed2640c068f43b";
+    private static final String NO_CALL_FILTERING_KEEP_TWO =  "6bced1ab6a3d58f1fd905b7f601987a3";
 
     @Test
     public void testDiscordanceNoSampleSpecified() {
@@ -367,7 +369,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --keepOriginalDP -R " + b37KGReference + " -sn NA12892 --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("ce5168e2eadee2550188892b1ea444be")
+                Arrays.asList("9ad02f0df308eecb0634b3cd386956e9")
         );
 
         executeTest("testKeepOriginalDP--" + testFile, spec);
@@ -393,7 +395,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("cc33eb41a821d9aebdfb99d309854db0")
+                Arrays.asList("c78a65b41edbdd386211042e8f65220b")
         );
 
         executeTest("testNoGTs--" + testFile, spec);
@@ -406,7 +408,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header -sf " + samplesFile + " --excludeNonVariants -trimAlternates --variant " + testfile,
                 1,
-                Arrays.asList("b86340de516d6c37cc3a2eeb3bfb4821")
+                Arrays.asList("c963ca96d543ecccab8055295d2a4dab")
         );
         executeTest("test select from multi allelic with excludeNonVariants --" + testfile, spec);
     }
@@ -418,7 +420,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 "-T SelectVariants -R " + b37KGReference + " -o %s --no_cmdline_in_header " +
                         "-sn SAMPLE-CC -sn SAMPLE-CT -sn SAMPLE-CA --excludeNonVariants --variant " + testfile,
                 1,
-                Arrays.asList("7807bb2bf8c70963f65a97f30c8deb39")
+                Arrays.asList("7f5484a74ab648608228eafea96f8ad3")
         );
         executeTest("test multi allelic annotation ordering --" + testfile, spec);
     }
@@ -469,19 +471,19 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         final String testFile = privateTestDir + "forHardLeftAlignVariantsTest.vcf";
         final String cmd = "-T SelectVariants -R " + b37KGReference + " -sn NA12878 -env -trimAlternates "
                 + "-V " + testFile + " -o %s --no_cmdline_in_header";
-        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("354cd7aa25791465d0f4c7d53b81a3a3"));
+        WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("21d83006b012eeea84c6612976348d3c"));
         executeTest("testAlleleTrimming", spec);
     }
 
     @DataProvider(name="unusedAlleleTrimmingProvider")
     public Object[][] unusedAlleleTrimmingProvider() {
         return new Object[][] {
-                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "-trimAlternates", "354cd7aa25791465d0f4c7d53b81a3a3"},
-                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "", "5e81af1825aa207b0a352f5eeb5db700"},
-                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT", "339cca608ff18a355abc629bca448043"},
-                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env", "3e8e2ebbc576ceee717a7ce80e23dd35"},
-                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -trimAlternates", "8650d66b2199a4f8ce0acc660b2091cd"},
-                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env -trimAlternates", "14538e17d5aca22c655c42e130f8cebc"}
+                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "-trimAlternates", "21d83006b012eeea84c6612976348d3c"},
+                { privateTestDir+"forHardLeftAlignVariantsTest.vcf", "", "8fc0c8a7de6bb579e1534b936f844090"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT", "595392b623b0869f1d87e46edf3de122"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env", "bba873b8eeeb4c01199140c37deb6f6b"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -trimAlternates", "93858f706dac876a8581f6b89bb85cc5"},
+                { privateTestDir+"multi-allelic-ordering.vcf", "-sn SAMPLE-CC -sn SAMPLE-CT -env -trimAlternates", "5d831401367eb8b0ab49ffa34e0dd278"}
         };
     }
 
@@ -653,7 +655,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 --variant  " + testFile + " -ped " + pedFile + " -o %s  --no_cmdline_in_header",
                 1,
-                Arrays.asList("f7fe7cbc84b3f2dfadcc40e19eeeb1f9"));
+                Arrays.asList("c68779547b28dfef39792598df8a93e9"));
 
         executeTest("testMendelianViolationSelection--" + testFile, spec);
     }
@@ -666,7 +668,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R "+b37KGReference + " -mv -mvq 0 -invMv --variant  " + testFile + " -ped " + pedFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("865418a69ee57be4432f248c027e6aff"));
+                Arrays.asList("0ac6fda76228080bdb39c0e698440718"));
 
         executeTest("testInvertMendelianViolationSelection--" + testFile, spec);
     }
@@ -730,12 +732,25 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("7771f07a9997296852ab367fac2c7a6c")
+                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
         );
 
         spec.disableShadowBCF();
         executeTest("testSetFilteredGtoNocall--" + testfile, spec);
     }
+
+    @Test
+    public void testSetFilteredGtoNocallUpdateInfo() {
+        String testfile = privateTestDir + "selectVariantsInfoField.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants --setFilteredGtToNocall --removeUnusedAlternates --excludeNonVariants -R " + b37KGReference + " --variant " +
+                        testfile + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("349136d92f915f8c7ba8a2f92e51d6b7"));
+        executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
+    }
+
     @Test
     public void testSACSimpleDiploid() {
         String testfile = privateTestDir + "261_S01_raw_variants_gvcf.vcf";
@@ -743,7 +758,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -trimAlternates",
                 1,
-                Arrays.asList("c9d297e7758bf5681270029401cc97c2"));
+                Arrays.asList("d3bb7ea37a7c9dce8b34bf2020961619"));
         spec.disableShadowBCF();
         executeTest("testSACSimpleDiploid", spec);
     }
@@ -755,7 +770,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12891 -trimAlternates",
                 1,
-                Arrays.asList("7aecb079b16448f0377b6b03069b2994"));
+                Arrays.asList("67a92b4d4174ff41f6f88ddf5ab6e422"));
         spec.disableShadowBCF();
         executeTest("testSACDiploid", spec);
     }
@@ -770,5 +785,57 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 ReviewedGATKException.class);
         spec.disableShadowBCF();
         executeTest("testSACNonDiploid", spec);
+    }
+
+    @Test
+    public void testMaxNoCall1() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLnumber 1",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_ONE));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall1", spec);
+    }
+
+    @Test
+    public void testMaxNoCall0_25()  {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLfraction 0.25",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_ONE));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall0_25", spec);
+    }
+
+    @Test
+    public void testMaxNoCall2() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLnumber 2",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_TWO));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall2", spec);
+    }
+
+    @Test
+    public void testMaxNoCall0_5() {
+        final String testfile = privateTestDir + "vcfexample.forNoCallFiltering.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " --variant " + testfile + " -o %s --no_cmdline_in_header --maxNOCALLfraction 0.5",
+                1,
+                Arrays.asList(NO_CALL_FILTERING_KEEP_TWO));
+        spec.disableShadowBCF();
+
+        executeTest("testMaxNoCall0_5", spec);
     }
 }

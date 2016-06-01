@@ -5,7 +5,7 @@
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
 * 
-* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
 * 
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
@@ -21,11 +21,11 @@
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
 * 
 * 3. PHONE-HOME FEATURE
-* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
 * 
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
-* Copyright 2012-2015 Broad Institute, Inc.
+* Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
 * 
@@ -65,7 +65,7 @@ import java.util.List;
 
 public class RankSumUnitTest {
 
-    List<Integer> distribution20, distribution30, distribution20_40;
+    List<Double> distribution20, distribution30, distribution20_40;
     static final int observations = 100;
 
     @BeforeClass
@@ -86,11 +86,11 @@ public class RankSumUnitTest {
         Collections.shuffle(distribution20_40, Utils.getRandomGenerator());
     }
 
-    private static void makeDistribution(final List<Integer> result, final int target, final int skew, final int numObservations) {
+    private static void makeDistribution(final List<Double> result, final int target, final int skew, final int numObservations) {
         final int rangeStart = target - skew;
         final int rangeEnd = target + skew;
 
-        int current = rangeStart;
+        double current = rangeStart;
         for ( int i = 0; i < numObservations; i++ ) {
             result.add(current++);
             if ( current > rangeEnd )
@@ -118,40 +118,33 @@ public class RankSumUnitTest {
     }
 
     @Test(enabled = true, dataProvider = "DistributionData")
-    public void testDistribution(final List<Integer> distribution1, final List<Integer> distribution2, final int numToReduceIn2, final boolean distributionsShouldBeEqual, final String debugString) {
-        final MannWhitneyU mannWhitneyU = new MannWhitneyU(true);
+    public void testDistribution(final List<Double> distribution1, final List<Double> distribution2, final int numToReduceIn2, final boolean distributionsShouldBeEqual, final String debugString) {
+        final MannWhitneyU mannWhitneyU = new MannWhitneyU();
 
-        for ( final Integer num : distribution1 )
-            mannWhitneyU.add(num, MannWhitneyU.USet.SET1);
-
-        final List<Integer> dist2 = new ArrayList<>(distribution2);
+        final List<Double> dist2 = new ArrayList<>(distribution2);
         if ( numToReduceIn2 > 0 ) {
-            int counts = 0;
-            int quals = 0;
+            Double counts = 0.0;
+            Double quals = 0.0;
 
             for ( int i = 0; i < numToReduceIn2; i++ ) {
                 counts++;
                 quals += dist2.remove(0);
             }
 
-            final int qual = quals / counts;
+            final Double qual = quals / counts;
             for ( int i = 0; i < numToReduceIn2; i++ )
                 dist2.add(qual);
         }
 
-        for ( final Integer num : dist2 )
-            mannWhitneyU.add(num, MannWhitneyU.USet.SET2);
-
-        final Double result = mannWhitneyU.runTwoSidedTest().second;
+        final Double result = mannWhitneyU.test(RankSumTest.convertToArray(distribution1),RankSumTest.convertToArray(dist2), MannWhitneyU.TestType.TWO_SIDED).getP();
         Assert.assertFalse(Double.isNaN(result));
 
         if ( distributionsShouldBeEqual ) {
-            // TODO -- THIS IS THE FAILURE POINT OF USING REDUCED READS WITH RANK SUM TESTS
             if ( numToReduceIn2 >= observations / 2 )
                 return;
-            Assert.assertTrue(result > 0.1, String.format("%f %d %d", result, numToReduceIn2, dist2.get(0)));
+            Assert.assertTrue(result > 0.1, String.format("%f %d %f", result, numToReduceIn2, dist2.get(0)));
         } else {
-            Assert.assertTrue(result < 0.01, String.format("%f %d %d", result, numToReduceIn2, dist2.get(0)));
+            Assert.assertTrue(result < 0.01, String.format("%f %d %f", result, numToReduceIn2, dist2.get(0)));
         }
     }
 }
