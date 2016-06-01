@@ -61,6 +61,11 @@
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
         </dependency>
+        <!-- Used in ONE unit test (grr) -->
+        <dependency>
+            <groupId>colt</groupId>
+            <artifactId>colt</artifactId>
+        </dependency>
         <!--
         Some cofoja annotations (ex: PreconditionError) are ONLY in used tests.
         They are not picked up by shade, not required during normal runs, but are important for tests to avoid
