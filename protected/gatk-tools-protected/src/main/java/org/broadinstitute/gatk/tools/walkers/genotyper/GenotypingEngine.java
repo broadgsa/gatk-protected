@@ -631,7 +631,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
-                throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
+                throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples * ploidy");
             for (final Double prior : inputPriors) {
                 if (prior <= 0 || prior >= 1) throw new UserException.BadArgumentValue("inputPrior","inputPrior vector values must be greater than 0 and less than 1");
             }

@@ -77,23 +77,21 @@ import java.util.*;
  *
  * <p>and its inverse:</p>
  *
- * <table>
+ * <table class='table table-striped'>
  *      <tr><td>&nbsp;</td><td>+ strand </td><td>- strand</td></tr>
  *      <tr><td>REF;</td><td>X[0][0]</td><td>X[0][1]</td></tr>
  *      <tr><td>ALT;</td><td>X[1][0]</td><td>X[1][1]</td></tr>
  * </table>
- *
+ * <br />
  * <p>The sum R + 1/R is used to detect a difference in strand bias for REF and for ALT (the sum makes it symmetric). A high value is indicative of large difference where one entry is very small compared to the others. A scale factor of refRatio/altRatio where</p>
  *
- * $$ refRatio = \frac{max(X[0][0], X[0][1])}{min(X[0][0], X[0][1} $$
+ * $$ refRatio = \frac{min(X[0][0], X[0][1])}{max(X[0][0], X[0][1} $$
  *
  * <p>and </p>
  *
- * $$ altRatio = \frac{max(X[1][0], X[1][1])}{min(X[1][0], X[1][1]} $$
+ * $$ altRatio = \frac{min(X[1][0], X[1][1])}{max(X[1][0], X[1][1]} $$
  *
  * <p>ensures that the annotation value is large only. </p>
- *
- * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this statistical test.</p>
  *
  * <h3>Caveat</h3>
  * <p>

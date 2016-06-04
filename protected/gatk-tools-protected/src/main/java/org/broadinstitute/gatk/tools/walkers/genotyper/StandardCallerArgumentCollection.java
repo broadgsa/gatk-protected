@@ -81,26 +81,30 @@ public class StandardCallerArgumentCollection implements Cloneable {
     public GenotypingOutputMode genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
 
     /**
-     * When the UnifiedGenotyper is put into GENOTYPE_GIVEN_ALLELES mode it will genotype the samples using only the alleles provide in this rod binding
+     * When --genotyping_mode is set to GENOTYPE_GIVEN_ALLELES mode, the caller will genotype the samples using only the alleles provide in this callset. Note that this is not well tested in HaplotypeCaller, and is definitely not suitable for use with HaplotypeCaller in -ERC GVCF mode. In addition, it does not apply to MuTect2 at all.
      */
-    @Input(fullName="alleles", shortName = "alleles", doc="The set of alleles at which to genotype when --genotyping_mode is GENOTYPE_GIVEN_ALLELES", required=false)
+    @Input(fullName="alleles", shortName = "alleles", doc="Set of alleles to use in genotyping", required=false)
     public RodBinding<VariantContext> alleles;
 
     /**
-     * If this fraction is greater is than zero, the caller will aggressively attempt to remove contamination through biased down-sampling of reads.
-     * Basically, it will ignore the contamination fraction of reads for each alternate allele.  So if the pileup contains N total bases, then we
-     * will try to remove (N * contamination fraction) bases for each alternate allele.
+     * If this fraction is greater is than zero, the caller will aggressively attempt to remove
+     * contamination through biased down-sampling of reads (for all samples). Basically, it will ignore the
+     * contamination fraction of reads for each alternate allele.  So if the pileup contains N
+     * total bases, then we will try to remove (N * contamination fraction) bases for each alternate
+     * allele.
      */
-    @Argument(fullName = "contamination_fraction_to_filter", shortName = "contamination", doc = "Fraction of contamination in sequencing data (for all samples) to aggressively remove", required = false)
+    @Argument(fullName = "contamination_fraction_to_filter", shortName = "contamination", doc = "Fraction of contamination to aggressively remove", required = false)
     public double CONTAMINATION_FRACTION = DEFAULT_CONTAMINATION_FRACTION;
     public static final double DEFAULT_CONTAMINATION_FRACTION = 0.0;
 
     /**
-     *  This argument specifies a file with two columns "sample" and "contamination" specifying the contamination level for those samples.
-     *  Samples that do not appear in this file will be processed with CONTAMINATION_FRACTION.
+     *  This argument specifies a file with two columns "sample" and "contamination" (separated by a tab)
+     *  specifying the contamination level for those samples (where contamination is given as a
+     *  decimal number, not an integer) per line. There should be no header. Samples that do not appear
+     *  in this file will be processed with CONTAMINATION_FRACTION.
      **/
     @Advanced
-    @Argument(fullName = "contamination_fraction_per_sample_file", shortName = "contaminationFile", doc = "Tab-separated File containing fraction of contamination in sequencing data (per sample) to aggressively remove. Format should be \"<SampleID><TAB><Contamination>\" (Contamination is double) per line; No header.", required = false)
+    @Argument(fullName = "contamination_fraction_per_sample_file", shortName = "contaminationFile", doc = "Contamination per sample", required = false)
     public File CONTAMINATION_FRACTION_FILE = null;
 
     /**
@@ -148,23 +152,33 @@ public class StandardCallerArgumentCollection implements Cloneable {
      * Controls the model used to calculate the probability that a site is variant plus the various sample genotypes in the data at a given locus.
      */
     @Hidden
-    @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model to employ", required = false)
+    @Argument(fullName = "p_nonref_model", shortName = "pnrm", doc = "Non-reference probability calculation model", required = false)
     public AFCalculatorImplementation requestedAlleleFrequencyCalculationModel;
 
     @Hidden
     @Argument(shortName = "logExactCalls", doc="x", required=false)
     public File exactCallsLog = null;
 
-    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Specifies which type of calls we should output", required = false)
+    /**
+     * Experimental argument FOR USE WITH UnifiedGenotyper ONLY. When using HaplotypeCaller, use -ERC
+     * instead. When using GenotypeGVCFs, see -allSites.
+     */
+    @Advanced
+    @Argument(fullName = "output_mode", shortName = "out_mode", doc = "Which type of calls we should output", required = false)
     public OutputMode outputMode = OutputMode.EMIT_VARIANTS_ONLY;
 
     /**
-     * Advanced, experimental argument: if SNP likelihood model is specified, and if EMIT_ALL_SITES output mode is set, when we set this argument then we will also emit PLs at all sites.
-     * This will give a measure of reference confidence and a measure of which alt alleles are more plausible (if any).
+     * Experimental argument FOR USE WITH UnifiedGenotyper ONLY: if SNP likelihood model
+     * is specified, and if EMIT_ALL_SITES output mode is set, when we set this argument then we
+     * will also emit PLs at all sites. This will give a measure of reference confidence and a
+     * measure of which alt alleles are more plausible (if any).
      * WARNINGS:
      * - This feature will inflate VCF file size considerably.
      * - All SNP ALT alleles will be emitted with corresponding 10 PL values.
-     * - An error will be emitted if EMIT_ALL_SITES is not set, or if anything other than diploid SNP model is used
+     * - An error will be emitted if EMIT_ALL_SITES is not set, or if anything other than diploid
+     * SNP model is used
+     * - THIS WILL NOT WORK WITH HaplotypeCaller, GenotypeGVCFs or MuTect2! Use HaplotypeCaller with
+     * -ERC GVCF then GenotypeGVCFs instead. See the Best Practices documentation for more information.
      */
     @Advanced
     @Argument(fullName = "allSitePLs", shortName = "allSitePLs", doc = "Annotate all sites with PLs", required = false)

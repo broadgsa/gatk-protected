@@ -124,7 +124,7 @@ import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
  * reverse order between these two genotypes.</p>
  * <p>In an old notation that RBP used to output in much earlier versions, the genotypes would have been: 0/1 and 1|0,
  * respectively. This was changed because depending on the case it caused ambiguity, incompleteness, and possible
- * inconsistency with trio-based phasing. In contrast, the HP tag is much more explicitl for linking alleles, especially
+ * inconsistency with trio-based phasing. In contrast, the HP tag is much more explicit for linking alleles, especially
  * if the genotypes are non-consecutive.</p>
  *
  * <h3>Usage example</h3>

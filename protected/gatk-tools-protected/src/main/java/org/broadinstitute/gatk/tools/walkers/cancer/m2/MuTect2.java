@@ -109,26 +109,19 @@ import static java.lang.Math.pow;
 /**
  * Call somatic SNPs and indels via local re-assembly of haplotypes
  *
- * <p>MuTect2 is a somatic SNP and indel caller that combines the DREAM challenge-winning somatic genotyping engine of the original MuTect (<a href='http://www.nature.com/nbt/journal/v31/n3/full/nbt.2514.html'>Cibulskis et al., 2013</a>) with the assembly-based machinery of HaplotypeCaller.</p>
- *
- * <p>The basic operation of MuTect2 proceeds similarly to that of the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php">HaplotypeCaller</a>   </p>
+ * <p>MuTect2 is a somatic SNP and indel caller that combines the DREAM challenge-winning somatic genotyping engine of the original MuTect (<a href='http://www.nature.com/nbt/journal/v31/n3/full/nbt.2514.html'>Cibulskis et al., 2013</a>) with the assembly-based machinery of HaplotypeCaller. The basic operation of MuTect2 proceeds similarly to that of the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php">HaplotypeCaller</a>.</p>
  *
  * <h3>Differences from HaplotypeCaller</h3>
- * <p>While the HaplotypeCaller relies on a ploidy assumption (diploid by default) to inform its genotype likelihood and
- * variant quality calculations, MuTect2 allows for a varying allelic fraction for each variant, as is often seen in tumors with purity less
- * than 100%, multiple subclones, and/or copy number variation (either local or aneuploidy). MuTect2 also differs from the HaplotypeCaller in that it does apply some hard filters
- * to variants before producing output.</p>
+ * <p>While the HaplotypeCaller relies on a ploidy assumption (diploid by default) to inform its genotype likelihood and variant quality calculations, MuTect2 allows for a varying allelic fraction for each variant, as is often seen in tumors with purity less than 100%, multiple subclones, and/or copy number variation (either local or aneuploidy). MuTect2 also differs from the HaplotypeCaller in that it does apply some hard filters to variants before producing output.</p>
+ * <p>Note that the GVCF generation capabilities of HaplotypeCaller are NOT available in MuTect2, even though some of the relevant arguments are listed below. There are currently no plans to make GVCF calling available in MuTect2.</p>
  *
  * <h3>Usage examples</h3>
- * <p>These are example commands that show how to run MuTect2 for typical use cases. Square brackets ("[ ]")
- * indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the
- * Best Practices documentation for detailed recommendations. </p>
+ * <p>These are example commands that show how to run MuTect2 for typical use cases. Square brackets ("[ ]") indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the Best Practices documentation for detailed recommendations. </p>
  *
  * <br />
  * <h4>Tumor/Normal variant calling</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar \
+ *   java -jar GenomeAnalysisTK.jar \
  *     -T MuTect2 \
  *     -R reference.fasta \
  *     -I:tumor tumor.bam \
@@ -141,10 +134,9 @@ import static java.lang.Math.pow;
  *
  * <h4>Normal-only calling for panel of normals creation</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T MuTect2
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -T MuTect2 \
+ *     -R reference.fasta \
  *     -I:tumor normal1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     [--cosmic COSMIC.vcf] \
@@ -153,12 +145,11 @@ import static java.lang.Math.pow;
  *     -o output.normal1.vcf
  * </pre>
  * <br />
- * For full PON creation, call each of your normals separately in artifact detection mode. Then use CombineVariants to
- * output only sites where a variant was seen in at least two samples:
+ * For full PON creation, call each of your normals separately in artifact detection mode as shown above. Then use CombineVariants to output only sites where a variant was seen in at least two samples:
  * <pre>
- * java -jar GenomeAnalysisTK.jar
- *     -T CombineVariants
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -T CombineVariants \
+ *     -R reference.fasta \
  *     -V output.normal1.vcf -V output.normal2.vcf [-V output.normal2.vcf ...] \
  *     -minN 2 \
  *     --setKey "null" \
@@ -170,7 +161,10 @@ import static java.lang.Math.pow;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>MuTect2 currently only supports the calling of a single tumor-normal pair at a time</li>
+ * <li>As noted in several places in the documentation, MuTect2 is currently released under BETA status; it is NOT recommended for production work and is NOT available for commercial/for-profit licensing.</li>
+ * <li>MuTect2 currently only supports the calling of a single tumor-normal pair at a time.</li>
+ * <li>Tumor-only variant calling is possible but it is NOT supported and we will not answer any questions about it until it becomes a supported feature.</li>
+ * <li>Some of the arguments listed below are not functional; they are exclusive to HaplotypeCaller and are listed here due to technical entanglements in the code. This will be resolved in the upcoming GATK 4 release.</li>
  * </ul>
  *
  */

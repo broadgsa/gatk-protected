@@ -66,39 +66,23 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public static final String MAX_ALTERNATE_ALLELES_SHORT_NAME = "maxAltAlleles";
 
     /**
-     * Depending on the value of the --max_alternate_alleles argument, we may genotype only a fraction of the alleles being sent on for genotyping.
-     * Using this argument instructs the genotyper to annotate (in the INFO field) the number of alternate alleles that were originally discovered at the site.
+     * Depending on the value of the --max_alternate_alleles argument, we may genotype only a fraction of the alleles
+     * being sent on for genotyping. Using this argument instructs the genotyper to annotate (in the INFO field) the
+     * number of alternate alleles that were originally discovered (but not necessarily genotyped) at the site.
      */
-    @Argument(fullName = "annotateNDA", shortName = "nda", doc = "If provided, we will annotate records with the number of alternate alleles that were discovered (but not necessarily genotyped) at a given site", required = false)
+    @Argument(fullName = "annotateNDA", shortName = "nda", doc = "Annotate number of alleles observed", required = false)
     public boolean ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED = false;
 
     /**
-     * Use the new allele frequency / QUAL score model
+     * This activates a model for calculating QUAL that was introduced in version 3.7 (November 2016). We expect this
+     * model will become the default in future versions.
      */
-    @Argument(fullName = "useNewAFCalculator", shortName = "newQual", doc = "If provided, we will use the new AF model instead of the so-called exact model", required = false)
+    @Argument(fullName = "useNewAFCalculator", shortName = "newQual", doc = "Use new AF model instead of the so-called exact model", required = false)
     public boolean USE_NEW_AF_CALCULATOR = false;
 
     /**
-     * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
-     *
-     * From the heterozygosity we calculate the probability of N samples being hom-ref at a site as 1 - sum_i_2N (hets / i)
-     * where hets is this case is analogous to the parameter theta from population genetics. See https://en.wikipedia.org/wiki/Coalescent_theory for more details.
-     *
-     * Note that heterozygosity as used here is the population genetics concept. (See http://en.wikipedia.org/wiki/Zygosity#Heterozygosity_in_population_genetics. 
-     * We also suggest the book "Population Genetics: A Concise Guide" by John H. Gillespie for further details on the theory.) That is, a hets value of 0.001 
-     * implies that two randomly chosen chromosomes from the population of organisms would differ from each other at a rate of 1 in 1000 bp.
-     *
-     * The default priors provided for humans (hets = 1e-3)
-     *
-     * Also note that this quantity has nothing to do with the likelihood of any given sample having a heterozygous genotype,
-     * which in the GATK is purely determined by the probability of the observed data P(D | AB) under the model that there
-     * may be a AB het genotype.  The posterior probability of this AB genotype would use the het prior, but the GATK
-     * only uses this posterior probability in determining the prob. that a site is polymorphic.  So changing the
-     * het parameters only increases the chance that a site will be called non-reference across all samples, but
-     * doesn't actually change the output genotype likelihoods at all, as these aren't posterior probabilities at all.
-     *
-     * The quantity that changes whether the GATK considers the possibility of a het genotype at all is the ploidy,
-     * which determines how many chromosomes each individual in the species carries.
+     * The expected heterozygosity value used to compute prior probability that a locus is non-reference. See
+     * https://software.broadinstitute.org/gatk/documentation/article?id=8603 for more details.
      */
     @Argument(fullName = "heterozygosity", shortName = "hets", doc = "Heterozygosity value used to compute prior likelihoods for any locus", required = false)
     public Double snpHeterozygosity = HomoSapiensConstants.SNP_HETEROZYGOSITY;
@@ -110,8 +94,8 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public double indelHeterozygosity = HomoSapiensConstants.INDEL_HETEROZYGOSITY;
 
     /**
-     * The standard deviation of the distribution of alt allele fractions.  The above heterozygosity parameters give the
-     * *mean* of this distribution; this parameter gives its spread.
+     * The standard deviation of the distribution of alt allele fractions. The above heterozygosity parameters give
+     * the *mean* of this distribution; this parameter gives its spread.
      */
     @Argument(fullName = "heterozygosity_stdev", shortName = "heterozygosityStandardDeviation", doc = "Standard deviation of eterozygosity for SNP and indel calling.", required = false)
     public double heterozygosityStandardDeviation = 0.01;
@@ -134,10 +118,11 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public double STANDARD_CONFIDENCE_FOR_EMITTING = 30.0;
 
     /**
-     * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN_ALLELES),
-     * then only this many alleles will be used.  Note that genotyping sites with many alternate alleles is both CPU and memory intensive and it
-     * scales exponentially based on the number of alternate alleles.  Unless there is a good reason to change the default value, we highly recommend
-     * that you not play around with this parameter.
+     * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or
+     * GENOTYPE_GIVEN_ALLELES), then only this many alleles will be used.  Note that genotyping sites with many
+     * alternate alleles is both CPU and memory intensive and it scales exponentially based on the number of alternate
+     * alleles.  Unless there is a good reason to change the default value, we highly recommend that you not play around
+     * with this parameter.
      *
      * See also {@link #MAX_GENOTYPE_COUNT}.
      */
@@ -146,18 +131,22 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public int MAX_ALTERNATE_ALLELES = 6;
 
     /**
-     * If there are more than this number of genotypes at a locus presented to the genotyper, then only this many genotypes will be used.
-     * The possible genotypes are simply different ways of partitioning alleles given a specific ploidy asumption.
-     * Therefore, we remove genotypes from consideration by removing alternate alleles that are the least well supported.
-     * The estimate of allele support is based on the ranking of the candidate haplotypes coming out of the graph building step.
-     * Note that the reference allele is always kept.
+     * If there are more than this number of genotypes at a locus presented to the genotyper, then only this many
+     * genotypes will be used. This is intended to deal with sites where the combination of high ploidy and high alt
+     * allele count can lead to an explosion in the number of possible genotypes, with extreme adverse effects on
+     * runtime performance.
      *
-     * Note that genotyping sites with large genotype counts is both CPU and memory intensive.
-     * Unless there is a good reason to change the default value, we highly recommend that you not play around with this parameter.
+     * How does it work? The possible genotypes are simply different ways of partitioning alleles given a specific
+     * ploidy assumption. Therefore, we remove genotypes from consideration by removing alternate alleles that are the
+     * least well supported. The estimate of allele support is based on the ranking of the candidate haplotypes coming
+     * out of the graph building step. Note however that the reference allele is always kept.
      *
      * The maximum number of alternative alleles used in the genotyping step will be the lesser of the two:
      * 1. the largest number of alt alleles, given ploidy, that yields a genotype count no higher than {@link #MAX_GENOTYPE_COUNT}
      * 2. the value of {@link #MAX_ALTERNATE_ALLELES}
+     *
+     * As noted above, genotyping sites with large genotype counts is both CPU and memory intensive. Unless you have
+     * a good reason to change the default value, we highly recommend that you not play around with this parameter.
      *
      * See also {@link #MAX_ALTERNATE_ALLELES}.
      */
@@ -175,23 +164,19 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public int MAX_NUM_PL_VALUES = AFCalculator.MAX_NUM_PL_VALUES_DEFAULT;
 
     /**
-     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a particular locus, using an infinite sites model,
-     * see e.g. Waterson (1975) or Tajima (1996).
-     * This model asserts that the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N
+     * By default, the prior specified with the argument --heterozygosity/-hets is used for variant discovery at a
+     * particular locus, using an infinite sites model (see e.g. Waterson, 1975 or Tajima, 1996). This model asserts that
+     * the probability of having a population of k variant sites in N chromosomes is proportional to theta/k, for 1=1:N.
+     * However, there are instances where using this prior might not be desirable, e.g. for population studies where prior
+     * might not be appropriate, as for example when the ancestral status of the reference allele is not known.
      *
-     * There are instances where using this prior might not be desirable, e.g. for population studies where prior might not be appropriate,
-     * as for example when the ancestral status of the reference allele is not known.
-     * By using this argument, the user can manually specify a list of probabilities for each AC>1 to be used as priors for genotyping,
-     * with the following restrictions:
-     * a) User must specify 2N values, where N is the number of samples.
-     * b) Only diploid calls supported.
-     * c) Probability values are specified in Double format, in linear space (not log10 space or Phred-scale).
-     * d) No negative values allowed.
-     * e) Values will be added and Pr(AC=0) will be 1-sum, so that they sum up to one.
-     * f) If user-defined values add to more than one, an error will be produced.
+     * This argument allows you to manually specify a list of probabilities for each AC>1 to be used as
+     * priors for genotyping, with the following restrictions: only diploid calls are supported; you must specify 2 *
+     * N values where N is the number of samples; probability values must be positive and specified in Double format,
+     * in linear space (not log10 space nor Phred-scale); and all values must sume to 1.
      *
-     * If user wants completely flat priors, then user should specify the same value (=1/(2*N+1)) 2*N times,e.g.
-     *   -inputPrior 0.33 -inputPrior 0.33
+     * For completely flat priors,  specify the same value (=1/(2*N+1)) 2*N times, e.g.
+     *      -inputPrior 0.33 -inputPrior 0.33
      * for the single-sample diploid case.
      */
     @Advanced
@@ -199,9 +184,10 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public List<Double> inputPrior = Collections.emptyList();
 
     /**
-     *   Sample ploidy - equivalent to number of chromosomes per pool. In pooled experiments this should be = # of samples in pool * individual sample ploidy
+     *   Sample ploidy - equivalent to number of chromosome copies per pool. For pooled experiments this should be set to
+     *   the number of samples in pool multiplied by individual sample ploidy.
      */
-    @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
+    @Argument(shortName="ploidy", fullName="sample_ploidy", doc="Ploidy per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).", required=false)
     public int samplePloidy = HomoSapiensConstants.DEFAULT_PLOIDY;
 
     /**

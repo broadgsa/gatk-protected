@@ -76,7 +76,7 @@ import java.util.Map;
  * <p>Finding a statistically significant difference in quality either way suggests that the sequencing and/or mapping process may have been biased or affected by an artifact. In practice, we only filter out low negative values when evaluating variant quality because the idea is to filter out variants for which the quality of the data supporting the alternate allele is comparatively low. The reverse case, where it is the quality of data supporting the reference allele that is lower (resulting in positive ranksum scores), is not really informative for filtering variants.
  *
  * <h3>Statistical notes</h3>
- * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for mapping qualities (MAPQ of reads supporting REF vs. MAPQ of reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
+ * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for mapping qualities (MAPQ of reads supporting REF vs. MAPQ of reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=8031">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
  *
  * <h3>Caveats</h3>
  * <ul><li>The mapping quality rank sum test can not be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</li>
@@ -86,6 +86,7 @@ import java.util.Map;
  * <h3>Related annotations</h3>
  * <ul>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_MappingQualityRankSumTest.php">MappingQualityRankSumTest</a></b> outputs a version of this annotation that includes all alternate alleles in a single calculation.</li>
+ *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_AS_MQMateRankSumTest.php">AS_MQMateRankSumTest</a></b> outputs the same allele-specific rank sum test on the mapping quality of the reads' mates rather than the reads themselves.</li>
  *     <li><b><a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_annotator_RMSMappingQuality.php">RMSMappingQuality</a></b> gives an estimation of the overal read mapping quality supporting a variant call.</li>
  * </ul>
  *

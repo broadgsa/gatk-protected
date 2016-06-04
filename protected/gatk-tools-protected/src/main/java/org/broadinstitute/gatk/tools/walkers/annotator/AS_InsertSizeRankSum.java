@@ -63,13 +63,19 @@ import java.util.List;
 /**
  * Allele specific Rank Sum Test for insert sizes of REF versus ALT reads
  *
- * <p>
- *     This annotation tests whether the insert sizes of reads supporting the REF allele and ALT allele are roughly equal.
- *     In case of multiple alternate alleles, each alternate allele is considered separately.
+ * <p>This  variant-level annotation compares the insert sizes of reads supporting the reference allele with those supporting each alternate allele.  To be clear, it does so separately for each alternate allele.</p>
  *
- * </p>
+ * <p>The ideal result is a value close to zero, which indicates there is little to no difference. A negative value indicates that the reads supporting the alternate allele are associated with smaller insert sizes than those supporting the reference allele. Conversely, a positive value indicates that reads supporting the alternate allele are associated with larger insert sizes than those supporting the reference allele. Finding a statistically significant difference either way suggests that the sequencing process may have been biased or affected by an artifact.</p>
+ *
  * <h3>Statistical notes</h3>
- * <p> See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document</a> for a more detailed explanation of the rank sum test. </p>
+ * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for insert sizes (insert sizes of reads supporting REF vs. insert sizes of reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=8031">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
+ *
+ * <h3>Caveats</h3>
+ * <ul>
+ * <li>Uninformative reads are not used in these calculations.</li>
+ * <li>The insert size rank sum test cannot be calculated for sites without a mixture of reads showing both the reference and alternate alleles.</li>
+ * <li>This is an experimental annotation and as such it is unsupported. Use at your own risk.</li>
+ * </ul>
  *
  * */
 
