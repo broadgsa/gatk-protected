@@ -95,7 +95,7 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
             { // new tests on b37 using testdir VCF
                 final String testfile = privateTestDir + "NA12878.hg19.example1.vcf";
                 final String args = "-select 'DP > 30' -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "64f9258e9e3024b6361abbeeeefafee9", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "51645037428729c3a9fa0e25fc2104ad", nt);
             }
             { // AD and PL decoding race condition
                 final String testfile = privateTestDir + "race_condition.vcf";

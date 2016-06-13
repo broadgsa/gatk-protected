@@ -153,7 +153,7 @@ public class PosteriorLikelihoodsUtils {
             final GenotypeBuilder builder = new GenotypeBuilder(vc1.getGenotype(genoIdx));
             builder.phased(vc1.getGenotype(genoIdx).isPhased());
             if ( posteriors.get(genoIdx) != null ) {
-                GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc1.getAlleles(), builder,
+                GATKVariantContextUtils.updateGenotypeAfterSubsetting(vc1.getAlleles(), vc1.getMaxPloidy(2), builder,
                         GATKVariantContextUtils.GenotypeAssignmentMethod.USE_PLS_TO_ASSIGN, posteriors.get(genoIdx), vc1.getAlleles());
                 builder.attribute(GATKVCFConstants.PHRED_SCALED_POSTERIORS_KEY,
                         Utils.listFromPrimitives(GenotypeLikelihoods.fromLog10Likelihoods(posteriors.get(genoIdx)).getAsPLs()));
