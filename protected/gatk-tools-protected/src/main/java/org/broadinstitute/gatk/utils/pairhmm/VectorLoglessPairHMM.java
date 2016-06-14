@@ -135,11 +135,11 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     {
                         logger.debug("libVectorLoglessPairHMM not found in JVM library path - trying to unpack from GATK jar file");
                         String arch = System.getProperty ("os.arch");
- +			            if (arch.equals("ppc64le")) {
- +			                loadLibraryFromJar("/org/broadinstitute/gatk/utils/pairhmm/libVectorLoglessPairHMM_ppc64le.so");
- +			                logger.info("libVectorLoglessPairHMM_ppc64le unpacked successfully from GATK jar file");
- +			            }
- +			            else {    
+                        if (arch.equals("ppc64le")) {
+                            loadLibraryFromJar("/org/broadinstitute/gatk/utils/pairhmm/libVectorLoglessPairHMM_ppc64le.so");
+                            logger.info("libVectorLoglessPairHMM_ppc64le unpacked successfully from GATK jar file");
+                        }
+                        else {    
                                 loadLibraryFromJar("/org/broadinstitute/gatk/utils/pairhmm/libVectorLoglessPairHMM.so");
                                 logger.info("libVectorLoglessPairHMM unpacked successfully from GATK jar file");
                         }      
