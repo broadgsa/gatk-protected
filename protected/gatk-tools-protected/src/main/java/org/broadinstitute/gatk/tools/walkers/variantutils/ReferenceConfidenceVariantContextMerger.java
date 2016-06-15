@@ -135,7 +135,7 @@ public class ReferenceConfidenceVariantContextMerger {
             // record whether it's also a spanning deletion/event (we know this because the VariantContext type is no
             // longer "symbolic" but "mixed" because there are real alleles mixed in with the symbolic non-ref allele)
             sawSpanningDeletion |= ( isSpanningEvent && vc.isMixed() ) || vc.getAlternateAlleles().contains(Allele.SPAN_DEL) ||
-                    vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED );
+                    vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED);
             sawNonSpanningEvent |= ( !isSpanningEvent && vc.isMixed() );
 
             vcAndNewAllelePairs.add(new Pair<>(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele, finalAlleleSet)));
@@ -186,7 +186,7 @@ public class ReferenceConfidenceVariantContextMerger {
 
         //annotatorEngine.combineAnnotations removed the successfully combined annotations, so now parse those that are left
         //here we're assuming that things that are left are scalars per sample
-        Map<String, List<Comparable>> parsedAnnotationMap = parseRemainingAnnotations(annotationMap);
+        final Map<String, List<Comparable>> parsedAnnotationMap = parseRemainingAnnotations(annotationMap);
 
         // when combining remaining annotations use the median value from all input VCs which had annotations provided
         for ( final Map.Entry<String, List<Comparable>> p : parsedAnnotationMap.entrySet() ) {
@@ -469,11 +469,11 @@ public class ReferenceConfidenceVariantContextMerger {
         if (perSampleIndexesOfRelevantAlleles == null)
             throw new IllegalArgumentException("The per sample index of relevant alleles must not be null");
 
-        final List<Integer> sacIndexesToUse = new ArrayList(2 * perSampleIndexesOfRelevantAlleles.length);
+        final List<Integer> sacIndexesToUse = new ArrayList<>(2 * perSampleIndexesOfRelevantAlleles.length);
 
         for (int item : perSampleIndexesOfRelevantAlleles) {
-            sacIndexesToUse.add(new Integer(2 * item));
-            sacIndexesToUse.add(new Integer(2 * item + 1));
+            sacIndexesToUse.add(2 * item);
+            sacIndexesToUse.add(2 * item + 1);
         }
 
         return sacIndexesToUse;
