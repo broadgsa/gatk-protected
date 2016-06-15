@@ -49,60 +49,37 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.cancer.m2;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+package org.broadinstitute.gatk.tools.walkers.cancer;
 
 /**
- * Collection of Statistical methods and tests used by MuTect
+ * Created by tsato on 6/27/16.
  */
-public class MuTectStats {
+public class MedianStatistics {
+    private double leftMedian;
+    private double rightMedian;
+    private double leftMAD;
+    private double rightMAD;
 
-    public static double calculateMAD(ArrayList<Double> xs, double median) {
-        ArrayList<Double> deviations = new ArrayList<>(xs.size());
-
-        for(double x : xs) {
-            deviations.add(Math.abs(x - median));
-        }
-
-        return getMedian(deviations);
-
+    public MedianStatistics(double leftMedian, double rightMedian, double leftMAD, double rightMAD) {
+        this.leftMedian = leftMedian;
+        this.rightMedian = rightMedian;
+        this.leftMAD = leftMAD;
+        this.rightMAD = rightMAD;
     }
 
-    public static double getMedian(ArrayList<Double> data) {
-        Collections.sort(data);
-        Double result;
-
-        if (data.size() % 2 == 1) {
-            // If the number of entries in the list is not even.
-
-            // Get the middle value.
-            // You must floor the result of the division to drop the
-            // remainder.
-            result = data.get((int) Math.floor(data.size()/2) );
-
-        } else {
-            // If the number of entries in the list are even.
-
-            // Get the middle two values and average them.
-            Double lowerMiddle = data.get(data.size()/2 );
-            Double upperMiddle = data.get(data.size()/2 - 1 );
-            result = (lowerMiddle + upperMiddle) / 2;
-        }
-
-        return result;
+    public double getLeftMedian() {
+        return leftMedian;
     }
 
-    public static double[] convertIntegersToDoubles(List<Integer> integers)
-    {
-        double[] ret = new double[integers.size()];
-        for (int i=0; i < ret.length; i++)
-        {
-            ret[i] = integers.get(i);
-        }
-        return ret;
+    public double getRightMedian() {
+        return rightMedian;
+    }
+
+    public double getLeftMAD() {
+        return leftMAD;
+    }
+
+    public double getRightMAD() {
+        return rightMAD;
     }
 }
