@@ -82,7 +82,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     protected static final int ALLELE_EXTENSION = 2;
     private static final String phase01 = "0|1";
     private static final String phase10 = "1|0";
-    private static final int MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG = 20;
+    private static final int MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH = 500;
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
@@ -324,20 +324,29 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     private void reduceNumberOfAlternativeAllelesBasedOnLikelihoods(final ReadLikelihoods<Allele> readAlleleLikelihoods, final GenomeLoc location) {
         final GenotypingLikelihoods<Allele> genotypeLikelihoods = genotypingModel.calculateLikelihoods(readAlleleLikelihoods, new GenotypingData<>(ploidyModel,readAlleleLikelihoods));
         final Set<Allele> allelesToDrop = excessAlternativeAlleles(genotypeLikelihoods, configuration.genotypeArgs.MAX_ALTERNATE_ALLELES);
-        final String allelesToDropString;
-        if (allelesToDrop.size() < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG) {
-            allelesToDropString = StringUtil.join(", ", allelesToDrop);
-        } else {
-            final Iterator<Allele> it = allelesToDrop.iterator();
-            final StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG; i++) {
-                builder.append(it.next().toString()).append(", ");
+
+        if (allelesToDrop.isEmpty()) return;
+
+        int allelesInMessage = 0;
+        final StringBuilder droppedAlleleStringBuilder = new StringBuilder(MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH << 1);
+        for (final Allele allele : allelesToDrop) {
+            allelesInMessage++;
+            droppedAlleleStringBuilder.append(allele.toString()).append(", ");
+            if (droppedAlleleStringBuilder.length() > MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH - 2) {
+                break;
             }
-            allelesToDropString = builder.append(it.next().toString()).append(" and ").append(allelesToDrop.size() - 20).append(" more").toString();
+        }
+        droppedAlleleStringBuilder.setLength(droppedAlleleStringBuilder.length() - 2); // remove the last ", "
+        if (droppedAlleleStringBuilder.length() > MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH) {
+            droppedAlleleStringBuilder.setLength(MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH);
+            droppedAlleleStringBuilder.append("...");
+        }
+        if (allelesInMessage < allelesToDrop.size()) {
+            droppedAlleleStringBuilder.append(" and ").append(allelesToDrop.size() - allelesInMessage).append(" more");
         }
         logger.warn(String.format("location %s: too many alternative alleles found (%d) larger than the maximum requested with -%s (%d), the following will be dropped: %s.", location,
                 readAlleleLikelihoods.alleleCount() - 1, GenotypeCalculationArgumentCollection.MAX_ALTERNATE_ALLELES_SHORT_NAME, configuration.genotypeArgs.MAX_ALTERNATE_ALLELES,
-                allelesToDropString));
+                droppedAlleleStringBuilder.toString()));
         readAlleleLikelihoods.dropAlleles(allelesToDrop);
     }
 
