@@ -53,6 +53,8 @@ package org.broadinstitute.gatk.tools;
 
 import htsjdk.samtools.util.IOUtil;
 import org.broadinstitute.gatk.engine.recalibration.BQSRGatherer;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
 import picard.cmdline.CommandLineProgram;
 import picard.cmdline.CommandLineProgramProperties;
 import picard.cmdline.Option;
@@ -97,10 +99,7 @@ import java.util.List;
  *
  */
 
-@CommandLineProgramProperties(
-        usage = "Gathers scattered BQSR recalibration reports into a single file",
-        usageShort = "Gathers scattered BQSR recalibration reports into a single file"
-)
+@DocumentedGATKFeature(groupName = HelpConstants.DOCS_CAT_QC)
 public class GatherBqsrReports extends CommandLineProgram {
     @Option(shortName = StandardOptionDefinitions.INPUT_SHORT_NAME, doc="List of scattered BQSR files")
     public List<File> INPUT;

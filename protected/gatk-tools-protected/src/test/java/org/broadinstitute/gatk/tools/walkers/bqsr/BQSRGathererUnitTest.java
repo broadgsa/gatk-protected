@@ -59,8 +59,12 @@ import org.broadinstitute.gatk.engine.recalibration.RecalUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -70,38 +74,36 @@ import java.util.List;
  */
 public class BQSRGathererUnitTest extends BaseTest {
 
-    private static File recal1 = new File(privateTestDir + "HiSeq.1mb.1RG.sg1.table");
-    private static File recal2 = new File(privateTestDir + "HiSeq.1mb.1RG.sg2.table");
-    private static File recal3 = new File(privateTestDir + "HiSeq.1mb.1RG.sg3.table");
-    private static File recal4 = new File(privateTestDir + "HiSeq.1mb.1RG.sg4.table");
-    private static File recal5 = new File(privateTestDir + "HiSeq.1mb.1RG.sg5.table");
-    private static File recalEmpty = new File(privateTestDir + "HiSeq.1mb.1RG.empty.table");
+    private static File recal1 = new File(privateTestDir, "HiSeq.1mb.1RG.sg1.table");
+    private static File recal2 = new File(privateTestDir, "HiSeq.1mb.1RG.sg2.table");
+    private static File recal3 = new File(privateTestDir, "HiSeq.1mb.1RG.sg3.table");
+    private static File recal4 = new File(privateTestDir, "HiSeq.1mb.1RG.sg4.table");
+    private static File recal5 = new File(privateTestDir, "HiSeq.1mb.1RG.sg5.table");
+    private static File recalEmpty = new File(privateTestDir, "HiSeq.1mb.1RG.empty.table");
 
-    private static File recal_original = new File(privateTestDir + "HiSeq.1mb.1RG.noSG.table");
+    private static File recal_original = new File(privateTestDir, "HiSeq.1mb.1RG.noSG.table");
+    private static File recal_many = new File(privateTestDir, "bqsr.manyObservations.full.table");
 
-    @Test(enabled = true)
+    @Test
     public void testManyObservations() {
-        File recal = new File(privateTestDir + "bqsr.manyObservations.piece.table");
+        final File recal = new File(privateTestDir, "bqsr.manyObservations.piece.table");
 
         final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
 
-        List<File> recalFiles = new LinkedList<File> ();
+        final List<File> recalFiles = new LinkedList<>();
         for ( int i=0; i < 5; i++ )
             recalFiles.add(recal);
 
-        BQSRGatherer gatherer = new BQSRGatherer();
+        final BQSRGatherer gatherer = new BQSRGatherer();
         gatherer.gather(recalFiles, output);
 
-        GATKReport originalReport = new GATKReport(new File(privateTestDir + "bqsr.manyObservations.full.table"));
-        GATKReport calculatedReport = new GATKReport(output);
-
-        testReports(originalReport, calculatedReport);
+        testReports(recal_many, output);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testGatherBQSR() {
-        BQSRGatherer gatherer = new BQSRGatherer();
-        List<File> recalFiles = new LinkedList<File> ();
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        final List<File> recalFiles = new LinkedList<>();
         final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
 
         recalFiles.add(recal1);
@@ -111,16 +113,13 @@ public class BQSRGathererUnitTest extends BaseTest {
         recalFiles.add(recal5);
         gatherer.gather(recalFiles, output);
 
-        GATKReport originalReport = new GATKReport(recal_original);
-        GATKReport calculatedReport = new GATKReport(output);
-
-        testReports(originalReport, calculatedReport);
+        testReports(recal_original, output);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testGatherBQSRWithEmptyFile() {
-        BQSRGatherer gatherer = new BQSRGatherer();
-        List<File> recalFiles = new LinkedList<File> ();
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        final List<File> recalFiles = new LinkedList<>();
         final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
 
         recalFiles.add(recal1);
@@ -131,13 +130,12 @@ public class BQSRGathererUnitTest extends BaseTest {
         recalFiles.add(recalEmpty);
         gatherer.gather(recalFiles, output);
 
-        GATKReport originalReport = new GATKReport(recal_original);
-        GATKReport calculatedReport = new GATKReport(output);
-
-        testReports(originalReport, calculatedReport);
+        testReports(recal_original, output);
     }
 
-    private void testReports(final GATKReport originalReport, final GATKReport calculatedReport) {
+    private void testReports(final File originalFile, final File calculatedFile) {
+        final GATKReport originalReport = new GATKReport(originalFile);
+        final GATKReport calculatedReport = new GATKReport(calculatedFile);
 
         // test the Arguments table
         List<String> columnsToTest = Arrays.asList(RecalUtils.ARGUMENT_COLUMN_NAME, RecalUtils.ARGUMENT_VALUE_COLUMN_NAME);
@@ -177,11 +175,11 @@ public class BQSRGathererUnitTest extends BaseTest {
      * @param calculated the calculated table
      * @param columnsToTest list of columns to test. All columns will be tested with the same criteria (equality given factor)
      */
-    private void testTablesWithColumns(GATKReportTable original, GATKReportTable calculated, List<String> columnsToTest) {
-        for (int row = 0; row < original.getNumRows(); row++ ) {
-            for (String column : columnsToTest) {
-                Object actual = calculated.get(new Integer(row), column);
-                Object expected = original.get(row, column);
+    private void testTablesWithColumns(final GATKReportTable original, final GATKReportTable calculated, final List<String> columnsToTest) {
+        for (int row = 0; row < original.getNumRows(); row++) {
+            for (final String column : columnsToTest) {
+                final Object actual = calculated.get(Integer.valueOf(row), column);
+                final Object expected = original.get(row, column);
                 //if ( !actual.equals(expected) )
                 //    System.out.println("Row=" + row + " Table=" + original.getTableName() + " Column=" + column + " Expected=" + expected + " Actual=" + actual);
                 Assert.assertEquals(actual, expected, "Row: " + row + " Original Table: " + original.getTableName() + " Column=" + column);
@@ -196,12 +194,83 @@ public class BQSRGathererUnitTest extends BaseTest {
         // TODO:   - Doesn't end up in protected / private github
         // TODO:   - IS otherwise available for local debugging unlike /humgen NFS mounts
         // Hand modified subset of problematic gather inputs submitted by George Grant
-        File input1 = new File(privateTestDir + "NA12878.rg_subset.chr1.recal_data.table");
-        File input2 = new File(privateTestDir + "NA12878.rg_subset.chrY_Plus.recal_data.table");
+        final File input1 = new File(privateTestDir, "NA12878.rg_subset.chr1.recal_data.table");
+        final File input2 = new File(privateTestDir, "NA12878.rg_subset.chrY_Plus.recal_data.table");
 
-        GATKReport report12 = BQSRGatherer.gatherReport(Arrays.asList(input1, input2));
-        GATKReport report21 = BQSRGatherer.gatherReport(Arrays.asList(input2, input1));
+        final GATKReport report12 = BQSRGatherer.gatherReport(Arrays.asList(input1, input2));
+        final GATKReport report21 = BQSRGatherer.gatherReport(Arrays.asList(input2, input1));
 
         Assert.assertTrue(report12.equals(report21), "GATK reports are different when gathered in a different order.");
+    }
+
+    @Test
+    public void testParseInputsAsList() {
+        final File inputListFile = BaseTest.createTempFile("BQSRGatherer.parse.input", ".list");
+        try (final BufferedWriter bw =  new BufferedWriter(new FileWriter(inputListFile))) {
+            bw.write(recal1.getAbsolutePath() + "\n");
+            bw.write(recal2.getAbsolutePath() + "\n");
+            bw.write(recal3.getAbsolutePath() + "\n");
+            bw.write(recal4.getAbsolutePath() + "\n");
+            bw.write(recal5.getAbsolutePath() + "\n");
+        } catch (final IOException ioe) {
+            Assert.fail("Could not create temporary list of input files for BQSRGatherer unit test.");
+        }
+
+        final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
+
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        gatherer.gather(Collections.singletonList(inputListFile), output);
+
+        testReports(recal_original, output);
+    }
+
+    @Test
+    public void testParseInputsAsMultipleFiles() {
+        final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
+
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        gatherer.gather(Arrays.asList(recal1, recal2, recal3, recal4, recal5), output);
+
+        testReports(recal_original, output);
+    }
+
+    @Test
+    public void testParseInputsMixedSingleList() {
+        final File inputListFile = BaseTest.createTempFile("BQSRGatherer.parse.input", ".list");
+        try (final BufferedWriter bw =  new BufferedWriter(new FileWriter(inputListFile))) {
+            bw.write(recal2.getAbsolutePath() + "\n");
+            bw.write(recal3.getAbsolutePath() + "\n");
+            bw.write(recal4.getAbsolutePath() + "\n");
+        } catch (final IOException ioe) {
+            Assert.fail("Could not create temporary list of input files for BQSRGatherer unit test.");
+        }
+
+        final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
+
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        gatherer.gather(Arrays.asList(recal1, inputListFile, recal5), output);
+
+        testReports(recal_original, output);
+    }
+
+    @Test
+    public void testParseInputsMixedMultipleLists() {
+        final File inputListFile1 = BaseTest.createTempFile("BQSRGatherer.parse.input.1", ".list");
+        final File inputListFile2 = BaseTest.createTempFile("BQSRGatherer.parse.input.2", ".list");
+        try (final BufferedWriter bw1 =  new BufferedWriter(new FileWriter(inputListFile1));
+             final BufferedWriter bw2 =  new BufferedWriter(new FileWriter(inputListFile2))) {
+            bw1.write(recal2.getAbsolutePath() + "\n");
+            bw1.write(recal3.getAbsolutePath() + "\n");
+            bw2.write(recal5.getAbsolutePath() + "\n");
+        } catch (final IOException ioe) {
+            Assert.fail("Could not create temporary lists of input files for BQSRGatherer unit test.");
+        }
+
+        final File output = BaseTest.createTempFile("BQSRgathererTest", ".table");
+
+        final BQSRGatherer gatherer = new BQSRGatherer();
+        gatherer.gather(Arrays.asList(recal1, inputListFile1, recal4, inputListFile2), output);
+
+        testReports(recal_original, output);
     }
 }
