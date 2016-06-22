@@ -90,7 +90,7 @@ public class TraverseReadsUnitTest extends BaseTest {
     private File output;
     private TraverseReadsNano traversalEngine = null;
 
-    private IndexedFastaSequenceFile ref = null;
+    private ReferenceSequenceFile ref = null;
     private GenomeLocParser genomeLocParser = null;
     private GenomeAnalysisEngine engine = null;
 

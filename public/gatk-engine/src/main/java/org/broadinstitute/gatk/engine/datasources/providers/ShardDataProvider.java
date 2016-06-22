@@ -26,6 +26,7 @@
 package org.broadinstitute.gatk.engine.datasources.providers;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.engine.datasources.reads.Shard;
 import org.broadinstitute.gatk.engine.datasources.rmd.ReferenceOrderedDataSource;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
@@ -70,7 +71,7 @@ public abstract class ShardDataProvider {
     /**
      * Provider of reference data for this particular shard.
      */
-    private final IndexedFastaSequenceFile reference;
+    private final ReferenceSequenceFile reference;
 
     /**
      * Sources of reference-ordered data.
@@ -106,7 +107,7 @@ public abstract class ShardDataProvider {
      * Gets a pointer into the given indexed fasta sequence file.
      * @return The indexed fasta sequence file.
      */
-    IndexedFastaSequenceFile getReference() {
+    ReferenceSequenceFile getReference() {
         return reference;        
     }
 
@@ -131,7 +132,7 @@ public abstract class ShardDataProvider {
      * @param shard The chunk of data over which traversals happen.
      * @param reference A getter for a section of the reference.
      */
-    public ShardDataProvider(Shard shard,GenomeLocParser genomeLocParser,IndexedFastaSequenceFile reference,Collection<ReferenceOrderedDataSource> rods) {
+    public ShardDataProvider(Shard shard,GenomeLocParser genomeLocParser,ReferenceSequenceFile reference,Collection<ReferenceOrderedDataSource> rods) {
         this.shard = shard;
         this.genomeLocParser = genomeLocParser;
         this.reference = reference;

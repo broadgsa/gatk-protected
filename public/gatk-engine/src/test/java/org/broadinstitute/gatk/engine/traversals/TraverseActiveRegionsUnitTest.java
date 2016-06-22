@@ -27,6 +27,7 @@ package org.broadinstitute.gatk.engine.traversals;
 
 import com.google.java.contract.PreconditionError;
 import htsjdk.samtools.*;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.commandline.Tags;
 import org.broadinstitute.gatk.utils.ValidationExclusion;
 import org.broadinstitute.gatk.engine.datasources.reads.*;
@@ -80,7 +81,7 @@ public class TraverseActiveRegionsUnitTest extends BaseTest {
     }
 
     private File referenceFile;
-    private IndexedFastaSequenceFile reference;
+    private ReferenceSequenceFile reference;
     private SAMSequenceDictionary dictionary;
     private GenomeLocParser genomeLocParser;
 

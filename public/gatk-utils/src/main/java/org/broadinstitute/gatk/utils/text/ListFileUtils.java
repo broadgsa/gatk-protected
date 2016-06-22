@@ -25,6 +25,7 @@
 
 package org.broadinstitute.gatk.utils.text;
 
+import htsjdk.samtools.sra.SRAAccession;
 import org.broadinstitute.gatk.utils.commandline.ParsingEngine;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.commandline.Tags;
@@ -79,10 +80,14 @@ public class ListFileUtils {
             else if(inputFileName.endsWith("stdin")) {
                 unpackedReads.add(new SAMReaderID(inputFileName,inputFileNameTags));
             }
+            else if(SRAAccession.isValid(inputFileName)) {
+                unpackedReads.add(new SAMReaderID(inputFileName,inputFileNameTags));
+            }
             else {
-                throw new UserException.CommandLineException(String.format("The GATK reads argument (-I, --input_file) supports only BAM/CRAM files with the .bam/.cram extension and lists of BAM/CRAM files " +
-                        "with the .list extension, but the file %s has neither extension.  Please ensure that your BAM/CRAM file or list " +
-                        "of BAM/CRAM files is in the correct format, update the extension, and try again.",inputFileName));
+                throw new UserException.CommandLineException(String.format("The GATK reads argument (-I, --input_file) supports only BAM/CRAM files with the .bam/.cram extension " + "" +
+                        "or SRA archives and lists of BAM/CRAM/SRA files with the .list extension, but the file %s has " +
+                        "neither extension and is not SRA accession. Please ensure that your BAM/CRAM file or list " +
+                        "of BAM/CRAM files is in the correct format, update the extension, and try again.", inputFileName));
             }
         }
         return unpackedReads;

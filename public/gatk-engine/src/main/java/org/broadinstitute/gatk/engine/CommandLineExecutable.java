@@ -37,6 +37,7 @@ import org.broadinstitute.gatk.engine.io.stubs.VCFWriterArgumentTypeDescriptor;
 import org.broadinstitute.gatk.utils.refdata.utils.RMDTriplet;
 import org.broadinstitute.gatk.engine.walkers.Walker;
 import org.broadinstitute.gatk.utils.text.ListFileUtils;
+import htsjdk.samtools.sra.SRAAccession;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,6 +67,14 @@ public abstract class CommandLineExecutable extends CommandLineProgram {
     private final Collection<Object> argumentSources = new ArrayList<Object>();
 
     protected static Logger logger = Logger.getLogger(CommandLineExecutable.class);
+
+    /**
+     * Set GATK version to be used as part of user agent for network requests
+     */
+    static {
+        System.setProperty("samjdk.sra_libraries_download", "true");
+        SRAAccession.setAppVersionString("GATK " + getVersionNumber());
+    }
 
     /**
      * this is the function that the inheriting class can expect to have called

@@ -64,7 +64,7 @@ public class GATKBAMIndexUnitTest extends BaseTest {
         this.sequenceDictionary = reader.getFileHeader().getSequenceDictionary();
         reader.close();
         
-        bamIndex = new GATKBAMIndex(bamIndexFile, sequenceDictionary);
+        bamIndex = new GATKBAMIndexFromFile(bamIndexFile, sequenceDictionary);
     }
 
     @Test
@@ -100,13 +100,13 @@ public class GATKBAMIndexUnitTest extends BaseTest {
 
     @Test( expectedExceptions = UserException.MalformedFile.class )
     public void testDetectTruncatedBamIndexWordBoundary() {
-        GATKBAMIndex index = new GATKBAMIndex(new File(privateTestDir + "truncated_at_word_boundary.bai"), sequenceDictionary);
+        GATKBAMIndex index = new GATKBAMIndexFromFile(new File(privateTestDir + "truncated_at_word_boundary.bai"), sequenceDictionary);
         index.readReferenceSequence(0);
     }
 
     @Test( expectedExceptions = UserException.MalformedFile.class )
     public void testDetectTruncatedBamIndexNonWordBoundary() {
-        GATKBAMIndex index = new GATKBAMIndex(new File(privateTestDir + "truncated_at_non_word_boundary.bai"), sequenceDictionary);
+        GATKBAMIndex index = new GATKBAMIndexFromFile(new File(privateTestDir + "truncated_at_non_word_boundary.bai"), sequenceDictionary);
         index.readReferenceSequence(0);
     }
 

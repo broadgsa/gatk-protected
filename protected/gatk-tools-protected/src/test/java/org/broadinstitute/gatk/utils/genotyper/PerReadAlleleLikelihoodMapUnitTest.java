@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.utils.genotyper;
 
 import htsjdk.samtools.*;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.utils.BaseUtils;
@@ -81,7 +82,7 @@ public class PerReadAlleleLikelihoodMapUnitTest extends BaseTest {
     private GenomeLocParser genomeLocParser;
 
     // example fasta index file, can be deleted if you don't use the reference
-    private IndexedFastaSequenceFile seq;
+    private ReferenceSequenceFile seq;
 
     @BeforeClass
     public void setup() throws FileNotFoundException {

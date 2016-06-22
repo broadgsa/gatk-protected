@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.utils;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.testng.Assert;
@@ -71,7 +72,7 @@ public class ContigComparatorUnitTest extends BaseTest {
     @BeforeClass
     public void setup() throws FileNotFoundException {
         // sequence
-        final IndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
+        final ReferenceSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(b37KGReference));
         final GenomeLocParser genomeLocParser = new GenomeLocParser(seq);
         dictForFails = genomeLocParser.getContigs();
     }
@@ -81,7 +82,7 @@ public class ContigComparatorUnitTest extends BaseTest {
         List<Object[]> tests = new ArrayList<Object[]>();
 
         for ( final String ref : Arrays.asList(b37KGReference, hg18Reference) ) {
-            final IndexedFastaSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(ref));
+            final ReferenceSequenceFile seq = new CachingIndexedFastaSequenceFile(new File(ref));
             final GenomeLocParser genomeLocParser = new GenomeLocParser(seq);
             final SAMSequenceDictionary dict = genomeLocParser.getContigs();
 

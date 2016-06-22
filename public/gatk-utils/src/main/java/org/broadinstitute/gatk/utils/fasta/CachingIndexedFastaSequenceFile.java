@@ -25,6 +25,9 @@
 
 package org.broadinstitute.gatk.utils.fasta;
 
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.sra.SRAAccession;
+import htsjdk.samtools.sra.SRAIndexedSequenceFile;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.reference.FastaSequenceIndex;
@@ -193,7 +196,12 @@ public class CachingIndexedFastaSequenceFile extends IndexedFastaSequenceFile {
      * @param fastaFile Fasta file to be used as reference
      * @return A new instance of a CachingIndexedFastaSequenceFile.
      */
-    public static CachingIndexedFastaSequenceFile checkAndCreate(final File fastaFile) {
+    public static ReferenceSequenceFile checkAndCreate(final File fastaFile) {
+        // maybe it is SRA file?
+        if (SRAAccession.isValid(fastaFile.getPath())) {
+            return new SRAIndexedSequenceFile(new SRAAccession(fastaFile.getPath()));
+        }
+
         // does the fasta file exist? check that first...
         if (!fastaFile.exists())
             throw new UserException("The fasta file you specified (" + fastaFile.getAbsolutePath() + ") does not exist.");
