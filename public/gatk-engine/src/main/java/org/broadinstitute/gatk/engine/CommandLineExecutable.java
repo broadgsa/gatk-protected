@@ -72,6 +72,7 @@ public abstract class CommandLineExecutable extends CommandLineProgram {
      * Set GATK version to be used as part of user agent for network requests
      */
     static {
+        System.setProperty("samjdk.sra_libraries_download", "true");
         SRAAccession.setAppVersionString("GATK " + getVersionNumber());
     }
 
