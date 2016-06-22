@@ -246,7 +246,7 @@ public class GVCFWriter implements VariantContextWriter {
 
         final int[] minPLs = block.getMinPLs();
         gb.PL(minPLs);
-        final int gq = genotypeQualityFromPLs(minPLs);
+        final int gq = GATKVariantContextUtils.calculateGQFromPLs(minPLs);
         gb.GQ(gq);
         gb.DP(block.getMedianDP());
         gb.attribute(GATKVCFConstants.MIN_DP_FORMAT_KEY, block.getMinDP());
@@ -255,26 +255,6 @@ public class GVCFWriter implements VariantContextWriter {
         //gb.attribute(MIN_GQ_FORMAT_FIELD, block.getMinGQ());
 
         return vcb.genotypes(gb.make()).make();
-    }
-
-
-    private int genotypeQualityFromPLs(final int[] minPLs) {
-        int first = minPLs[0];
-        int second = minPLs[1];
-        if (first > second) {
-            second = first;
-            first = minPLs[1];
-        }
-        for (int i = 3; i < minPLs.length; i++) {
-            final int candidate = minPLs[i];
-            if (candidate >= second) continue;
-            if (candidate <= first) {
-                second = first;
-                first = candidate;
-            } else
-                second = candidate;
-        }
-        return second - first;
     }
 
     /**
