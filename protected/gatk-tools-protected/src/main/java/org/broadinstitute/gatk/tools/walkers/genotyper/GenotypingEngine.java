@@ -104,8 +104,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final GenomeLocParser genomeLocParser;
 
-    protected static int maxNumPLValuesObserved = 0;
-    protected static int numTimesMaxNumPLValuesExceeded = 0;
+    private final List<GenomeLoc> upstreamDeletionsLoc = new LinkedList<>();
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
@@ -233,7 +232,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
         final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
-        final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
+        final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult, vc);
 
         final double PoFGT0 = Math.pow(10, AFresult.getLog10PosteriorOfAFGT0());
 
@@ -341,13 +340,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         }
     }
 
-
     /**
      * Provided the exact mode computations it returns the appropriate subset of alleles that progress to genotyping.
      * @param afcr the exact model calcualtion result.
-     * @return never {@code null}.
+     * @param  vc the input variant context
+     * @return information about the alternative allele subsetting {@code null}.
      */
-    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr) {
+    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr, final VariantContext vc) {
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
@@ -355,21 +354,72 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final int[] mleCounts = new int[alternativeAlleleCount];
         int outputAlleleCount = 0;
         boolean siteIsMonomorphic = true;
-        for (final Allele alternativeAllele : alleles) {
-            if (alternativeAllele.isReference()) continue;
-            // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
-            // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
-            final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && alternativeAllele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE;
-            final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
-            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele) || isNonRefWhichIsLoneAltAllele;
+        int referenceAlleleSize = 0;
+        for (final Allele allele : alleles) {
+            if (allele.isReference() ) {
+                referenceAlleleSize = allele.length();
+            } else {
+                // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
+                // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
+                final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+                final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(allele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
 
-            siteIsMonomorphic &= ! isPlausible;
-            if (!toOutput) continue;
-            outputAlleles[outputAlleleCount] = alternativeAllele;
-            mleCounts[outputAlleleCount++] = afcr.getAlleleCountAtMLE(alternativeAllele);
+                siteIsMonomorphic &= !isPlausible;
+                boolean toOutput = (isPlausible || forceKeepAllele(allele) || isNonRefWhichIsLoneAltAllele);
+                if ( allele.equals(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED) ||
+                        allele.equals(Allele.SPAN_DEL) ) {
+                    toOutput &= coveredByDeletion(vc);
+                }
+                if (toOutput) {
+                    outputAlleles[outputAlleleCount] = allele;
+                    mleCounts[outputAlleleCount++] = afcr.getAlleleCountAtMLE(allele);
+                    recordDeletion(referenceAlleleSize, allele, vc);
+                }
+            }
         }
 
         return new OutputAlleleSubset(outputAlleleCount,outputAlleles,mleCounts,siteIsMonomorphic);
+    }
+
+    /**
+     *  Record deletion to keep
+     *  Add deletions to a list.
+     *
+     * @param referenceAlleleSize   reference allele length
+     * @param allele                allele of interest
+     * @param vc                    variant context
+     */
+    private void recordDeletion(final int referenceAlleleSize, final Allele allele, final VariantContext vc) {
+        final int deletionSize = referenceAlleleSize - allele.length();
+
+        // Allele ia a deletion
+        if (deletionSize > 0) {
+            final GenomeLoc genomeLoc = genomeLocParser.createGenomeLocOnContig(vc.getContig(), vc.getStart(), vc.getStart() + deletionSize);
+            upstreamDeletionsLoc.add(genomeLoc);
+        }
+    }
+
+    /**
+     * Is the variant context covered by an upstream deletion?
+     *
+     * @param vc    variant context
+     * @return  true if the location is covered by an upstream deletion, false otherwise
+     */
+    private boolean coveredByDeletion(final VariantContext vc) {
+        for (Iterator<GenomeLoc> it = upstreamDeletionsLoc.iterator(); it.hasNext(); ) {
+            final GenomeLoc loc = it.next();
+            if (!loc.getContig().equals(vc.getContig())) { // past contig deletion.
+                it.remove();
+            } else if (loc.getStop() < vc.getStart()) { // past position in current contig deletion.
+                it.remove();
+            } else if (loc.getStart() == vc.getStart()) {
+                // ignore this deletion, the symbolic one does not make reference to it.
+            } else { // deletion covers.
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

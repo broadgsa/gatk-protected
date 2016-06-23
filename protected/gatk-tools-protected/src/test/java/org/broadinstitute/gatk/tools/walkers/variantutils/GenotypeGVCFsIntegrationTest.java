@@ -661,4 +661,13 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testGenotypingSpanningDeletionWithAllSites", spec);
     }
+
+    @Test
+    public void testGenotypingSpanningDeletionAcrossLines() {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "input-1_2256566.vcf", b37KGReference),
+                Collections.singletonList("1f914189326cdd17d0a8753f13cb221f"));
+        spec.disableShadowBCF();
+        executeTest("testGenotypingSpanningDeletionAcrossLines", spec);
+    }
 }
