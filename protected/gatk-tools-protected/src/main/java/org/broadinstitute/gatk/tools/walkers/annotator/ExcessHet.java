@@ -139,8 +139,9 @@ public class ExcessHet extends InfoFieldAnnotation implements StandardAnnotation
         double pval = exactTest(genotypeCounts);
 
         //If the actual phredPval would be infinity we will probably still filter out just a very large number
+        //Since the method does not guarantee precision for any p-value smaller than 1e-16, we can return the phred scaled version
         if (pval == 0) {
-            return Integer.MAX_VALUE;
+            return -10.0 * Math.log10(minNeededValue);
         }
         double phredPval = -10.0 * Math.log10(pval);
 
