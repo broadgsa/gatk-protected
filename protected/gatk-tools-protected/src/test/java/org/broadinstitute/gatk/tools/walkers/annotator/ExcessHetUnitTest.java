@@ -223,6 +223,9 @@ public class ExcessHetUnitTest {
         final double EHHets = new ExcessHet().calculateEH(allHet, allHet.getGenotypes());
 
         Assert.assertTrue(Math.abs(EHsingleton) < Math.abs(EHHets), String.format("singleton=%f allHets=%f", EHsingleton, EHHets));
+
+        //Since all hets is such an extreme case and the sample size is large here, we know that the p-value should be 0
+        Assert.assertTrue(EHHets == 160.0, String.format("P-value of 0 should be phred scaled to 160.0"));
     }
 
     @DataProvider(name = "smallSets")
