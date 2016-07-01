@@ -163,7 +163,7 @@ public class GenotypeLikelihoodCalculator {
      * <p>This is in fact a shallow copy if {@link GenotypeLikelihoodCalculators#ploidyLog10}</p> and is not meant to be modified by
      * this class. </p>
      */
-    private final double[] log10;
+    private final double[] ploidyLog10;
 
     /**
      * Buffer field use as a temporal container for sorted allele counts when calculating the likelihood of a
@@ -202,24 +202,22 @@ public class GenotypeLikelihoodCalculator {
      * Creates a new calculator providing its ploidy and number of genotyping alleles.
      */
     protected GenotypeLikelihoodCalculator(final int ploidy, final int alleleCount,
-                                          final int[][] alleleFirstGenotypeOffsetByPloidy,
-                                          final GenotypeAlleleCounts[][] genotypeTableByPloidy,
-                                          final double[] ploidyLog10) {
+                                           final int[][] alleleFirstGenotypeOffsetByPloidy,
+                                           final GenotypeAlleleCounts[][] genotypeTableByPloidy,
+                                           final double[] ploidyLog10) {
+
         this.alleleFirstGenotypeOffsetByPloidy = alleleFirstGenotypeOffsetByPloidy;
         genotypeAlleleCounts = genotypeTableByPloidy[ploidy];
         this.alleleCount = alleleCount;
         this.ploidy = ploidy;
         genotypeCount = this.alleleFirstGenotypeOffsetByPloidy[ploidy][alleleCount];
-        if (genotypeCount == GenotypeLikelihoodCalculators.GENOTYPE_COUNT_OVERFLOW)
-            throw new IllegalArgumentException(
-                    String.format("the combination of ploidy (%s) and number of alleles (%s) results in a very large number of genotypes (> %s). You need to limit ploidy or the number of alternative alleles to analyze this locus",
-                            ploidy,alleleCount,Integer.MAX_VALUE));
+
         alleleHeap = new IntMaxHeap(ploidy);
         readLikelihoodsByGenotypeIndex = new double[genotypeCount][];
-        log10 = ploidyLog10;
+        this.ploidyLog10 = ploidyLog10;
         // The number of possible components is limited by distinct allele count and ploidy.
         maximumDistinctAllelesInGenotype = Math.min(ploidy, alleleCount);
-        genotypeAllelesAndCounts = new int[maximumDistinctAllelesInGenotype << 1];
+        genotypeAllelesAndCounts = new int[maximumDistinctAllelesInGenotype*2];
     }
 
     /**
@@ -349,7 +347,7 @@ public class GenotypeLikelihoodCalculator {
      */
     private double[] genotypeLikelihoods(final double[][] readLikelihoodsByGenotypeIndex, final int readCount) {
         final double[] result = new double[genotypeCount];
-        final double denominator = readCount * log10[ploidy]; // instead of dividing each read likelihood by ploidy
+        final double denominator = readCount * ploidyLog10[ploidy]; // instead of dividing each read likelihood by ploidy
          // ( so subtract log10(ploidy) )  we multiply them all and the divide by ploidy^readCount (so substract readCount * log10(ploidy) )
         for (int g = 0; g < genotypeCount; g++) {
             final double[] likelihoodsByRead = readLikelihoodsByGenotypeIndex[g];
@@ -464,7 +462,9 @@ public class GenotypeLikelihoodCalculator {
      * exactly one allele present in the genotype.
      */
     private void singleComponentGenotypeLikelihoodByRead(final GenotypeAlleleCounts genotypeAlleleCounts,
-                                                         final double[] likelihoodByRead, final double[] readLikelihoodComponentsByAlleleCount, final int readCount) {
+                                                         final double[] likelihoodByRead,
+                                                         final double[] readLikelihoodComponentsByAlleleCount,
+                                                         final int readCount) {
         final int allele = genotypeAlleleCounts.alleleIndexAt(0);
         // the count of the only component must be = ploidy.
         int offset = (allele * (ploidy + 1) + ploidy) * readCount;
@@ -493,7 +493,7 @@ public class GenotypeLikelihoodCalculator {
 
             // p = 2 because the frequency == 1 we already have it.
             for (int frequency = 2, destinationOffset = frequency1Offset + readCount; frequency <= ploidy; frequency++) {
-                final double log10frequency = log10[frequency];
+                final double log10frequency = ploidyLog10[frequency];
                 for (int r = 0, sourceOffset = frequency1Offset; r < readCount; r++)
                     readAlleleLikelihoodByAlleleCount[destinationOffset++] =
                             readAlleleLikelihoodByAlleleCount[sourceOffset++] + log10frequency;
@@ -620,7 +620,11 @@ public class GenotypeLikelihoodCalculator {
      * @param destination where to store the new genotype index mapping to old.
      * @param sortedAlleleCountsBuffer a buffer to re-use to get the genotype-allele-count's sorted allele counts.
      */
-    private void genotypeIndexMapPerGenotypeIndex(final int newGenotypeIndex, final GenotypeAlleleCounts alleleCounts, final int[] oldToNewAlleleIndexMap, final int[] destination, final int[] sortedAlleleCountsBuffer) {
+    private void genotypeIndexMapPerGenotypeIndex(final int newGenotypeIndex,
+                                                  final GenotypeAlleleCounts alleleCounts,
+                                                  final int[] oldToNewAlleleIndexMap,
+                                                  final int[] destination,
+                                                  final int[] sortedAlleleCountsBuffer) {
         final int distinctAlleleCount = alleleCounts.distinctAlleleCount();
         alleleCounts.copyAlleleCounts(sortedAlleleCountsBuffer,0);
         for (int j = 0, jj = 0; j < distinctAlleleCount; j++) {
