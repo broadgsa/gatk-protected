@@ -49,41 +49,32 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.queue.qscripts.dev
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
+import org.testng.annotations.Test;
 
-class run_M2_dream extends QScript {
+import static org.testng.Assert.*;
 
-  @Argument(shortName = "L",  required=false, doc = "Intervals file")
-  var intervalsFile: List[File] = Nil
-  @Argument(shortName = "normal",  required=true, doc = "Normal sample BAM")
-  var normalBAM: String = ""
-  @Argument(shortName = "tumor", required=true, doc = "Tumor sample BAM")
-  var tumorBAM: String = ""
-  @Argument(shortName = "o",  required=true, doc = "Output file")
-  var outputFile: String = ""
-  @Argument(shortName = "sc",  required=false, doc = "base scatter count")
-  var scatter: Int = 10 
+/**
+ * Created by tsato on 6/19/16.
+ */
+public class TumorPowerCalculatorTest {
+
+    private boolean closeEnough(double x, double y, double epsilon){
+        return(Math.abs(x - y) < epsilon);
+    }
+
+    @Test
+    public void testCachedPowerCalculation() throws Exception {
+        TumorPowerCalculator tpc = new TumorPowerCalculator(0.001, 2.0, 0.0);
+        final double epsilon = 0.0001;
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(100,0.2), 1.0, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(30,0.1), 0.8864, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(0,0.02), 0.0, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(5, 0.01), 0.0520, epsilon));
 
 
-    def script() {
+    }
 
-    val mutect2 = new MuTect2
-
-    mutect2.reference_sequence = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-    mutect2.cosmic :+= new File("/xchip/cga/reference/hg19/hg19_cosmic_v54_120711.vcf")
-    mutect2.dbsnp = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/dbsnp_138.b37.vcf")
-    mutect2.normal_panel :+= new File("/xchip/cga/reference/hg19/wgs_hg19_125_cancer_blood_normal_panel.vcf")
-
-    mutect2.intervalsString = intervalsFile
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(normalBAM, "normal"), new TaggedFile(tumorBAM, "tumor"))
-
-    mutect2.scatterCount = scatter
-    mutect2.out = outputFile
-    add(mutect2)
-  }
 
 }

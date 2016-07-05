@@ -49,54 +49,60 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.queue.qscripts.dev
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
-import org.broadinstitute.gatk.queue.util.QScriptUtils
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-class run_M2_ICE_NN extends QScript {
+/**
+ * Collection of Statistical methods and tests used by MuTect
+ */
+public class MuTectStats {
 
-  @Argument(shortName = "bams", required = true, doc = "file of all BAM files")
-  var allBams: String = ""
+    public static double calculateMAD(ArrayList<Double> xs, double median) {
+        ArrayList<Double> deviations = new ArrayList<>(xs.size());
 
-  @Argument(shortName = "o", required = false, doc = "Output prefix")
-  var outputPrefix: String = ""
+        for(double x : xs) {
+            deviations.add(Math.abs(x - median));
+        }
 
-  @Argument(shortName = "pon", required = false, doc = "Normal PON")
-  var panelOfNormals: String = "/dsde/working/mutect/panel_of_normals/panel_of_normals_m2_ice_wgs_territory/m2_406_ice_normals_wgs_calling_regions.vcf";
+        return getMedian(deviations);
 
-  @Argument(shortName = "sc", required = false, doc = "base scatter count")
-  var scatter: Int = 10
-
-
-  def script() {
-    val bams = QScriptUtils.createSeqFromFile(allBams)
-
-    for (tumor <- bams) {
-      for (normal <- bams) {
-        if (tumor != normal) add( createM2Config(tumor, normal, new File(panelOfNormals), outputPrefix))
-      }
     }
-  }
 
+    public static double getMedian(ArrayList<Double> data) {
+        Collections.sort(data);
+        Double result;
 
-  def createM2Config(tumorBAM : File, normalBAM : File, panelOfNormals : File, outputPrefix : String): M2 = {
-    val mutect2 = new MuTect2
+        if (data.size() % 2 == 1) {
+            // If the number of entries in the list is not even.
 
-    mutect2.reference_sequence = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-    mutect2.cosmic :+= new File("/xchip/cga/reference/hg19/hg19_cosmic_v54_120711.vcf")
-    mutect2.dbsnp = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/dbsnp_138.b37.vcf")
-    mutect2.normal_panel :+= panelOfNormals
+            // Get the middle value.
+            // You must floor the result of the division to drop the
+            // remainder.
+            result = data.get((int) Math.floor(data.size()/2) );
 
-    mutect2.intervalsString :+= new File("/dsde/working/mutect/crsp_nn/whole_exome_illumina_coding_v1.Homo_sapiens_assembly19.targets.no_empty.interval_list")
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(normalBAM, "normal"), new TaggedFile(tumorBAM, "tumor"))
+        } else {
+            // If the number of entries in the list are even.
 
-    mutect2.scatterCount = scatter
-    mutect2.out = outputPrefix + tumorBAM.getName + "-vs-" + normalBAM.getName + ".vcf"
+            // Get the middle two values and average them.
+            Double lowerMiddle = data.get(data.size()/2 );
+            Double upperMiddle = data.get(data.size()/2 - 1 );
+            result = (lowerMiddle + upperMiddle) / 2;
+        }
 
-    println("Adding " + tumorBAM + " vs " + normalBAM + " as " + mutect2.out)
-    mutect2
-  }
+        return result;
+    }
+
+    public static double[] convertIntegersToDoubles(List<Integer> integers)
+    {
+        double[] ret = new double[integers.size()];
+        for (int i=0; i < ret.length; i++)
+        {
+            ret[i] = integers.get(i);
+        }
+        return ret;
+    }
 }

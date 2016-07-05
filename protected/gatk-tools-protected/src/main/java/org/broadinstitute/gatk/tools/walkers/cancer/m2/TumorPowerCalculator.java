@@ -49,92 +49,151 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.cancer.m2
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import java.io.File
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.distribution.BinomialDistribution;
+import org.apache.commons.math.distribution.BinomialDistributionImpl;
+import org.apache.commons.math3.util.Pair;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
-import org.broadinstitute.gatk.queue.function.CommandLineFunction
-import org.broadinstitute.gatk.queue.util.QScriptUtils
-import org.broadinstitute.gatk.utils.commandline.{Input, Output}
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils.FilteredRecordMergeType
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.OptionalInt;
+import java.util.stream.IntStream;
 
-import scala.collection.mutable.ListBuffer
+/**
+ * We store a memo to avoid repeated computation of statistical power to detect a variant.
+ * The key of the memo is a pair of numbers: number of reads and estimated allele fraction
+ */
+public class TumorPowerCalculator {
+    private final double errorProbability;
+    private final double tumorLODThreshold;
+    private final double contamination;
+    private final boolean enableSmoothing;
+    public static int numCacheHits = 0;
 
-class create_M2_pon extends QScript {
+    private final HashMap<PowerCacheKey, Double> cache = new HashMap<PowerCacheKey, Double>();
 
-  @Argument(shortName = "bams", required = true, doc = "file of all BAM files")
-  var allBams: String = ""
-
-  @Argument(shortName = "o", required = true, doc = "Output prefix")
-  var outputPrefix: String = ""
-
-  @Argument(shortName = "minN", required = false, doc = "minimum number of sample observations to include in PON")
-  var minN: Int = 2
-
-  @Argument(doc="Reference fasta file to process with", fullName="reference", shortName="R", required=false)
-  var reference = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-
-  @Argument(doc="Intervals file to process with", fullName="intervals", shortName="L", required=true)
-  var intervals : File = ""
-
-  @Argument(shortName = "sc", required = false, doc = "base scatter count")
-  var scatter: Int = 10
-
-
-  def script() {
-    val bams = QScriptUtils.createSeqFromFile(allBams)
-    val genotypesVcf = outputPrefix + ".genotypes.vcf"
-    val finalVcf = outputPrefix + ".vcf"
-
-    val perSampleVcfs = new ListBuffer[File]()
-    for (bam <- bams) {
-      val outputVcf = "sample-vcfs/" + bam.getName + ".vcf"
-      add( createM2Config(bam, outputVcf))
-      perSampleVcfs += outputVcf
+    public TumorPowerCalculator(double errorProbability, double constantLodThreshold, double contamination) {
+        this(errorProbability, constantLodThreshold, contamination, true);
     }
 
-    val cv = new CombineVariants()
-    cv.reference_sequence = reference
-    cv.memoryLimit = 2
-    cv.setKey = "null"
-    cv.minimumN = minN
-    cv.memoryLimit = 16
-    cv.filteredrecordsmergetype = FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED
-    cv.filteredAreUncalled = true
-    cv.variant = perSampleVcfs
-    cv.out = genotypesVcf
+    public TumorPowerCalculator(double errorProbability, double tumorLODThreshold, double contamination, boolean enableSmoothing) {
+        this.errorProbability = errorProbability;
+        this.tumorLODThreshold = tumorLODThreshold;
+        this.contamination = contamination;
+        this.enableSmoothing = enableSmoothing;
+    }
 
-    // using this instead of "sites_only" because we want to keep the AC info
-    val vc = new VcfCutter()
-    vc.inVcf = genotypesVcf
-    vc.outVcf = finalVcf
+    /**
+     * A helper class that acts as the key to the memo of pre-computed power
+     *
+     * TODO: Not ideal to use double as a key. Refactor such that we use as keys numAlts and numReads, which are integers. Then calculate numAlts/numReads when we need allele fraction.
+     *
+     */
+    private static class PowerCacheKey extends Pair<Integer, Double> {
+        private final Double alleleFraction;
+        private final Integer numReads;
 
-    add (cv, vc)
+        public PowerCacheKey(final int numReads, final double alleleFraction) {
+            super(numReads, alleleFraction);
+            this.alleleFraction = alleleFraction;
+            this.numReads = numReads;
+        }
 
-  }
+        private boolean closeEnough(final double x, final double y, final double epsilon){
+            return(Math.abs(x - y) < epsilon);
+        }
 
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
 
-  def createM2Config(bam : File, outputVcf : File): org.broadinstitute.gatk.queue.extensions.gatk.MuTect2 = {
-    val mutect2 = new org.broadinstitute.gatk.queue.extensions.gatk.MuTect2
+            PowerCacheKey that = (PowerCacheKey) o;
+            return (closeEnough(alleleFraction, that.alleleFraction, 0.001) && numReads != that.numReads);
+        }
 
-    mutect2.reference_sequence = reference
-    mutect2.artifact_detection_mode = true
-    mutect2.intervalsString :+= intervals
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(bam, "tumor"))
+        @Override
+        public int hashCode() {
+            int result;
+            long temp;
+            result = numReads;
+            temp = alleleFraction != +0.0d ? Double.doubleToLongBits(alleleFraction) : 0L;
+            result = 31 * result + (int) (temp ^ (temp >>> 32));
+            return result;
+        }
+    }
 
-    mutect2.scatterCount = scatter
-    mutect2.out = outputVcf
+    /**
+     *
+     * @param numReads                total number of reads, REF and ALT combined, in + or - strand
+     * @param alleleFraction          the true allele fraction estimated as the combined allele fraction from + and - reads
+     * @return                        probability of correctly calling the variant (i.e. power) given the above estimated allele fraction and number of reads.
+     *                                we compute power separately for each strand (+ and -)
+     * @throws MathException
+     *
+     */
+    public double cachedPowerCalculation(final int numReads, final double alleleFraction) throws MathException {
+        PowerCacheKey key = new PowerCacheKey(numReads, alleleFraction);
+        // we first look up if power for given number of read and allele fraction has already been computed and stored in the cache.
+        // if not we compute it and store it in teh cache.
+        Double power = cache.get(key);
+        if (power == null) {
+            power = calculatePower(numReads, alleleFraction);
+            cache.put(key, power);
+        } else {
+            numCacheHits++;
+        }
+        return power;
+    }
 
-    mutect2
-  }
+    /* helper function for calculateTumorLod */
+    private double calculateLogLikelihood(final int numReads, final int numAlts, final double alleleFraction) {
+        return((numReads-numAlts) * Math.log10( alleleFraction * errorProbability + (1 - alleleFraction)*(1 - errorProbability) ) +
+                numAlts * Math.log10(alleleFraction * (1 - errorProbability) + (1 - alleleFraction) * errorProbability));
+    }
+
+    private double calculateTumorLod(final int numReads, final int numAlts) {
+        final double alleleFraction = (double) numAlts / (double) numReads;
+        final double altLikelihod = calculateLogLikelihood(numReads, numAlts, alleleFraction);
+        final double refLikelihood = calculateLogLikelihood(numReads, numAlts, contamination);
+        return(altLikelihod - refLikelihood);
 }
 
-class VcfCutter extends CommandLineFunction {
-  @Input(doc = "vcf to cut") var inVcf: File = _
-  @Output(doc = "output vcf") var outVcf: File = _
+    private double calculatePower(final int numReads, final double alleleFraction) throws MathException {
+        if (numReads==0) return 0;
 
-  def commandLine = "cat %s | cut -f1-8 > %s".format(inVcf, outVcf)
+        // TODO: add the factor of 1/3
+        final double probAltRead = alleleFraction*(1 - errorProbability) + (1/3)*(1 - alleleFraction) * errorProbability;
+        final BinomialDistribution binom = new BinomialDistributionImpl(numReads, probAltRead);
+        final double[] binomialProbabilities = IntStream.range(0, numReads + 1).mapToDouble(binom::probability).toArray();
+
+        // find the smallest number of ALT reads k such that tumorLOD(k) > tumorLODThreshold
+        final OptionalInt smallestKAboveLogThreshold = IntStream.range(0, numReads + 1)
+                .filter(k -> calculateTumorLod(numReads, k) > tumorLODThreshold)
+                .findFirst();
+
+        if (! smallestKAboveLogThreshold.isPresent()){
+            return 0;
+        }
+
+        if (smallestKAboveLogThreshold.getAsInt() <= 0){
+            throw new IllegalStateException("smallest k that meets the tumor LOD threshold is less than or equal to 0");
+        }
+
+        double power = Arrays.stream(binomialProbabilities, smallestKAboveLogThreshold.getAsInt(), binomialProbabilities.length).sum();
+
+        // here we correct for the fact that the exact lod threshold is likely somewhere between
+        // the k and k-1 bin, so we prorate the power from that bin
+        if ( enableSmoothing ){
+            final double tumorLODAtK = calculateTumorLod(numReads, smallestKAboveLogThreshold.getAsInt());
+            final double tumorLODAtKMinusOne = calculateTumorLod(numReads, smallestKAboveLogThreshold.getAsInt()-1);
+            final double weight = 1 - (tumorLODThreshold - tumorLODAtKMinusOne ) / (tumorLODAtK - tumorLODAtKMinusOne);
+            power += weight * binomialProbabilities[smallestKAboveLogThreshold.getAsInt() - 1];
+        }
+
+        return(power);
+    }
+
 }

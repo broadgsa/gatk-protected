@@ -72,6 +72,9 @@ public class MuTect2IntegrationTest extends WalkerTest {
     final static String DREAM3_TP_INTERVALS_FILE = privateTestDir + "m2_dream3.tp.intervals";
     final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
 
+    final static String MULTIALLELIC_TUMOR_BAM = privateTestDir + "m2-multiallelic-tumor.bam";
+
+
 
     final String commandLine =
             "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
@@ -121,7 +124,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
 
     @Test
     public void testMicroRegression() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "a7658ccfb75bf1ce8d3d3cfbf3b552f0");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "dc6d742e85a59b237f5541109a6d343e");
     }
 
     /**
@@ -131,7 +134,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTruePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "91dee82a13275e5568f5d2e680e3162b");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "7faeb329798cca63a42867404111847c");
     }
 
     /**
@@ -140,7 +143,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     @Test
     public void testTruePositivesDream3TrackedDropped() {
         M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
-                "4f1337df1de5dd4468e2d389403ca785",
+                "a2e6cc12a21219d510b6719ee86c676e",
                 "b536e76870326b4be01b8d6b83c1cf1c");
     }
 
@@ -150,7 +153,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "6be3fc318e2c22a28098f58b76c9a5a1");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "fe3adcf8ac45e8ec9a9feb26908f67a9"); // e2413f4166b6ed20be6cdee6616ba43d
     }
 
     /**
@@ -158,7 +161,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "b1010a6614b0332c41fd6da9d5f6b14e");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "4ffcef4c72ac72b9b8738efdcf3e04e9");
     }
 
     /**
@@ -166,7 +169,19 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTumorOnly(){
-        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "bb0cddfdc29500fbea68a0913d6706a3");
+        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "6044780242414820090c5b4b1d4b8ac0");
     }
+
+    @Test
+    public void testStrandArtifactFilter(){
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_strand_artifact_filter", "b988ba4b5f3af4674e28b3501bd3b124");
+    }
+
+//    @Test
+//    public void testMultiAllelicSite(){
+//        // TODO need b38 reference
+//        m2TumorOnlyTest(MULTIALLELIC_TUMOR_BAM, "1:23558000-23560000", "", "5c7182623391c1faec3f7c05c0506781")
+//    }
+
 
 }

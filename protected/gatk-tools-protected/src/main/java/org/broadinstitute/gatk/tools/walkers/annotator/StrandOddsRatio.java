@@ -153,6 +153,7 @@ public class StrandOddsRatio extends StrandBiasTest implements StandardAnnotatio
         double ratio = 0;
 
         ratio += (augmentedTable[0][0] / augmentedTable[0][1]) * (augmentedTable[1][1] / augmentedTable[1][0]);
+        // TODO: repeated computation: how about ratio += 1/ratio, or ratio = ratio + 1/ratio to be expicit
         ratio += (augmentedTable[0][1] / augmentedTable[0][0]) * (augmentedTable[1][0] / augmentedTable[1][1]);
 
         final double refRatio = (Math.min(augmentedTable[0][0], augmentedTable[0][1])/Math.max(augmentedTable[0][0], augmentedTable[0][1]));
