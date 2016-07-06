@@ -63,7 +63,9 @@ import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.genotyper.*;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.gatk.utils.genotyper.SampleList;
+import org.broadinstitute.gatk.utils.genotyper.SampleListUtils;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.locusiterator.LocusIteratorByState;
 import org.broadinstitute.gatk.utils.pileup.PileupElement;
@@ -250,8 +252,9 @@ public class ReferenceConfidenceModel {
                 // as our GLs for the site.
                 final GenotypeLikelihoods leastConfidenceGLs = getGLwithWorstGQ(indelGLs, snpGLs);
 
-                gb.GQ((int) (-10 * leastConfidenceGLs.getLog10GQ(GenotypeType.HOM_REF)));
-                gb.PL(leastConfidenceGLs.getAsPLs());
+                final int[] leastConfidenceGLsAsPLs = leastConfidenceGLs.getAsPLs();
+                gb.GQ(GATKVariantContextUtils.calculateGQFromPLs(leastConfidenceGLsAsPLs));
+                gb.PL(leastConfidenceGLsAsPLs);
                 //gb.attribute(INDEL_INFORMATIVE_DEPTH, nIndelInformativeReads);
 
                 vcb.genotypes(gb.make());
