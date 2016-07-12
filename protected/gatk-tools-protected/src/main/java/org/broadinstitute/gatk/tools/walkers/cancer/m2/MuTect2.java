@@ -205,8 +205,6 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     private byte MIN_TAIL_QUALITY;
     private double log10GlobalReadMismappingRate;
 
-
-
     @ArgumentCollection
     protected M2ArgumentCollection MTAC = new M2ArgumentCollection();
 
@@ -364,6 +362,9 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
 
     private VariantAnnotatorEngine initializeVCFOutput() {
         // initialize the output VCF header
+        if (MTAC.ENABLE_CLUSTERED_READ_POSITION_FILTER) {
+            annotationsToUse.add("ClusteredReadPosition");
+        }
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
         Set<VCFHeaderLine> headerInfo = new HashSet<>();
@@ -418,6 +419,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.GERMLINE_RISK_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.TRIALLELIC_SITE_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.STRAND_ARTIFACT_FILTER_NAME));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.CLUSTERED_READ_POSITION_FILTER_NAME));
 
 
         if ( ! doNotRunPhysicalPhasing ) {
@@ -835,10 +837,21 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             filters.add(GATKVCFConstants.CLUSTERED_EVENTS_FILTER_NAME);
         }
 
-        // TODO: Add clustered read position filter here
-        // TODO: Move strand bias filter here
-        return filters;
 
+        // clustered read position filter
+        if (MTAC.ENABLE_CLUSTERED_READ_POSITION_FILTER){
+            Double tumorFwdPosMedian = (Double) vc.getAttribute(GATKVCFConstants.MEDIAN_LEFT_OFFSET_KEY);
+            Double tumorRevPosMedian = (Double) vc.getAttribute(GATKVCFConstants.MEDIAN_RIGHT_OFFSET_KEY);
+            Double tumorFwdPosMAD = (Double) vc.getAttribute(GATKVCFConstants.MAD_MEDIAN_LEFT_OFFSET_KEY);
+            Double tumorRevPosMAD = (Double) vc.getAttribute(GATKVCFConstants.MAD_MEDIAN_RIGHT_OFFSET_KEY);
+            //If the variant is near the read end (median threshold) and the positions are very similar (MAD threshold) then filter
+            if ( (tumorFwdPosMedian != null && tumorFwdPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorFwdPosMAD != null && tumorFwdPosMAD <= MTAC.PIR_MAD_THRESHOLD) ||
+                    (tumorRevPosMedian != null && tumorRevPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorRevPosMAD != null && tumorRevPosMAD <= MTAC.PIR_MAD_THRESHOLD))
+                filters.add(GATKVCFConstants.CLUSTERED_READ_POSITION_FILTER_NAME);
+        }
+        // TODO: Move strand bias filter here
+
+        return filters;
     }
 
 
@@ -1313,6 +1326,11 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         return normalSampleName != null && normalSampleName.equals(rec.getReadGroup().getSample());
 
     }
+
+    public String getTumorSampleName(){
+        return tumorSampleName;
+    }
+
     // KCIBUL: new stuff -- read up on this!!
     /**
      * As of GATK 3.3, HaplotypeCaller outputs physical (read-based) information (see version 3.3 release notes and documentation for details). This argument disables that behavior.

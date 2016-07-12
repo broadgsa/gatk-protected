@@ -57,8 +57,6 @@ import org.testng.annotations.Test;
 import java.util.*;
 
 public class MuTect2IntegrationTest extends WalkerTest {
-    final static String REF = hg19Reference;
-
     final static String CCLE_MICRO_TUMOR_BAM = privateTestDir + "HCC1143.cghub.ccle.micro.bam";
     final static String CCLE_MICRO_NORMAL_BAM = privateTestDir + "HCC1143_BL.cghub.ccle.micro.bam";
     final static String CCLE_MICRO_INTERVALS_FILE = privateTestDir + "HCC1143.cghub.ccle.micro.intervals";
@@ -72,8 +70,6 @@ public class MuTect2IntegrationTest extends WalkerTest {
     final static String DREAM3_TP_INTERVALS_FILE = privateTestDir + "m2_dream3.tp.intervals";
     final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
 
-    final static String MULTIALLELIC_TUMOR_BAM = privateTestDir + "m2-multiallelic-tumor.bam";
-
 
 
     final String commandLine =
@@ -82,7 +78,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     private void M2Test(String tumorBam, String normalBam, String intervals, String args, String md5) {
                 final String base = String.format(
                         commandLine,
-                        REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
+                        hg19Reference, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
                     " -o %s ";
 
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
@@ -97,7 +93,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     private void m2TumorOnlyTest(String tumorBam, String intervals, String args, String md5) {
         final String base = String.format(
                 "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
-                REF, DBSNP, COSMIC, PON, tumorBam, intervals) +
+                hg19Reference, DBSNP, COSMIC, PON, tumorBam, intervals) +
                 " -o %s ";
 
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
@@ -109,7 +105,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     private void M2TestWithDroppedReads(String tumorBam, String normalBam, String intervals, String args, String md5Variants, String md5Bamout) {
         final String base = String.format(
                 commandLine,
-                REF, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
+                hg19Reference, DBSNP, COSMIC, PON, tumorBam, normalBam, intervals) +
                 " -o %s " +
                 "-bamout %s --emitDroppedReads";
 
@@ -124,7 +120,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
 
     @Test
     public void testMicroRegression() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "dc6d742e85a59b237f5541109a6d343e");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "", "dd3bb9526c85c0aed39545c4639ff138");
     }
 
     /**
@@ -134,7 +130,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTruePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "7faeb329798cca63a42867404111847c");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_TP_INTERVALS_FILE, "", "5bd540d238916a2b91e827aed3592e59");
     }
 
     /**
@@ -143,7 +139,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     @Test
     public void testTruePositivesDream3TrackedDropped() {
         M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
-                "a2e6cc12a21219d510b6719ee86c676e",
+                "48a446d47bb10434cb7f0ee726d15721",
                 "b536e76870326b4be01b8d6b83c1cf1c");
     }
 
@@ -153,7 +149,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "fe3adcf8ac45e8ec9a9feb26908f67a9"); // e2413f4166b6ed20be6cdee6616ba43d
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "c23f794866797f9bbcb3ed04451758be"); // e2413f4166b6ed20be6cdee6616ba43d
     }
 
     /**
@@ -161,7 +157,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testContaminationCorrection() {
-        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "4ffcef4c72ac72b9b8738efdcf3e04e9");
+        M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "c25e48edd704bbb436cd6456d9f47d8b");
     }
 
     /**
@@ -169,19 +165,18 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testTumorOnly(){
-        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "6044780242414820090c5b4b1d4b8ac0");
+        m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "2af2253b1f09ea8fd354e1bf2c4612f0");
     }
 
     @Test
     public void testStrandArtifactFilter(){
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_strand_artifact_filter", "b988ba4b5f3af4674e28b3501bd3b124");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_strand_artifact_filter", "75c9349ff9f8dc84291396ac50871f64");
     }
 
-//    @Test
-//    public void testMultiAllelicSite(){
-//        // TODO need b38 reference
-//        m2TumorOnlyTest(MULTIALLELIC_TUMOR_BAM, "1:23558000-23560000", "", "5c7182623391c1faec3f7c05c0506781")
-//    }
+    @Test
+    public void testClusteredReadPositionFilter() {
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_clustered_read_position_filter", "c333f7dc11e39e0713147ad9af2bf4db");
+    }
 
 
 }

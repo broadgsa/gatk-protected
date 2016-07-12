@@ -138,6 +138,9 @@ public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection 
     @Argument(fullName = "enable_strand_artifact_filter", required = false, doc = "turn on strand artifact filter")
     public boolean ENABLE_STRAND_ARTIFACT_FILTER = false;
 
+    @Argument(fullName = "enable_clustered_read_position_filter", required = false, doc = "turn on clustered read position filter")
+    public boolean ENABLE_CLUSTERED_READ_POSITION_FILTER = false;
+
     /**
      * This argument is used for the M1-style read position filter
      */

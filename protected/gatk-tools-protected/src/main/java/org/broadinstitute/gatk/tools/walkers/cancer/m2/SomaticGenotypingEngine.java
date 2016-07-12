@@ -209,7 +209,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 // TODO: CONFIRM WITH GSA IF IT IS OK TO REMOVE READS FROM THE PRALM (should be... they do it in filterPoorlyModeledReads!)
                 PerReadAlleleLikelihoodMap tumorPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(tumorSampleName));
                 filterPRALMForOverlappingReads(tumorPRALM, mergedVC.getReference(), loc, false);
-                MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present after filtering for overlapping reads");
+                MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in Tumor PRALM after filtering for overlapping reads");
                 // extend to multiple samples
 
                 // compute tumor LOD for each alternate allele
@@ -249,12 +249,11 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 if (hasNormal) {
                     normalPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(matchedNormalSampleName));
                     filterPRALMForOverlappingReads(normalPRALM, mergedVC.getReference(), loc, true);
-                    MuTect2.logReadInfo(DEBUG_READ_NAME, normalPRALM.getLikelihoodReadMap().keySet(), "Present after filtering for overlapping reads");
+                    MuTect2.logReadInfo(DEBUG_READ_NAME, normalPRALM.getLikelihoodReadMap().keySet(), "Present after in Nomral PRALM filtering for overlapping reads");
 
                     GenomeLoc eventGenomeLoc = genomeLocParser.createGenomeLoc(activeRegionWindow.getContig(), loc);
                     Collection<VariantContext> cosmicVC = tracker.getValues(cosmicRod, eventGenomeLoc);
                     Collection<VariantContext> dbsnpVC = tracker.getValues(dbsnpRod, eventGenomeLoc);
-
                     // remove the effect of cosmic from dbSNP
                     final boolean germlineAtRisk = (!dbsnpVC.isEmpty() && cosmicVC.isEmpty());
 
@@ -320,6 +319,10 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                         final PerReadAlleleLikelihoodMap reversePRALM = new PerReadAlleleLikelihoodMap();
                         splitPRALMintoForwardAndReverseReads(tumorPRALM, forwardPRALM, reversePRALM);
 
+                        MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in tumor PRALM after PRALM is split");
+                        MuTect2.logReadInfo(DEBUG_READ_NAME, forwardPRALM.getLikelihoodReadMap().keySet(), "Present in forward PRALM after PRALM is split");
+                        MuTect2.logReadInfo(DEBUG_READ_NAME, reversePRALM.getLikelihoodReadMap().keySet(), "Present in reverse PRALM after PRALM is split");
+
                         // TODO: build a new type for probability, likelihood, and log_likelihood. e.g. f_fwd :: probability[], tumorGLs_fwd :: likelihood[]
                         // TODO: don't want to call getHetGenotypeLogLikelihoods on more than one alternate alelle. May need to overload it to take a scalar f_fwd.
                         final PerAlleleCollection<Double> alleleFractionsForward = estimateAlleleFraction(mergedVC, forwardPRALM, true);
@@ -327,6 +330,22 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
                         final PerAlleleCollection<Double> alleleFractionsReverse = estimateAlleleFraction(mergedVC, reversePRALM, true);
                         final PerAlleleCollection<Double> tumorGenotypeLLReverse = getHetGenotypeLogLikelihoods(mergedVC, reversePRALM, originalNormalReadQualities, alleleFractionsReverse);
+
+                        if( configuration.DEBUG && logger != null ) {
+                            StringBuilder forwardMessage = new StringBuilder("Calculated forward allelic fraction at " + loc + " = [");
+                            StringBuilder reverseMessage = new StringBuilder("Calculated reverse allelic fraction at " + loc + " = [");
+
+                            for (Allele altAllele : altAlleleFractions.getAltAlleles()){
+                                forwardMessage.append( altAllele + ": " + alleleFractionsForward.getAlt(altAllele) + ", ");
+                                reverseMessage.append( altAllele + ": " + alleleFractionsReverse.getAlt(altAllele) + ", ");
+                            }
+
+                            forwardMessage.append("]");
+                            reverseMessage.append("]");
+
+                            logger.info(forwardMessage.toString());
+                            logger.info(reverseMessage.toString());
+                        }
 
                         double tumorLod_fwd = tumorGenotypeLLForward.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLForward.getRef();
                         double tumorLod_rev = tumorGenotypeLLReverse.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLReverse.getRef();
@@ -500,6 +519,10 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         for ( final Allele altAllele : vc.getAlternateAlleles() ) {
             int altCount = alleleCounts.getAlt(altAllele);
             double alleleFraction = (double) altCount / (refCount + altCount);
+            // weird case, but I've seen it happen in one strand cases
+            if (refCount == 0 && altCount == refCount ) {
+                alleleFraction = 0;
+            }
             alleleFractions.setAlt(altAllele, alleleFraction);
             // logger.info("Counted " + refCount + " ref and " + altCount + " alt " );
         }
