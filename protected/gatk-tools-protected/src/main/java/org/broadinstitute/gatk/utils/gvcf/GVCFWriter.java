@@ -74,13 +74,15 @@ import java.util.List;
  */
 public class GVCFWriter implements VariantContextWriter {
 
+    private static final int MAX_GENOTYPE_QUAL = VCFConstants.MAX_GENOTYPE_QUAL;
+
     //
     // Final fields initialized in constructor
     //
     /** Where we'll ultimately write our VCF records */
-    final private VariantContextWriter underlyingWriter;
+    private final VariantContextWriter underlyingWriter;
 
-    final private List<HomRefBlock> GQPartitions;
+    private final List<HomRefBlock> GQPartitions;
 
     /** fields updated on the fly during GVCFWriter operation */
     int nextAvailableStart = -1;
@@ -90,26 +92,28 @@ public class GVCFWriter implements VariantContextWriter {
     private final int defaultPloidy;
 
     /**
-     * Is the proposed GQ partitions well-formed?
+     * Are the proposed GQ partitions well-formed?
      *
      * @param GQPartitions proposed GQ partitions
      * @return a non-null string if something is wrong (string explains issue)
      */
     protected static List<HomRefBlock> parsePartitions(final List<Integer> GQPartitions, final int defaultPloidy) {
-        if ( GQPartitions == null ) throw new IllegalArgumentException("GQpartitions cannot be null");
-        if ( GQPartitions.isEmpty() ) throw new IllegalArgumentException("GQpartitions cannot be empty");
+        if ( GQPartitions == null ) throw new IllegalArgumentException("The list of GQ partitions cannot be null.");
+        if ( GQPartitions.isEmpty() ) throw new IllegalArgumentException("The list of GQ partitions cannot be empty.");
 
         final List<HomRefBlock> result = new LinkedList<>();
         int lastThreshold = 0;
         for ( final Integer value : GQPartitions ) {
-            if ( value == null ) throw new IllegalArgumentException("GQPartitions contains a null integer");
-            if ( value < lastThreshold ) throw new IllegalArgumentException("GQPartitions is out of order.  Last is " + lastThreshold + " but next is " + value);
-            if ( value == lastThreshold ) throw new IllegalArgumentException("GQPartitions is equal elements: Last is " + lastThreshold + " but next is " + value);
-            result.add(new HomRefBlock(lastThreshold, value,defaultPloidy));
+            if ( value == null || value <= 0 ) throw new IllegalArgumentException("The list of GQ partitions contains a null or non-positive integer.");
+            if ( value < lastThreshold ) throw new IllegalArgumentException(String.format("The list of GQ partitions is out of order. Previous value is %d but the next is %d.", lastThreshold, value));
+            if ( value == lastThreshold ) throw new IllegalArgumentException(String.format("The value %d appears more than once in the list of GQ partitions.", value));
+            if ( value > MAX_GENOTYPE_QUAL ) throw new IllegalArgumentException(String.format("The value %d in the list of GQ partitions is greater than VCFConstants.MAX_GENOTYPE_QUAL = %d.", value, VCFConstants.MAX_GENOTYPE_QUAL));
+            result.add(new HomRefBlock(lastThreshold, value, defaultPloidy));
             lastThreshold = value;
         }
-        result.add(new HomRefBlock(lastThreshold, Integer.MAX_VALUE,defaultPloidy));
-
+        if (lastThreshold <= MAX_GENOTYPE_QUAL ) {
+            result.add(new HomRefBlock(lastThreshold, MAX_GENOTYPE_QUAL + 1, defaultPloidy));
+        }
         return result;
     }
 
@@ -209,8 +213,12 @@ public class GVCFWriter implements VariantContextWriter {
     }
 
     private boolean genotypeCanBeMergedInCurrentBlock(final Genotype g) {
-        return currentBlock != null && currentBlock.withinBounds(g.getGQ()) && currentBlock.getPloidy() == g.getPloidy()
+        return currentBlock != null && currentBlock.withinBounds(capToMaxGQ(g.getGQ())) && currentBlock.getPloidy() == g.getPloidy()
                 && (currentBlock.getMinPLs() == null || !g.hasPL() || (currentBlock.getMinPLs().length == g.getPL().length));
+    }
+
+    private int capToMaxGQ(final int gq) {
+        return Math.min(gq, MAX_GENOTYPE_QUAL);
     }
 
     /**
@@ -268,7 +276,7 @@ public class GVCFWriter implements VariantContextWriter {
         // figure out the GQ limits to use based on the GQ of g
         HomRefBlock partition = null;
         for ( final HomRefBlock maybePartition : GQPartitions ) {
-            if ( maybePartition.withinBounds(g.getGQ()) ) {
+            if ( maybePartition.withinBounds(capToMaxGQ(g.getGQ())) ) {
                 partition = maybePartition;
                 break;
             }

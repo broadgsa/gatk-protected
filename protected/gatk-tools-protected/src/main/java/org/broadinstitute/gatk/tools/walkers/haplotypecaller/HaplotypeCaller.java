@@ -367,10 +367,10 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      *
      * This argument allows you to set the GQ boundaries. HC expects a list of multiple GQ threshold values. To pass
      * multiple values, you provide them one by one with the argument, as in `-GQB 10 -GQB 20 -GQB 30` and so on. Note
-     * that GQ values are capped at 99 in the GATK.
+     * that GQ values are capped at 99 in the GATK, so values must be integers in [1, 99].
      */
     @Advanced
-    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="GQ thresholds for reference confidence bands", required = false)
+    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="GQ thresholds for reference confidence bands (must be in [1, 99] and specified in increasing order)", required = false)
     protected List<Integer> GVCFGQBands = new ArrayList<Integer>(70) {{
         for (int i=1; i<=60; ++i) add(i);
         add(70); add(80); add(90); add(99);
@@ -754,8 +754,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
                 try {
                     vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands, HCAC.genotypeArgs.samplePloidy);
-                } catch ( IllegalArgumentException e ) {
-                    throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
+                } catch ( final IllegalArgumentException e ) {
+                    throw new UserException.BadArgumentValue("GVCFGQBands", e.getMessage());
                 }
             }
         }
