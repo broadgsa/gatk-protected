@@ -277,7 +277,8 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
             final GATKSAMRecord read = el.getKey();
             if ( isUsableRead(read, refLoc) ) {
                 final Double value = getElementForRead(read, refLoc, a);
-                if ( value == null )
+                // Bypass read if the clipping goal is not reached or the refloc is inside a spanning deletion
+                if ( value == null || value < 0.0 )
                     continue;
 
                 if(perAlleleValues.containsKey(a.getMostLikelyAllele()))

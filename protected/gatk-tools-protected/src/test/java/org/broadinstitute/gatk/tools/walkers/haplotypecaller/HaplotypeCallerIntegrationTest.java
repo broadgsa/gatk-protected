@@ -107,7 +107,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "08943fb76d1cd5b5b8815e3991754911", "6a81bbefa6c4ed7a6b8d2c3e0e5a4756");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "56086abc3bd5e3f7d111f452b7cc4fa1", "6a81bbefa6c4ed7a6b8d2c3e0e5a4756");
     }
 
     @Test
@@ -153,17 +153,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerGraphBasedSingleSample() throws IOException {
-        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "ba0dc5f416d69558cb5dd3e0a0a5a084");
+        HCTest(NA12878_BAM, "-likelihoodEngine GraphBased", "8ab21bd6fb7ef37480f556fd5fa5375c");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSampleHaploid() throws IOException {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "129bca18bb9eec23004b2d28aa541de2");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased -ploidy 1", "01220e85ff6bc49e35a325a1df2519e5");
     }
 
     @Test
     public void testHaplotypeCallerGraphBasedMultiSample() throws IOException {
-        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "2b89c9e102a049e223bc0d91156a08a3");
+        HCTest(CEUTRIO_BAM, "-likelihoodEngine GraphBased", "80c5b0f72a7962e1ba846ec20465001f");
     }
 
     @Test
@@ -398,7 +398,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testLackSensitivityDueToBadHaplotypeSelectionFix() {
         final String commandLine = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s -L %s --no_cmdline_in_header --maxNumHaplotypesInPopulation 16",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list");
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("22f5a3e9366e611509f03c984f8b4960"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("5087a8855b3ee9ea1091367674783462"));
         spec.disableShadowBCF();
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
     }
@@ -484,12 +484,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerTandemRepeatAnnotator() throws IOException{
-        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "34328c475325b7dfaa57ab5920478e0c");
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A TandemRepeatAnnotator -XA MappingQualityZero -XA SpanningDeletions", "2cf4cab0035d09aa0aec6f3faa2c9df6");
     }
 
     @Test
     public void testHBaseCountsBySample() throws IOException{
-        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "f5ad4e03c0faaa806ee6ae536af8a479");
+        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "c4550a5933cc954bad70980750e0df52");
     }
 
     @Test

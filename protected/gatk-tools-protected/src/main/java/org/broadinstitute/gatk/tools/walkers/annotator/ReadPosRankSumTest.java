@@ -104,6 +104,11 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
         if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
             return null;
 
+        // If the offset inside a deletion, it does not lie on a read.
+        if ( AlignmentUtils.isInsideDeletion(read.getCigar(), offset) ) {
+            return INVALID_READ_POSITION;
+        }
+
         int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );
         final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
         if (readPos > numAlignedBases / 2)
