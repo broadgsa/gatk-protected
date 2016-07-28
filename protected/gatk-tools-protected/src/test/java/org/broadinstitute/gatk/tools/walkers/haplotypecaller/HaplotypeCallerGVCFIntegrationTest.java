@@ -345,7 +345,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testBetaTestingAnnotationGroup() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G BetaTesting --disableDithering",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("df746da577c1d8a340f93b9d5df4df80"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("f248a6c4a7645dc5cc9f5ec9f81d9ad5"));
         spec.disableShadowBCF();
         executeTest(" testASMQMateRankSumAnnotation", spec);
     }
