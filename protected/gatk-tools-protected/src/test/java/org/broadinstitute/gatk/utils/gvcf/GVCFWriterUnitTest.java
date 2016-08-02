@@ -390,7 +390,9 @@ public class GVCFWriterUnitTest extends BaseTest {
         tests.add(new Object[]{Arrays.asList(1, 1, 10), false, null});
         tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL - 1), true, Arrays.asList(0, 1, 10, VCFConstants.MAX_GENOTYPE_QUAL - 1)});
         tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL), true, Arrays.asList(0, 1, 10, VCFConstants.MAX_GENOTYPE_QUAL)});
-        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL + 1), false, null});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL + 1), true, Arrays.asList(0, 1, 10)});
+        tests.add(new Object[]{Collections.singletonList(VCFConstants.MAX_GENOTYPE_QUAL + 1), true, Collections.singletonList(0)});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL + 2), false, null});
 
         return tests.toArray(new Object[][]{});
     }

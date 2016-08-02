@@ -98,20 +98,34 @@ public class GVCFWriter implements VariantContextWriter {
      * @return a non-null string if something is wrong (string explains issue)
      */
     protected static List<HomRefBlock> parsePartitions(final List<Integer> GQPartitions, final int defaultPloidy) {
-        if ( GQPartitions == null ) throw new IllegalArgumentException("The list of GQ partitions cannot be null.");
-        if ( GQPartitions.isEmpty() ) throw new IllegalArgumentException("The list of GQ partitions cannot be empty.");
+        if ( GQPartitions == null ) {
+            throw new IllegalArgumentException("The list of GQ partitions cannot be null.");
+        }
+        if ( GQPartitions.isEmpty() ) {
+            throw new IllegalArgumentException("The list of GQ partitions cannot be empty.");
+        }
 
         final List<HomRefBlock> result = new LinkedList<>();
         int lastThreshold = 0;
         for ( final Integer value : GQPartitions ) {
-            if ( value == null || value <= 0 ) throw new IllegalArgumentException("The list of GQ partitions contains a null or non-positive integer.");
-            if ( value < lastThreshold ) throw new IllegalArgumentException(String.format("The list of GQ partitions is out of order. Previous value is %d but the next is %d.", lastThreshold, value));
-            if ( value == lastThreshold ) throw new IllegalArgumentException(String.format("The value %d appears more than once in the list of GQ partitions.", value));
-            if ( value > MAX_GENOTYPE_QUAL ) throw new IllegalArgumentException(String.format("The value %d in the list of GQ partitions is greater than VCFConstants.MAX_GENOTYPE_QUAL = %d.", value, VCFConstants.MAX_GENOTYPE_QUAL));
+            if ( value == null || value <= 0 ) {
+                throw new IllegalArgumentException("The list of GQ partitions contains a null or non-positive integer.");
+            }
+            if ( value < lastThreshold ) {
+                throw new IllegalArgumentException(String.format("The list of GQ partitions is out of order. " +
+                        "Previous value is %d but the next is %d.", lastThreshold, value));
+            }
+            if ( value == lastThreshold ) {
+                throw new IllegalArgumentException(String.format("The value %d appears more than once in the list of GQ partitions.", value));
+            }
+            if ( value > MAX_GENOTYPE_QUAL + 1 ) {
+                throw new IllegalArgumentException(String.format("The value %d in the list of GQ partitions is " +
+                        "greater than VCFConstants.MAX_GENOTYPE_QUAL + 1 = %d.", value, VCFConstants.MAX_GENOTYPE_QUAL + 1));
+            }
             result.add(new HomRefBlock(lastThreshold, value, defaultPloidy));
             lastThreshold = value;
         }
-        if (lastThreshold <= MAX_GENOTYPE_QUAL ) {
+        if ( lastThreshold <= MAX_GENOTYPE_QUAL ) {
             result.add(new HomRefBlock(lastThreshold, MAX_GENOTYPE_QUAL + 1, defaultPloidy));
         }
         return result;
