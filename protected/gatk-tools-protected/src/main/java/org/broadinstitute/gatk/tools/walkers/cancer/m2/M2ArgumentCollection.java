@@ -51,12 +51,41 @@
 
 package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
+import htsjdk.variant.variantcontext.VariantContext;
+import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.AssemblyBasedCallerArgumentCollection;
-import org.broadinstitute.gatk.utils.commandline.Advanced;
-import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Hidden;
+import org.broadinstitute.gatk.utils.commandline.*;
+
+import java.util.Collections;
+import java.util.List;
 
 public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection {
+
+    /***************************************/
+    // Reference Metadata inputs
+    /***************************************/
+    /**
+     * MuTect2 has the ability to use COSMIC data in conjunction with dbSNP to adjust the threshold for evidence of a variant
+     * in the normal.  If a variant is present in dbSNP, but not in COSMIC, then more evidence is required from the normal
+     * sample to prove the variant is not present in germline.
+     */
+    @Input(fullName="cosmic", shortName = "cosmic", doc="VCF file of COSMIC sites", required=false)
+    public List<RodBinding<VariantContext>> cosmicRod = Collections.emptyList();
+
+    /**
+     * A panel of normals can be a useful (optional) input to help filter out commonly seen sequencing noise that may appear as low allele-fraction somatic variants.
+     */
+    @Input(fullName="normal_panel", shortName = "PON", doc="VCF file of sites observed in normal", required=false)
+    public List<RodBinding<VariantContext>> normalPanelRod = Collections.emptyList();
+
+
+    /**
+     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
+     * dbSNP overlap is only used to require more evidence of absence in the normal if the variant in question has been seen before in germline.
+     */
+    @ArgumentCollection
+    protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
+
     @Advanced
     @Argument(fullName="m2debug", shortName="m2debug", doc="Print out very verbose M2 debug information", required = false)
     public boolean M2_DEBUG = false;
