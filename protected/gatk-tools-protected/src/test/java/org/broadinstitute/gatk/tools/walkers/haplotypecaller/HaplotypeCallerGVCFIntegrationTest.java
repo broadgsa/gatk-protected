@@ -441,7 +441,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
                 {Arrays.asList(-1, 10, 20)},
                 {Arrays.asList(10, 20, 1)},
                 {Arrays.asList(10, 10, 20)},
-                {Arrays.asList(10, 20, VCFConstants.MAX_GENOTYPE_QUAL + 1)}
+                {Arrays.asList(10, 20, VCFConstants.MAX_GENOTYPE_QUAL + 2)}
         };
     }
     @Test(dataProvider = "dataBadGQBValues")
