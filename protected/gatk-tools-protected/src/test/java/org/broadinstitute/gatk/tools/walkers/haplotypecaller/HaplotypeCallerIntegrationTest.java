@@ -107,7 +107,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "56086abc3bd5e3f7d111f452b7cc4fa1", "6a81bbefa6c4ed7a6b8d2c3e0e5a4756");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "729ebefdce0d5ea6f535c354c329e6b9", "d38aab5bf8ef0bc7c18e8c909819da84");
     }
 
     @Test
@@ -264,7 +264,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDoesNotFailOnBadRefBase() {
         // don't care about the output - just want to make sure it doesn't fail
-        final String base = String.format("-T HaplotypeCaller --disableDithering -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2 -stand_emit_conf 2";
+        final String base = String.format("-T HaplotypeCaller --disableDithering -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
         executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
     }
@@ -421,7 +421,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String DBSNP = b37dbSNP138;
         final String commandLineWithoutInterval = String.format("-T HaplotypeCaller -pairHMMSub %s %s -I %s -R %s -D %s "
                 + "-variant_index_type  LINEAR -variant_index_parameter 128000 --no_cmdline_in_header "
-                + "-stand_call_conf 10.0 -stand_emit_conf 10.0", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, TEST_BAM, REFERENCE, DBSNP);
+                + "-stand_call_conf 10.0", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, TEST_BAM, REFERENCE, DBSNP);
 
         final String commandLineShortInterval = commandLineWithoutInterval + " -L " + SHORT_INTERVAL;
         final String commandLineLongInterval = commandLineWithoutInterval + " -L " + LONG_INTERVAL;

@@ -203,7 +203,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
 
         final List<GenotypeLikelihoodsCalculationModel.Model> models = getGLModelsToUse(tracker, rawContext);
 
-        final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap = new HashMap<>();
+        final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap = new HashMap<>();
 
         final VariantCallContext defaultResult = configuration.outputMode == OutputMode.EMIT_ALL_SITES
                 && configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES
@@ -267,7 +267,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     public VariantContext calculateLikelihoods(final RefMetaDataTracker tracker,
                                                final ReferenceContext refContext,
                                                final AlignmentContext rawContext,
-                                               final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                               final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         final List<GenotypeLikelihoodsCalculationModel.Model> models = getGLModelsToUse(tracker, rawContext);
         if ( models.isEmpty() ) {
             return null;
@@ -345,7 +345,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                 final List<Allele> alternateAllelesToUse,
                                                 final boolean useBAQedPileup,
                                                 final GenotypeLikelihoodsCalculationModel.Model model,
-                                                final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
 
         return glcm.get().get(model.name()).getLikelihoods(tracker, refContext, stratifiedContexts, type, alternateAllelesToUse, useBAQedPileup && BAQEnabledOnCMDLine,
                 genomeLocParser != null || refContext == null ? genomeLocParser : refContext.getGenomeLocParser(), perReadAlleleLikelihoodMap);
@@ -360,7 +360,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
+                                                 final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap) {
         return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, inheritAttributesFromInputVC, perReadAlleleLikelihoodMap, false);
     }
 
@@ -370,7 +370,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                  final Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc,
                                                  final GenotypeLikelihoodsCalculationModel.Model model,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
                                                  final boolean useAlleleSpecificCalcs) {
         return calculateGenotypes(tracker, refContext, rawContext, stratifiedContexts, vc, model, false, perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);
     }
@@ -386,7 +386,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
                                                  final boolean useAlleleSpecificCalcs) {
         boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
         final VariantCallContext result = super.calculateGenotypes(tracker,refContext,rawContext,stratifiedContexts,vc,model,inheritAttributesFromInputVC,perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);
@@ -410,7 +410,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
                                                        final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
-                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
                                                        final boolean useAlleleSpecificCalcs) {
         final Map<String,Object> result = super.composeCallAttributes(inheritAttributesFromInputVC, vc,rawContext,stratifiedContexts,tracker,refContext,alleleCountsofMLE,bestGuessIsRef,
                                     AFresult,allAllelesToUse,genotypes,model,perReadAlleleLikelihoodMap, useAlleleSpecificCalcs);

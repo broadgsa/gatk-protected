@@ -211,7 +211,6 @@ import java.util.*;
  *     -I sample1.bam [-I sample2.bam ...] \
  *     [--dbsnp dbSNP.vcf] \
  *     [-stand_call_conf 30] \
- *     [-stand_emit_conf 10] \
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.vcf
  * </pre>
@@ -224,7 +223,6 @@ import java.util.*;
  *     -I sample1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
- *     -stand_emit_conf 20 \
  *     -o output.raw.snps.indels.vcf
  * </pre>
  *
@@ -590,7 +588,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if (HCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
                 throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and GENOTYPE_GIVEN_ALLELES at the same time");
 
-            HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
 
             // also, we don't need to output several of the annotations
@@ -632,7 +629,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
         simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
         simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;

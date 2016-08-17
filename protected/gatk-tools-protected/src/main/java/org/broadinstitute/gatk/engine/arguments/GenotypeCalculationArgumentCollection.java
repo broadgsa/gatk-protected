@@ -111,12 +111,6 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public double STANDARD_CONFIDENCE_FOR_CALLING = 30.0;
 
     /**
-     * This argument allows you to emit low quality calls as filtered records.
-     */
-    @Argument(fullName = "standard_min_confidence_threshold_for_emitting", shortName = "stand_emit_conf", doc = "The minimum phred-scaled confidence threshold at which variants should be emitted (and filtered with LowQual if less than the calling threshold)", required = false)
-    public double STANDARD_CONFIDENCE_FOR_EMITTING = 30.0;
-
-    /**
      * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN_ALLELES),
      * then only this many alleles will be used.  Note that genotyping sites with many alternate alleles is both CPU and memory intensive and it
      * scales exponentially based on the number of alternate alleles.  Unless there is a good reason to change the default value, we highly recommend
