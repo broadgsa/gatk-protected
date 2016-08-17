@@ -89,6 +89,18 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testExcludeIntervalsPadding(){
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " -L 1:1715011-1734970 -XL 1:1725305 -ip 200 --variant "
+                        + b37hapmapGenotypes + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("2e31c0be0d639d7110e639a11c03f4ca")
+        );
+
+        executeTest("testExcludeIntervalsPadding--", spec);
+    }
+
+    @Test
     public void testRepeatedLineSelection() {
         String testfile = privateTestDir + "test.dup.vcf";
 
