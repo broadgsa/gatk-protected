@@ -104,6 +104,8 @@ public class AS_ReadPosRankSumTest extends AS_RankSumTest implements AS_Standard
 
         int readPos = AlignmentUtils.calcAlignmentByteArrayOffset(read.getCigar(), offset, false, 0, 0);
         final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );
+        // Note: For a spanning deletion, readPos is at the upstream end of the deletion and is greater than numAlignedBases (which does not include deletions).
+        // Hence, the resulting readPos will have a negative value.
         if (readPos > numAlignedBases / 2)
             readPos = numAlignedBases - (readPos + 1);
         return (double)readPos;

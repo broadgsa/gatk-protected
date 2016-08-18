@@ -76,6 +76,7 @@ import java.util.*;
 //TODO: will eventually implement ReducibleAnnotation in order to preserve accuracy for CombineGVCFs and GenotypeGVCFs -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
 public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {
     static final boolean DEBUG = false;
+    protected static double INVALID_READ_POSITION = -1; // No mapping to a read position
 
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,
                                         final AnnotatorCompatible walker,
@@ -86,11 +87,11 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
         // either stratifiedContexts or stratifiedPerReadAlleleLikelihoodMap has to be non-null
 
         final GenotypesContext genotypes = vc.getGenotypes();
-        if (genotypes == null || genotypes.size() == 0)
+        if (genotypes == null || genotypes.isEmpty())
             return null;
 
-        final ArrayList<Double> refQuals = new ArrayList<>();
-        final ArrayList<Double> altQuals = new ArrayList<>();
+        final List<Double> refQuals = new ArrayList<>();
+        final List<Double> altQuals = new ArrayList<>();
 
         for ( final Genotype genotype : genotypes.iterateInSampleNameOrder() ) {
 
@@ -183,7 +184,8 @@ public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveR
             final GATKSAMRecord read = el.getKey();
             if ( isUsableRead(read, refLoc) ) {
                 final Double value = getElementForRead(read, refLoc, a);
-                if ( value == null )
+                // Bypass read if the clipping goal is not reached or the refloc is inside a spanning deletion
+                if ( value == null || value == INVALID_READ_POSITION )
                     continue;
 
                 if ( a.getMostLikelyAllele().isReference() )
