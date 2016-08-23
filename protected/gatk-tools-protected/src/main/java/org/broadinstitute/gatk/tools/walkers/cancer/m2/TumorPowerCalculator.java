@@ -55,6 +55,7 @@ import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.BinomialDistribution;
 import org.apache.commons.math.distribution.BinomialDistributionImpl;
 import org.apache.commons.math3.util.Pair;
+import org.broadinstitute.gatk.utils.exceptions.GATKException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -70,7 +71,6 @@ public class TumorPowerCalculator {
     private final double tumorLODThreshold;
     private final double contamination;
     private final boolean enableSmoothing;
-    public static int numCacheHits = 0;
 
     private final HashMap<PowerCacheKey, Double> cache = new HashMap<PowerCacheKey, Double>();
 
@@ -134,16 +134,18 @@ public class TumorPowerCalculator {
      * @throws MathException
      *
      */
-    public double cachedPowerCalculation(final int numReads, final double alleleFraction) throws MathException {
+    public double cachedPowerCalculation(final int numReads, final double alleleFraction) {
         PowerCacheKey key = new PowerCacheKey(numReads, alleleFraction);
         // we first look up if power for given number of read and allele fraction has already been computed and stored in the cache.
         // if not we compute it and store it in teh cache.
         Double power = cache.get(key);
         if (power == null) {
-            power = calculatePower(numReads, alleleFraction);
+            try {
+                power = calculatePower(numReads, alleleFraction);
+            } catch (final Exception ex) {
+                throw new GATKException("Power calculation failed", ex);
+            }
             cache.put(key, power);
-        } else {
-            numCacheHits++;
         }
         return power;
     }

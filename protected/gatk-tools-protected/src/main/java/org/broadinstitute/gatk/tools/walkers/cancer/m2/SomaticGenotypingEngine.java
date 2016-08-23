@@ -54,9 +54,11 @@ package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 import com.google.java.contract.Ensures;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.*;
+import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerGenotypingEngine;
 import org.broadinstitute.gatk.utils.GenomeLoc;
@@ -78,16 +80,33 @@ import java.util.*;
 
 public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
-    protected final M2ArgumentCollection MTAC;
+    private final M2ArgumentCollection MTAC;
     private final TumorPowerCalculator strandArtifactPowerCalculator;
-    final boolean REF_AND_ALT = false;
-    final boolean ALT_ONLY = true;
+
+    private final String tumorSampleName;
+    private final String matchedNormalSampleName;
+    private final String DEBUG_READ_NAME;
+
+    // {@link GenotypingEngine} requires a non-null {@link AFCalculatorProvider} but this class doesn't need it.  Thus we make a dummy
+    private static AFCalculatorProvider DUMMY_AF_CALCULATOR_PROVIDER = new AFCalculatorProvider() {
+        public AFCalculator getInstance(final int ploidy, final int maximumAltAlleles) { return null; }
+    };
 
     private final static Logger logger = Logger.getLogger(SomaticGenotypingEngine.class);
 
-    public SomaticGenotypingEngine(final M2ArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing, final M2ArgumentCollection MTAC) {
-        super(configuration, samples, genomeLocParser, afCalculatorProvider, doPhysicalPhasing);
+    public SomaticGenotypingEngine(final M2ArgumentCollection configuration,
+                                   final SampleList samples,
+                                   final GenomeLocParser genomeLocParser,
+                                   final boolean doPhysicalPhasing,
+                                   final M2ArgumentCollection MTAC,
+                                   final String tumorSampleName,
+                                   final String matchedNormalSampleName,
+                                   final String DEBUG_READ_NAME) {
+        super(configuration, samples, genomeLocParser, DUMMY_AF_CALCULATOR_PROVIDER, doPhysicalPhasing);
         this.MTAC = MTAC;
+        this.tumorSampleName = tumorSampleName;
+        this.matchedNormalSampleName = matchedNormalSampleName;
+        this.DEBUG_READ_NAME = DEBUG_READ_NAME;
         // coverage related initialization
         final double errorProbability = Math.pow(10, -(MTAC.POWER_CONSTANT_QSCORE/10));
         strandArtifactPowerCalculator = new TumorPowerCalculator(errorProbability, MTAC.STRAND_ARTIFACT_LOD_THRESHOLD, 0.0f);
@@ -105,37 +124,22 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
      * @param ref                                    Reference bytes at active region
      * @param refLoc                                 Corresponding active region genome location
      * @param activeRegionWindow                     Active window
-     * @param genomeLocParser                        GenomeLocParser
      * @param activeAllelesToGenotype                Alleles to genotype
-     * @param emitReferenceConfidence whether we should add a &lt;NON_REF&gt; alternative allele to the result variation contexts.
      *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      *
      */
-//    @Requires({"refLoc.containsP(activeRegionWindow)", "haplotypes.size() > 0"})
-    @Ensures("result != null")
     // TODO - can this be refactored? this is hard to follow!
     public CalledHaplotypes callMutations (
-                                                       final List<Haplotype> haplotypes,
-                                                       //final Map<String, PerReadAlleleLikelihoodMap> haplotypeReadMap,
-                                                       final ReadLikelihoods<Haplotype> readLikelihoods,
-                                                       final Map<String, Integer> originalNormalReadQualities,
-                                                       final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
-                                                       final byte[] ref,
-                                                       final GenomeLoc refLoc,
-                                                       final GenomeLoc activeRegionWindow,
-                                                       final GenomeLocParser genomeLocParser,
-                                                       final RefMetaDataTracker tracker,
-                                                       final List<VariantContext> activeAllelesToGenotype,
-                                                       final boolean emitReferenceConfidence,
-                                                       final String tumorSampleName,
-                                                       final String matchedNormalSampleName,
-                                                       final RodBinding<VariantContext> dbsnpRod,
-                                                       final List<RodBinding<VariantContext>> cosmicRod,
-                                                       final String DEBUG_READ_NAME
-
-    ) {
-
+            final List<Haplotype> haplotypes,
+            final ReadLikelihoods<Haplotype> readLikelihoods,
+            final Map<String, Integer> originalNormalReadQualities,
+            final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
+            final byte[] ref,
+            final GenomeLoc refLoc,
+            final GenomeLoc activeRegionWindow,
+            final RefMetaDataTracker tracker,
+            final List<VariantContext> activeAllelesToGenotype) {
         // sanity check input arguments
         if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
         if (readLikelihoods == null || readLikelihoods.sampleCount() == 0) throw new IllegalArgumentException("readLikelihoods input should be non-empty and non-null, got "+readLikelihoods);
@@ -143,8 +147,6 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         if (refLoc == null || refLoc.size() != ref.length) throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
         if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
         if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
-        if (genomeLocParser == null ) throw new IllegalArgumentException("genomeLocParser must be non-null, got "+genomeLocParser);
-
 
         // Somatic Tumor/Normal Sample Handling
         verifySamplePresence(tumorSampleName, readLikelihoods.samples());
@@ -159,293 +161,217 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         final List<VariantContext> returnCalls = new ArrayList<>();
 
         for( final int loc : startPosKeySet ) {
-            if( loc >= activeRegionWindow.getStart() && loc <= activeRegionWindow.getStop() ) { // genotyping an event inside this active region
-                final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, activeAllelesToGenotype);
-
-                if( eventsAtThisLoc.isEmpty() ) { continue; }
-
-                // Create the event mapping object which maps the original haplotype events to the events present at just this locus
-                final Map<Event, List<Haplotype>> eventMapper = createEventMapper(loc, eventsAtThisLoc, haplotypes);
-
-                // Sanity check the priority list for mistakes
-                final List<String> priorityList = makePriorityList(eventsAtThisLoc);
-
-                // Merge the event to find a common reference representation
-
-                VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList,
-                        GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED,
-                        GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
-
-                if( mergedVC == null ) { continue; }
-
-                if (emitReferenceConfidence)
-                    mergedVC = addNonRefSymbolicAllele(mergedVC);
-
-                final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
-                mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
-                for(int iii = 0; iii < eventsAtThisLoc.size(); iii++) {
-                    mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
-                }
-
-                final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
-
-                if( configuration.DEBUG && logger != null ) {
-                    if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
-                }
-
-                ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
-
-                //LDG: do we want to do this before or after pulling out overlapping reads?
-                if (MTAC.isSampleContaminationPresent())
-                    readAlleleLikelihoods.contaminationDownsampling(MTAC.getSampleContamination());
-
-                //if (!mergedVC.isBiallelic()) {
-                //    logger.info("[UNSUPPORTED] Detected non-Biallelic VC" + mergedVC.toString());
-                //    continue;
-                //}
-
-                // TODO: once tests are passing, refactor to use the new data structure (not the deprecated one)
-                // handle overlapping fragments
-                // TODO: CONFIRM WITH GSA IF IT IS OK TO REMOVE READS FROM THE PRALM (should be... they do it in filterPoorlyModeledReads!)
-                PerReadAlleleLikelihoodMap tumorPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(tumorSampleName));
-                filterPRALMForOverlappingReads(tumorPRALM, mergedVC.getReference(), loc, false);
-                MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in Tumor PRALM after filtering for overlapping reads");
-                // extend to multiple samples
-
-                // compute tumor LOD for each alternate allele
-                // TODO: somewhere we have to ensure that the all the alleles in the variant context is in alleleFractions passed to getHetGenotypeLogLikelihoods. getHetGenotypeLogLikelihoods will not check that for you
-                final PerAlleleCollection<Double> altAlleleFractions = estimateAlleleFraction(mergedVC, tumorPRALM, false);
-                final PerAlleleCollection<Double> tumorHetGenotypeLLs = getHetGenotypeLogLikelihoods(mergedVC, tumorPRALM, originalNormalReadQualities, altAlleleFractions);
-
-                if( configuration.DEBUG && logger != null ) {
-                    StringBuilder outputSB = new StringBuilder("Calculated allelic fraction at " + loc + " = [");
-                    for (Allele allele : altAlleleFractions.getAltAlleles()){
-                        outputSB.append( allele + ": " + altAlleleFractions.getAlt(allele) + ", ");
-                    }
-                    outputSB.append("]");
-                    logger.info(outputSB.toString());
-                }
-
-                final PerAlleleCollection<Double> tumorLods = PerAlleleCollection.createPerAltAlleleCollection();
-                for (Allele altAllele : mergedVC.getAlternateAlleles()){
-                    tumorLods.set(altAllele, tumorHetGenotypeLLs.get(altAllele) - tumorHetGenotypeLLs.getRef());
-                }
-
-                if (configuration.DEBUG && logger != null) {
-                    StringBuilder outputSB = new StringBuilder("Tumor LOD at " + loc + " = [");
-                    for (Allele altAllele : tumorLods.getAltAlleles()) {
-                        outputSB.append( altAllele + ": " + tumorLods.getAlt(altAllele) + ", ");
-                    }
-                    outputSB.append("]");
-                    logger.info(outputSB.toString());
-                }
-
-                double INIT_NORMAL_LOD_THRESHOLD = -Double.MAX_VALUE;
-                double NORMAL_LOD_THRESHOLD = -Double.MAX_VALUE;
-                PerReadAlleleLikelihoodMap normalPRALM = null;
-                PerAlleleCollection<Double> normalLods = PerAlleleCollection.createPerAltAlleleCollection();
-
-                // if normal bam is available, compute normal LOD
-                if (hasNormal) {
-                    normalPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(matchedNormalSampleName));
-                    filterPRALMForOverlappingReads(normalPRALM, mergedVC.getReference(), loc, true);
-                    MuTect2.logReadInfo(DEBUG_READ_NAME, normalPRALM.getLikelihoodReadMap().keySet(), "Present after in Nomral PRALM filtering for overlapping reads");
-
-                    GenomeLoc eventGenomeLoc = genomeLocParser.createGenomeLoc(activeRegionWindow.getContig(), loc);
-                    Collection<VariantContext> cosmicVC = tracker.getValues(cosmicRod, eventGenomeLoc);
-                    Collection<VariantContext> dbsnpVC = tracker.getValues(dbsnpRod, eventGenomeLoc);
-                    // remove the effect of cosmic from dbSNP
-                    final boolean germlineAtRisk = (!dbsnpVC.isEmpty() && cosmicVC.isEmpty());
-
-                    INIT_NORMAL_LOD_THRESHOLD = MTAC.INITIAL_NORMAL_LOD_THRESHOLD; //only set this if this job has a normal
-                    NORMAL_LOD_THRESHOLD = (germlineAtRisk)?MTAC.NORMAL_DBSNP_LOD_THRESHOLD:MTAC.NORMAL_LOD_THRESHOLD;
-
-
-                    // compute normal LOD = LL(X|REF)/LL(X|ALT) where ALT is the diploid HET with AF = 0.5
-                    // note normal LOD is REF over ALT, the reciprocal of the tumor LOD
-                    final PerAlleleCollection<Double> diploidHetAlleleFractions = PerAlleleCollection.createPerRefAndAltAlleleCollection();
-                    for (final Allele allele : mergedVC.getAlternateAlleles()){
-                        diploidHetAlleleFractions.setAlt(allele, 0.5);
-                    }
-
-                    final PerAlleleCollection<Double> normalGenotypeLLs = getHetGenotypeLogLikelihoods(mergedVC, normalPRALM, originalNormalReadQualities, diploidHetAlleleFractions);
-
-                    for (final Allele altAllele : mergedVC.getAlternateAlleles()){
-                        normalLods.setAlt(altAllele, normalGenotypeLLs.getRef() - normalGenotypeLLs.getAlt(altAllele));
-                    }
-
-                }
-
-                int numPassingAlts = 0;
-                Set<Allele> allelesThatPassThreshold = new HashSet<>();
-                Allele alleleWithHighestTumorLOD = null;
-
-                // TODO: use lambda
-                for (Allele altAllele : mergedVC.getAlternateAlleles()) {
-                    final boolean passesTumorLodThreshold = tumorLods.getAlt(altAllele) >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD;
-                    final boolean passesNormalLodThreshold = hasNormal ? normalLods.getAlt(altAllele) >= INIT_NORMAL_LOD_THRESHOLD : true;
-                    if (passesTumorLodThreshold && passesNormalLodThreshold) {
-                        numPassingAlts++;
-                        allelesThatPassThreshold.add(altAllele);
-                        if (alleleWithHighestTumorLOD == null
-                                || tumorLods.getAlt(altAllele) > tumorLods.getAlt(alleleWithHighestTumorLOD)){
-                            alleleWithHighestTumorLOD = altAllele;
-                        }
-                    }
-                }
-
-                final boolean emitVariant = numPassingAlts > 0;
-
-                VariantContext call = null;
-                if (emitVariant) {
-                    VariantContextBuilder callVcb = new VariantContextBuilder(mergedVC);
-                    // FIXME: can simply get first alternate since above we only deal with Bi-allelic sites...
-                    int haplotypeCount = alleleMapper.get(mergedVC.getAlternateAllele(0)).size();
-                    callVcb.attribute(GATKVCFConstants.HAPLOTYPE_COUNT_KEY, haplotypeCount);
-                    callVcb.attribute(GATKVCFConstants.TUMOR_LOD_KEY, tumorLods.getAlt(alleleWithHighestTumorLOD));
-
-                    if (hasNormal) {
-                        callVcb.attribute(GATKVCFConstants.NORMAL_LOD_KEY, normalLods.getAlt(alleleWithHighestTumorLOD));
-                        if (normalLods.getAlt(alleleWithHighestTumorLOD) < NORMAL_LOD_THRESHOLD) {
-                            callVcb.filter(GATKVCFConstants.GERMLINE_RISK_FILTER_NAME);
-                        }
-                    }
-
-                    // M1-style strand artifact filter
-                    // TODO: move code to MuTect2::calculateFilters()
-                    // skip if VC has multiple alleles - it will get filtered later anyway
-                    if (MTAC.ENABLE_STRAND_ARTIFACT_FILTER && numPassingAlts == 1) {
-                        final PerReadAlleleLikelihoodMap forwardPRALM = new PerReadAlleleLikelihoodMap();
-                        final PerReadAlleleLikelihoodMap reversePRALM = new PerReadAlleleLikelihoodMap();
-                        splitPRALMintoForwardAndReverseReads(tumorPRALM, forwardPRALM, reversePRALM);
-
-                        MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in tumor PRALM after PRALM is split");
-                        MuTect2.logReadInfo(DEBUG_READ_NAME, forwardPRALM.getLikelihoodReadMap().keySet(), "Present in forward PRALM after PRALM is split");
-                        MuTect2.logReadInfo(DEBUG_READ_NAME, reversePRALM.getLikelihoodReadMap().keySet(), "Present in reverse PRALM after PRALM is split");
-
-                        // TODO: build a new type for probability, likelihood, and log_likelihood. e.g. f_fwd :: probability[], tumorGLs_fwd :: likelihood[]
-                        // TODO: don't want to call getHetGenotypeLogLikelihoods on more than one alternate alelle. May need to overload it to take a scalar f_fwd.
-                        final PerAlleleCollection<Double> alleleFractionsForward = estimateAlleleFraction(mergedVC, forwardPRALM, true);
-                        final PerAlleleCollection<Double> tumorGenotypeLLForward = getHetGenotypeLogLikelihoods(mergedVC, forwardPRALM, originalNormalReadQualities, alleleFractionsForward);
-
-                        final PerAlleleCollection<Double> alleleFractionsReverse = estimateAlleleFraction(mergedVC, reversePRALM, true);
-                        final PerAlleleCollection<Double> tumorGenotypeLLReverse = getHetGenotypeLogLikelihoods(mergedVC, reversePRALM, originalNormalReadQualities, alleleFractionsReverse);
-
-                        if( configuration.DEBUG && logger != null ) {
-                            StringBuilder forwardMessage = new StringBuilder("Calculated forward allelic fraction at " + loc + " = [");
-                            StringBuilder reverseMessage = new StringBuilder("Calculated reverse allelic fraction at " + loc + " = [");
-
-                            for (Allele altAllele : altAlleleFractions.getAltAlleles()){
-                                forwardMessage.append( altAllele + ": " + alleleFractionsForward.getAlt(altAllele) + ", ");
-                                reverseMessage.append( altAllele + ": " + alleleFractionsReverse.getAlt(altAllele) + ", ");
-                            }
-
-                            forwardMessage.append("]");
-                            reverseMessage.append("]");
-
-                            logger.info(forwardMessage.toString());
-                            logger.info(reverseMessage.toString());
-                        }
-
-                        double tumorLod_fwd = tumorGenotypeLLForward.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLForward.getRef();
-                        double tumorLod_rev = tumorGenotypeLLReverse.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLReverse.getRef();
-
-                        double tumorSBpower_fwd = 0.0;
-                        double tumorSBpower_rev = 0.0;
-                        try {
-                            // Note that we use the observed combined (+ and -) allele fraction for power calculation in either direction
-                            tumorSBpower_fwd = strandArtifactPowerCalculator.cachedPowerCalculation(forwardPRALM.getNumberOfStoredElements(), altAlleleFractions.getAlt(alleleWithHighestTumorLOD));
-                            tumorSBpower_rev = strandArtifactPowerCalculator.cachedPowerCalculation(reversePRALM.getNumberOfStoredElements(), altAlleleFractions.getAlt(alleleWithHighestTumorLOD));
-                        }
-                        catch (Throwable t) {
-                            System.err.println("Error processing " + activeRegionWindow.getContig() + ":" + loc);
-                            t.printStackTrace(System.err);
-                            throw new RuntimeException(t);
-                        }
-
-                        callVcb.attribute(GATKVCFConstants.TLOD_FWD_KEY, tumorLod_fwd);
-                        callVcb.attribute(GATKVCFConstants.TLOD_REV_KEY, tumorLod_rev);
-                        callVcb.attribute(GATKVCFConstants.TUMOR_SB_POWER_FWD_KEY, tumorSBpower_fwd);
-                        callVcb.attribute(GATKVCFConstants.TUMOR_SB_POWER_REV_KEY, tumorSBpower_rev);
-                        // TODO: add vcf INFO fields. see callVcb.attribute(GATKVCFConstants.HAPLOTYPE_COUNT_KEY, haplotypeCount);
-
-                        if ((tumorSBpower_fwd > MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_fwd < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) ||
-                                (tumorSBpower_rev > MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_rev < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD))
-                            callVcb.filter(GATKVCFConstants.STRAND_ARTIFACT_FILTER_NAME);
-                    }
-
-                    // TODO: this probably belongs in M2::calculateFilters()
-                    if (numPassingAlts > 1) {
-                        callVcb.filter(GATKVCFConstants.TRIALLELIC_SITE_FILTER_NAME);
-                    }
-
-                    // build genotypes TODO: this part needs review and refactor
-                    List<Allele> tumorAlleles = new ArrayList<>();
-                    tumorAlleles.add(mergedVC.getReference());
-                    tumorAlleles.add(alleleWithHighestTumorLOD);
-                    Genotype tumorGenotype = new GenotypeBuilder(tumorSampleName, tumorAlleles)
-                            .attribute(GATKVCFConstants.ALLELE_FRACTION_KEY, altAlleleFractions.getAlt(alleleWithHighestTumorLOD))
-                            .make(); // TODO: add ADs?
-                    List<Genotype> genotypes = new ArrayList<>();
-                    genotypes.add(tumorGenotype);
-
-                    // We assume that the genotype in the normal is 0/0
-                    // TODO: is normal always homozygous reference?
-                    List<Allele> homRefAllelesforNormalGenotype = new ArrayList<>();
-                    homRefAllelesforNormalGenotype.addAll(Collections.nCopies(2, mergedVC.getReference()));
-
-                    // if we are calling with a normal, build the genotype for the sample to appear in vcf
-                    int REF = 0, ALT = 1;
-                    if (hasNormal) {
-                        PerAlleleCollection<Integer> normalCounts = getRefAltCount(mergedVC, normalPRALM, false);
-                        final int normalRefAlleleDepth = normalCounts.getRef();
-                        final int normalAltAlleleDepth = normalCounts.getAlt(alleleWithHighestTumorLOD);
-                        final int[] normalAlleleDepths = { normalRefAlleleDepth, normalAltAlleleDepth };
-                        final double normalAlleleFraction = (double) normalAltAlleleDepth / ( normalRefAlleleDepth + normalAltAlleleDepth);
-
-                        final Genotype normalGenotype = new GenotypeBuilder(matchedNormalSampleName, homRefAllelesforNormalGenotype)
-                                .AD(normalAlleleDepths)
-                                .attribute(GATKVCFConstants.ALLELE_FRACTION_KEY, normalAlleleFraction)
-                                .make();
-                        genotypes.add(normalGenotype);
-                    }
-
-                    //only use alleles found in the tumor (
-                    call = new VariantContextBuilder(callVcb).alleles(tumorAlleles).genotypes(genotypes).make();
-
-                }
-
-                // how should we be making use of _perSampleFilteredReadList_?
-                if( call != null ) {
-                    readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
-                            genomeLocParser, emitReferenceConfidence, alleleMapper, readAlleleLikelihoods, call);
-
-                    ReferenceContext referenceContext = new ReferenceContext(genomeLocParser, genomeLocParser.createGenomeLoc(mergedVC.getChr(), mergedVC.getStart(), mergedVC.getEnd()), refLoc, ref);
-                    VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(referenceContext, tracker, readAlleleLikelihoods, call, false);
-
-                    if( call.getAlleles().size() != mergedVC.getAlleles().size() )
-                        annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
-
-                    // maintain the set of all called haplotypes
-                    for ( final Allele calledAllele : call.getAlleles() ) {
-                        final List<Haplotype> haplotypeList = alleleMapper.get(calledAllele);
-                        if (haplotypeList == null) continue;
-                        calledHaplotypes.addAll(haplotypeList);
-                    }
-
-                    returnCalls.add( annotatedCall );
-                }
-
+            if( loc < activeRegionWindow.getStart() || loc > activeRegionWindow.getStop() ) {
+                continue;
             }
+            final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, activeAllelesToGenotype);
+
+            if( eventsAtThisLoc.isEmpty() ) { continue; }
+
+            // Create the event mapping object which maps the original haplotype events to the events present at just this locus
+            final Map<Event, List<Haplotype>> eventMapper = createEventMapper(loc, eventsAtThisLoc, haplotypes);
+
+            final List<String> priorityList = makePriorityList(eventsAtThisLoc);
+
+            VariantContext mergedVC = GATKVariantContextUtils.simpleMerge(eventsAtThisLoc, priorityList,
+                    GATKVariantContextUtils.FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED,
+                    GATKVariantContextUtils.GenotypeMergeType.PRIORITIZE, false, false, null, false, false);
+
+            if( mergedVC == null ) { continue; }
+
+            final Map<VariantContext, Allele> mergeMap = new LinkedHashMap<>();
+            mergeMap.put(null, mergedVC.getReference()); // the reference event (null) --> the reference allele
+            for(int iii = 0; iii < eventsAtThisLoc.size(); iii++) {
+                mergeMap.put(eventsAtThisLoc.get(iii), mergedVC.getAlternateAllele(iii)); // BUGBUG: This is assuming that the order of alleles is the same as the priority list given to simpleMerge function
+            }
+
+            final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
+
+            ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
+
+            //LDG: do we want to do this before or after pulling out overlapping reads?
+            if (MTAC.isSampleContaminationPresent())
+                readAlleleLikelihoods.contaminationDownsampling(MTAC.getSampleContamination());
+
+            final PerReadAlleleLikelihoodMap tumorPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(tumorSampleName));
+            filterPRALMForOverlappingReads(tumorPRALM, mergedVC.getReference(), loc, false);
+            MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in Tumor PRALM after filtering for overlapping reads");
+            // extend to multiple samples
+
+            // compute tumor LOD for each alternate allele
+            // TODO: somewhere we have to ensure that the all the alleles in the variant context is in alleleFractions passed to getHetGenotypeLogLikelihoods. getHetGenotypeLogLikelihoods will not check that for you
+            final PerAlleleCollection<Double> altAlleleFractions = estimateAlleleFraction(mergedVC, tumorPRALM, false);
+            final PerAlleleCollection<Double> tumorHetGenotypeLLs = getHetGenotypeLogLikelihoods(mergedVC, tumorPRALM, originalNormalReadQualities, altAlleleFractions);
+
+            final PerAlleleCollection<Double> tumorLods = PerAlleleCollection.createPerAltAlleleCollection();
+            for (final Allele altAllele : mergedVC.getAlternateAlleles()){
+                tumorLods.set(altAllele, tumorHetGenotypeLLs.get(altAllele) - tumorHetGenotypeLLs.getRef());
+            }
+
+            double INIT_NORMAL_LOD_THRESHOLD = -Double.MAX_VALUE;
+            double NORMAL_LOD_THRESHOLD = -Double.MAX_VALUE;
+            PerReadAlleleLikelihoodMap normalPRALM = null;
+            final PerAlleleCollection<Double> normalLods = PerAlleleCollection.createPerAltAlleleCollection();
+
+            // if normal bam is available, compute normal LOD
+            if (hasNormal) {
+                normalPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(matchedNormalSampleName));
+                filterPRALMForOverlappingReads(normalPRALM, mergedVC.getReference(), loc, true);
+                MuTect2.logReadInfo(DEBUG_READ_NAME, normalPRALM.getLikelihoodReadMap().keySet(), "Present after in Nomral PRALM filtering for overlapping reads");
+
+                final GenomeLoc eventGenomeLoc = genomeLocParser.createGenomeLoc(activeRegionWindow.getContig(), loc);
+                final Collection<VariantContext> cosmicVC = tracker.getValues(MTAC.cosmicRod, eventGenomeLoc);
+                final Collection<VariantContext> dbsnpVC = tracker.getValues(MTAC.dbsnp.dbsnp, eventGenomeLoc);
+                // remove the effect of cosmic from dbSNP
+                final boolean germlineAtRisk = (!dbsnpVC.isEmpty() && cosmicVC.isEmpty());
+
+                INIT_NORMAL_LOD_THRESHOLD = MTAC.INITIAL_NORMAL_LOD_THRESHOLD; //only set this if this job has a normal
+                NORMAL_LOD_THRESHOLD = (germlineAtRisk)?MTAC.NORMAL_DBSNP_LOD_THRESHOLD:MTAC.NORMAL_LOD_THRESHOLD;
+
+                // compute normal LOD = LL(X|REF)/LL(X|ALT) where ALT is the diploid HET with AF = 0.5
+                // note normal LOD is REF over ALT, the reciprocal of the tumor LOD
+                final PerAlleleCollection<Double> diploidHetAlleleFractions = PerAlleleCollection.createPerRefAndAltAlleleCollection();
+                for (final Allele allele : mergedVC.getAlternateAlleles()){
+                    diploidHetAlleleFractions.setAlt(allele, 0.5);
+                }
+
+                final PerAlleleCollection<Double> normalGenotypeLLs = getHetGenotypeLogLikelihoods(mergedVC, normalPRALM, originalNormalReadQualities, diploidHetAlleleFractions);
+
+                for (final Allele altAllele : mergedVC.getAlternateAlleles()){
+                    normalLods.setAlt(altAllele, normalGenotypeLLs.getRef() - normalGenotypeLLs.getAlt(altAllele));
+                }
+            }
+
+            int numPassingAlts = 0;
+            final Set<Allele> allelesThatPassThreshold = new HashSet<>();
+            Allele alleleWithHighestTumorLOD = null;
+
+            // TODO: use lambda
+            for (final Allele altAllele : mergedVC.getAlternateAlleles()) {
+                final boolean passesTumorLodThreshold = tumorLods.getAlt(altAllele) >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD;
+                final boolean passesNormalLodThreshold = hasNormal ? normalLods.getAlt(altAllele) >= INIT_NORMAL_LOD_THRESHOLD : true;
+                if (passesTumorLodThreshold && passesNormalLodThreshold) {
+                    numPassingAlts++;
+                    allelesThatPassThreshold.add(altAllele);
+                    if (alleleWithHighestTumorLOD == null
+                            || tumorLods.getAlt(altAllele) > tumorLods.getAlt(alleleWithHighestTumorLOD)){
+                        alleleWithHighestTumorLOD = altAllele;
+                    }
+                }
+            }
+            if (numPassingAlts == 0) {
+                continue;
+            }
+
+
+            final VariantContextBuilder callVcb = new VariantContextBuilder(mergedVC);
+            // FIXME: can simply get first alternate since above we only deal with Bi-allelic sites...
+            final int haplotypeCount = alleleMapper.get(mergedVC.getAlternateAllele(0)).size();
+            callVcb.attribute(GATKVCFConstants.HAPLOTYPE_COUNT_KEY, haplotypeCount);
+            callVcb.attribute(GATKVCFConstants.TUMOR_LOD_KEY, tumorLods.getAlt(alleleWithHighestTumorLOD));
+
+            if (hasNormal) {
+                callVcb.attribute(GATKVCFConstants.NORMAL_LOD_KEY, normalLods.getAlt(alleleWithHighestTumorLOD));
+                if (normalLods.getAlt(alleleWithHighestTumorLOD) < NORMAL_LOD_THRESHOLD) {
+                    callVcb.filter(GATKVCFConstants.GERMLINE_RISK_FILTER_NAME);
+                }
+            }
+
+            // M1-style strand artifact filter
+            // TODO: move code to MuTect2::calculateFilters()
+            // skip if VC has multiple alleles - it will get filtered later anyway
+            if (MTAC.ENABLE_STRAND_ARTIFACT_FILTER && numPassingAlts == 1) {
+                final PerReadAlleleLikelihoodMap forwardPRALM = new PerReadAlleleLikelihoodMap();
+                final PerReadAlleleLikelihoodMap reversePRALM = new PerReadAlleleLikelihoodMap();
+                splitPRALMintoForwardAndReverseReads(tumorPRALM, forwardPRALM, reversePRALM);
+
+                MuTect2.logReadInfo(DEBUG_READ_NAME, tumorPRALM.getLikelihoodReadMap().keySet(), "Present in tumor PRALM after PRALM is split");
+                MuTect2.logReadInfo(DEBUG_READ_NAME, forwardPRALM.getLikelihoodReadMap().keySet(), "Present in forward PRALM after PRALM is split");
+                MuTect2.logReadInfo(DEBUG_READ_NAME, reversePRALM.getLikelihoodReadMap().keySet(), "Present in reverse PRALM after PRALM is split");
+
+                // TODO: build a new type for probability, likelihood, and log_likelihood. e.g. f_fwd :: probability[], tumorGLs_fwd :: likelihood[]
+                // TODO: don't want to call getHetGenotypeLogLikelihoods on more than one alternate alelle. May need to overload it to take a scalar f_fwd.
+                final PerAlleleCollection<Double> alleleFractionsForward = estimateAlleleFraction(mergedVC, forwardPRALM, true);
+                final PerAlleleCollection<Double> tumorGenotypeLLForward = getHetGenotypeLogLikelihoods(mergedVC, forwardPRALM, originalNormalReadQualities, alleleFractionsForward);
+
+                final PerAlleleCollection<Double> alleleFractionsReverse = estimateAlleleFraction(mergedVC, reversePRALM, true);
+                final PerAlleleCollection<Double> tumorGenotypeLLReverse = getHetGenotypeLogLikelihoods(mergedVC, reversePRALM, originalNormalReadQualities, alleleFractionsReverse);
+
+                final double tumorLod_fwd = tumorGenotypeLLForward.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLForward.getRef();
+                final double tumorLod_rev = tumorGenotypeLLReverse.getAlt(alleleWithHighestTumorLOD) - tumorGenotypeLLReverse.getRef();
+
+                // Note that we use the observed combined (+ and -) allele fraction for power calculation in either direction
+                final double tumorSBpower_fwd = strandArtifactPowerCalculator.cachedPowerCalculation(forwardPRALM.getNumberOfStoredElements(), altAlleleFractions.getAlt(alleleWithHighestTumorLOD));
+                final double tumorSBpower_rev = strandArtifactPowerCalculator.cachedPowerCalculation(reversePRALM.getNumberOfStoredElements(), altAlleleFractions.getAlt(alleleWithHighestTumorLOD));
+
+
+                callVcb.attribute(GATKVCFConstants.TLOD_FWD_KEY, tumorLod_fwd);
+                callVcb.attribute(GATKVCFConstants.TLOD_REV_KEY, tumorLod_rev);
+                callVcb.attribute(GATKVCFConstants.TUMOR_SB_POWER_FWD_KEY, tumorSBpower_fwd);
+                callVcb.attribute(GATKVCFConstants.TUMOR_SB_POWER_REV_KEY, tumorSBpower_rev);
+                // TODO: add vcf INFO fields. see callVcb.attribute(GATKVCFConstants.HAPLOTYPE_COUNT_KEY, haplotypeCount);
+
+                if ((tumorSBpower_fwd > MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_fwd < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD) ||
+                        (tumorSBpower_rev > MTAC.STRAND_ARTIFACT_POWER_THRESHOLD && tumorLod_rev < MTAC.STRAND_ARTIFACT_LOD_THRESHOLD))
+                    callVcb.filter(GATKVCFConstants.STRAND_ARTIFACT_FILTER_NAME);
+            }
+
+            // TODO: this probably belongs in M2::calculateFilters()
+            if (numPassingAlts > 1) {
+                callVcb.filter(GATKVCFConstants.TRIALLELIC_SITE_FILTER_NAME);
+            }
+
+            // build genotypes TODO: this part needs review and refactor
+            final List<Allele> tumorAlleles = Arrays.asList(mergedVC.getReference(), alleleWithHighestTumorLOD);
+            final Genotype tumorGenotype = new GenotypeBuilder(tumorSampleName, tumorAlleles)
+                    .attribute(GATKVCFConstants.ALLELE_FRACTION_KEY, altAlleleFractions.getAlt(alleleWithHighestTumorLOD))
+                    .make(); // TODO: add ADs?
+            final List<Genotype> genotypes = new ArrayList<>();
+            genotypes.add(tumorGenotype);
+
+            // We assume that the genotype in the normal is 0/0
+            // TODO: is normal always homozygous reference?
+            final List<Allele> homRefAllelesforNormalGenotype = Collections.nCopies(2, mergedVC.getReference());
+
+            // if we are calling with a normal, build the genotype for the sample to appear in vcf
+            if (hasNormal) {
+                final PerAlleleCollection<Integer> normalCounts = getRefAltCount(mergedVC, normalPRALM, false);
+                final int normalRefAlleleDepth = normalCounts.getRef();
+                final int normalAltAlleleDepth = normalCounts.getAlt(alleleWithHighestTumorLOD);
+                final int[] normalAlleleDepths = { normalRefAlleleDepth, normalAltAlleleDepth };
+                final double normalAlleleFraction = (double) normalAltAlleleDepth / ( normalRefAlleleDepth + normalAltAlleleDepth);
+
+                final Genotype normalGenotype = new GenotypeBuilder(matchedNormalSampleName, homRefAllelesforNormalGenotype)
+                        .AD(normalAlleleDepths)
+                        .attribute(GATKVCFConstants.ALLELE_FRACTION_KEY, normalAlleleFraction)
+                        .make();
+                genotypes.add(normalGenotype);
+            }
+
+            //only use alleles found in the tumor (
+            final VariantContext call = new VariantContextBuilder(callVcb).alleles(tumorAlleles).genotypes(genotypes).make();
+
+            // how should we be making use of _perSampleFilteredReadList_?
+            readAlleleLikelihoods = prepareReadAlleleLikelihoodsForAnnotation(readLikelihoods, perSampleFilteredReadList,
+                    genomeLocParser, false, alleleMapper, readAlleleLikelihoods, call);
+
+            final ReferenceContext referenceContext = new ReferenceContext(genomeLocParser, genomeLocParser.createGenomeLoc(mergedVC.getChr(), mergedVC.getStart(), mergedVC.getEnd()), refLoc, ref);
+            VariantContext annotatedCall = annotationEngine.annotateContextForActiveRegion(referenceContext, tracker, readAlleleLikelihoods, call, false);
+
+            if( call.getAlleles().size() != mergedVC.getAlleles().size() )
+                annotatedCall = GATKVariantContextUtils.reverseTrimAlleles(annotatedCall);
+
+            // maintain the set of all called haplotypes
+            call.getAlleles().stream().map(alleleMapper::get).filter(Objects::nonNull).forEach(calledHaplotypes::addAll);
+            returnCalls.add( annotatedCall );
         }
 
         // TODO: understand effect of enabling this for somatic calling...
-        final List<VariantContext> phasedCalls = doPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
-         return new CalledHaplotypes(phasedCalls, calledHaplotypes);
-        //return new CalledHaplotypes(returnCalls, calledHaplotypes);
+        final List<VariantContext> outputCalls = doPhysicalPhasing ? phaseCalls(returnCalls, calledHaplotypes) : returnCalls;
+        return new CalledHaplotypes(outputCalls, calledHaplotypes);
     }
 
-    private void verifySamplePresence(String sampleName, List<String> samples) {
+    private void verifySamplePresence(final String sampleName, final List<String> samples) {
         if (!samples.contains(sampleName)) {
             throw new IllegalArgumentException("Unable to find sample name "+sampleName+"in sample list of " + StringUtil.join(",", samples));
         }
@@ -459,7 +385,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
      * @param alleleFractions                       allele fraction(s) for alternate allele(s)
      *
      * @return                                      genotype likelihoods for homRef and het for each alternate allele
-    */
+     */
     private PerAlleleCollection<Double> getHetGenotypeLogLikelihoods(final VariantContext mergedVC,
                                                                      final PerReadAlleleLikelihoodMap tumorPRALM,
                                                                      final Map<String, Integer> originalNormalMQs,
@@ -470,13 +396,11 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         }
 
         final PerAlleleCollection<MutableDouble> genotypeLogLikelihoods = PerAlleleCollection.createPerRefAndAltAlleleCollection();
-        for (final Allele allele : mergedVC.getAlleles()){
-            genotypeLogLikelihoods.set(allele, new MutableDouble(0.0));
-        }
+        mergedVC.getAlleles().forEach(a -> genotypeLogLikelihoods.set(a, new MutableDouble(0)));
 
         final Allele refAllele = mergedVC.getReference();
         for(Map.Entry<GATKSAMRecord,Map<Allele, Double>> readAlleleLikelihoodMap : tumorPRALM.getLikelihoodReadMap().entrySet()) {
-            Map<Allele, Double> alleleLikelihoodMap = readAlleleLikelihoodMap.getValue();
+            final Map<Allele, Double> alleleLikelihoodMap = readAlleleLikelihoodMap.getValue();
             if (originalNormalMQs.get(readAlleleLikelihoodMap.getKey().getReadName()) == 0) {
                 continue;
             }
@@ -484,9 +408,9 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
             final double readRefLogLikelihood = alleleLikelihoodMap.get(refAllele);
             genotypeLogLikelihoods.getRef().add(readRefLogLikelihood);
 
-            for (Allele altAllele : alleleFractions.getAltAlleles()) {
-                double readAltLogLikelihood = alleleLikelihoodMap.get(altAllele);
-                double adjustedReadAltLL = Math.log10(
+            for (final Allele altAllele : alleleFractions.getAltAlleles()) {
+                final double readAltLogLikelihood = alleleLikelihoodMap.get(altAllele);
+                final double adjustedReadAltLL = Math.log10(
                         Math.pow(10, readRefLogLikelihood) * (1 - alleleFractions.getAlt(altAllele)) +
                                 Math.pow(10, readAltLogLikelihood) * alleleFractions.getAlt(altAllele)
                 );
@@ -515,9 +439,9 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         final PerAlleleCollection<Integer> alleleCounts = getRefAltCount(vc, pralm, oneStrandOnly);
         final PerAlleleCollection<Double> alleleFractions = PerAlleleCollection.createPerAltAlleleCollection();
 
-        int refCount = alleleCounts.getRef();
+        final int refCount = alleleCounts.getRef();
         for ( final Allele altAllele : vc.getAlternateAlleles() ) {
-            int altCount = alleleCounts.getAlt(altAllele);
+            final int altCount = alleleCounts.getAlt(altAllele);
             double alleleFraction = (double) altCount / (refCount + altCount);
             // weird case, but I've seen it happen in one strand cases
             if (refCount == 0 && altCount == refCount ) {
@@ -552,16 +476,12 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
 
         final PerAlleleCollection<MutableInt> alleleCounts = PerAlleleCollection.createPerRefAndAltAlleleCollection();
-
-        // initialize the allele counts to 0
-        for (final Allele allele : vcAlleles) {
-            alleleCounts.set(allele, new MutableInt(0));
-        }
+        vcAlleles.stream().forEach(a -> alleleCounts.set(a, new MutableInt(0)));
 
         for (final Map.Entry<GATKSAMRecord, Map<Allele, Double>> readAlleleLikelihoodMap : pralm.getLikelihoodReadMap().entrySet()) {
             final GATKSAMRecord read = readAlleleLikelihoodMap.getKey();
             final Map<Allele, Double> alleleLikelihoodMap = readAlleleLikelihoodMap.getValue();
-            MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(alleleLikelihoodMap, vcAlleles);
+            final MostLikelyAllele mostLikelyAllele = PerReadAlleleLikelihoodMap.getMostLikelyAllele(alleleLikelihoodMap, vcAlleles);
 
             if (read.getMappingQuality() > 0 && mostLikelyAllele.isInformative()) {
                 alleleCounts.get(mostLikelyAllele.getMostLikelyAllele()).increment();
@@ -581,18 +501,16 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         }
     }
 
-    private void filterPRALMForOverlappingReads(PerReadAlleleLikelihoodMap pralm, Allele ref, int location, boolean retainMismatches) {
-
-        Map<GATKSAMRecord, Map<Allele, Double>> m = pralm.getLikelihoodReadMap();
-
+    private void filterPRALMForOverlappingReads(final PerReadAlleleLikelihoodMap pralm, final Allele ref, final int location, final boolean retainMismatches) {
+        final Map<GATKSAMRecord, Map<Allele, Double>> m = pralm.getLikelihoodReadMap();
 
         // iterate through the reads, if the name has been seen before we have overlapping (potentially) fragments, so handle them
-        Map<String, GATKSAMRecord> nameToRead = new HashMap<>();
-        Set<GATKSAMRecord> readsToKeep = new HashSet<>();
+        final Map<String, GATKSAMRecord> nameToRead = new HashMap<>();
+        final Set<GATKSAMRecord> readsToKeep = new HashSet<>();
 
-        for(GATKSAMRecord rec : m.keySet()) {
+        for(final GATKSAMRecord rec : m.keySet()) {
             // if we haven't seen it... just record the name and add it to the list of reads to keep
-            GATKSAMRecord existing = nameToRead.get(rec.getReadName());
+            final GATKSAMRecord existing = nameToRead.get(rec.getReadName());
             if (existing == null) {
                 nameToRead.put(rec.getReadName(), rec);
                 readsToKeep.add(rec);
@@ -604,11 +522,11 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 // TODO: CHECK IF THE READS BOTH OVERLAP THE POSITION!!!!
                 if ( ReadUtils.isInsideRead(existing, location) && ReadUtils.isInsideRead(rec, location) ) {
 
-                    MostLikelyAllele existingMLA = pralm.getMostLikelyAllele(pralm.getLikelihoodReadMap().get(existing));
-                    Allele existingAllele = existingMLA.getMostLikelyAllele();
+                    final MostLikelyAllele existingMLA = PerReadAlleleLikelihoodMap.getMostLikelyAllele(pralm.getLikelihoodReadMap().get(existing));
+                    final Allele existingAllele = existingMLA.getMostLikelyAllele();
 
-                    MostLikelyAllele recMLA = pralm.getMostLikelyAllele(pralm.getLikelihoodReadMap().get(rec));
-                    Allele recAllele = recMLA.getMostLikelyAllele();
+                    final MostLikelyAllele recMLA = PerReadAlleleLikelihoodMap.getMostLikelyAllele(pralm.getLikelihoodReadMap().get(rec));
+                    final Allele recAllele = recMLA.getMostLikelyAllele();
 
                     // if the reads disagree at this position...
                     if (!existingAllele.equals(recAllele)) {
@@ -654,7 +572,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
     }
 
     private void splitPRALMintoForwardAndReverseReads(final PerReadAlleleLikelihoodMap originalPRALM, final PerReadAlleleLikelihoodMap forwardPRALM, final PerReadAlleleLikelihoodMap reversePRALM) {
-        Map<GATKSAMRecord, Map<Allele, Double>> origReadAlleleLikelihoodMap = originalPRALM.getLikelihoodReadMap();
+        final Map<GATKSAMRecord, Map<Allele, Double>> origReadAlleleLikelihoodMap = originalPRALM.getLikelihoodReadMap();
         for (final GATKSAMRecord read : origReadAlleleLikelihoodMap.keySet()) {
             if (read.isStrandless())
                 continue;
@@ -669,17 +587,4 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
             }
         }
     }
-
-
-    // Move to utility class so we can use one shared with HaplotypeCallerGenotypingEngine
-    private VariantContext addNonRefSymbolicAllele(final VariantContext mergedVC) {
-        final VariantContextBuilder vcb = new VariantContextBuilder(mergedVC);
-        final List<Allele> originalList = mergedVC.getAlleles();
-        final List<Allele> alleleList = new ArrayList<>(originalList.size() + 1);
-        alleleList.addAll(mergedVC.getAlleles());
-        alleleList.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
-        vcb.alleles(alleleList);
-        return vcb.make();
-    }
-
 }
