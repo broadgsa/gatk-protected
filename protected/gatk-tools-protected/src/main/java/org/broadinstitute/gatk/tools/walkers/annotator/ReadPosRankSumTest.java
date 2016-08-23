@@ -106,7 +106,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
 
         // If the offset inside a deletion, it does not lie on a read.
         if ( AlignmentUtils.isInsideDeletion(read.getCigar(), offset) ) {
-            return INVALID_READ_POSITION;
+            return INVALID_ELEMENT_FROM_READ;
         }
 
         int readPos = AlignmentUtils.calcAlignmentByteArrayOffset( read.getCigar(), offset, false, 0, 0 );

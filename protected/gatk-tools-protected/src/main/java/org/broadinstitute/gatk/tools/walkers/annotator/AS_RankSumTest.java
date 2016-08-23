@@ -278,7 +278,7 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
             if ( isUsableRead(read, refLoc) ) {
                 final Double value = getElementForRead(read, refLoc, a);
                 // Bypass read if the clipping goal is not reached or the refloc is inside a spanning deletion
-                if ( value == null || value < 0.0 )
+                if ( value == null || value == INVALID_ELEMENT_FROM_READ )
                     continue;
 
                 if(perAlleleValues.containsKey(a.getMostLikelyAllele()))

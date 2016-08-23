@@ -458,7 +458,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerGVCSpanDel() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L 1:26357667 -ERC GVCF --no_cmdline_in_header -A AS_ReadPosRankSumTest -A ReadPosRankSumTest -variant_index_type %s -variant_index_parameter %d",
                 b37KGReference, privateTestDir + "NexPond-377866-1:26357600-26357700.bam", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("93bc22340e6a4b01a7b96e5a3a12dfc3"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("b8f0bb74bc099a8f78d600d88861e1b6"));
         spec.disableShadowBCF();
         executeTest("testHaplotypeCallerGVCSpanDel", spec);
     }
