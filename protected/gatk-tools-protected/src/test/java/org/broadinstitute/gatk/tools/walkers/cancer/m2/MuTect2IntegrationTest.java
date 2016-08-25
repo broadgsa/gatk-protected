@@ -70,8 +70,6 @@ public class MuTect2IntegrationTest extends WalkerTest {
     final static String DREAM3_TP_INTERVALS_FILE = privateTestDir + "m2_dream3.tp.intervals";
     final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
 
-
-
     final String commandLine =
             "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
 
@@ -160,9 +158,6 @@ public class MuTect2IntegrationTest extends WalkerTest {
         M2Test(CCLE_MICRO_TUMOR_BAM, CCLE_MICRO_NORMAL_BAM, CCLE_MICRO_INTERVALS_FILE, "-contamination 0.1", "c25e48edd704bbb436cd6456d9f47d8b");
     }
 
-    /**
-     *  Test that tumor-only mode does not create an empty vcf
-     */
     @Test
     public void testTumorOnly(){
         m2TumorOnlyTest(CCLE_MICRO_TUMOR_BAM, "2:166000000-167000000", "", "2af2253b1f09ea8fd354e1bf2c4612f0");
@@ -177,6 +172,4 @@ public class MuTect2IntegrationTest extends WalkerTest {
     public void testClusteredReadPositionFilter() {
         M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_clustered_read_position_filter", "b44c23af7de84f96d2371db25d29aba2");
     }
-
-
 }
