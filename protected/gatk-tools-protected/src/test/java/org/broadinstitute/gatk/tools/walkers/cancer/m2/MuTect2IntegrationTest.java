@@ -149,7 +149,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
      */
     @Test
     public void testFalsePositivesDream3() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "c23f794866797f9bbcb3ed04451758be"); // e2413f4166b6ed20be6cdee6616ba43d
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "", "c9eec57bbc93ea630c202b7620f8dca8"); // e2413f4166b6ed20be6cdee6616ba43d
     }
 
     /**
@@ -170,12 +170,12 @@ public class MuTect2IntegrationTest extends WalkerTest {
 
     @Test
     public void testStrandArtifactFilter(){
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_strand_artifact_filter", "75c9349ff9f8dc84291396ac50871f64");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_strand_artifact_filter", "1686c1a0e63768497f21b9d7bb6548c5");
     }
 
     @Test
     public void testClusteredReadPositionFilter() {
-        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_clustered_read_position_filter", "c333f7dc11e39e0713147ad9af2bf4db");
+        M2Test(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, DREAM3_FP_INTERVALS_FILE, "--enable_clustered_read_position_filter", "b44c23af7de84f96d2371db25d29aba2");
     }
 
 
