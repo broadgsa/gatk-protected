@@ -60,6 +60,7 @@ import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AlleleFrequencyCalculator;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -107,6 +108,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     private final List<GenomeLoc> upstreamDeletionsLoc = new LinkedList<>();
 
+    protected final AFCalculator newAFCalculator;
+
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
      *
@@ -139,6 +142,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         log10AlleleFrequencyPriorsIndels = composeAlleleFrequencyPriorProvider(numberOfGenomes,
                 configuration.genotypeArgs.indelHeterozygosity, configuration.genotypeArgs.inputPrior);
         this.genomeLocParser = genomeLocParser;
+
+        final double refPseudocount = configuration.genotypeArgs.snpHeterozygosity / Math.pow(configuration.genotypeArgs.heterozygosityStandardDeviation,2);
+        final double snpPseudocount = configuration.genotypeArgs.snpHeterozygosity * refPseudocount;
+        final double indelPseudocount = configuration.genotypeArgs.indelHeterozygosity * refPseudocount;
+        newAFCalculator = new AlleleFrequencyCalculator(refPseudocount, snpPseudocount, indelPseudocount, configuration.genotypeArgs.samplePloidy);
     }
 
     protected GenotypingEngine(final Config configuration, final SampleList samples,
@@ -230,8 +238,15 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
         final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
-        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
-        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
+
+        // NOTE: in GATK4, allele subsetting has been extracted out of the AFCalculator into a utils class
+        // The new AFCalculator (AlleleFrequencyCalculator) of GATK4 therefore does not implement this subsetting,
+        // which *includes attaching a genotype call to a VariantContext*.  In order to backport the new AFCalculator
+        // it is necessary to use it only for the qual score calculation and not for any other duties.
+        final AFCalculator afCalculatorForAlleleSubsetting = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
+        final AFCalculator afCalculatorForQualScore = configuration.genotypeArgs.USE_NEW_AF_CALCULATOR ? newAFCalculator : afCalculatorForAlleleSubsetting;
+
+        final AFCalculationResult AFresult = afCalculatorForQualScore.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult, vc);
 
@@ -274,7 +289,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         // create the genotypes
 
-        final GenotypesContext genotypes = afCalculator.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
+        final GenotypesContext genotypes = afCalculatorForAlleleSubsetting.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
         builder.genotypes(genotypes);
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
