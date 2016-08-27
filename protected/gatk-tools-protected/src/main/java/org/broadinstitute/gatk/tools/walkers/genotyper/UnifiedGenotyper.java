@@ -116,7 +116,6 @@ import java.util.*;
  *   --dbsnp dbSNP.vcf \
  *   -o snps.raw.vcf \
  *   -stand_call_conf [50.0] \
- *   -stand_emit_conf 10.0 \
  *   [-L targets.interval_list]
  * </pre>
  *
