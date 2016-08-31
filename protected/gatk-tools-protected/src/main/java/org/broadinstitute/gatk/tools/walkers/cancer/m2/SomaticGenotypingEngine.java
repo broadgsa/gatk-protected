@@ -51,10 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import com.google.java.contract.Ensures;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.*;
-import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.log4j.Logger;
@@ -63,7 +60,6 @@ import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvid
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerGenotypingEngine;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
-import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
@@ -87,6 +83,9 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
     private final String matchedNormalSampleName;
     private final String DEBUG_READ_NAME;
 
+    //Mutect2 does not run in GGA mode
+    private static final List<VariantContext> NO_GIVEN_ALLELES = Collections.EMPTY_LIST;
+
     // {@link GenotypingEngine} requires a non-null {@link AFCalculatorProvider} but this class doesn't need it.  Thus we make a dummy
     private static AFCalculatorProvider DUMMY_AF_CALCULATOR_PROVIDER = new AFCalculatorProvider() {
         public AFCalculator getInstance(final int ploidy, final int maximumAltAlleles) { return null; }
@@ -109,7 +108,8 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
         this.DEBUG_READ_NAME = DEBUG_READ_NAME;
 
         // coverage related initialization
-        final double errorProbability = Math.pow(10, -MTAC.POWER_CONSTANT_QSCORE / 10);
+        //TODO: in GATK4, use a QualityUtils method
+        final double errorProbability = Math.pow(10, -MTAC.POWER_CONSTANT_QSCORE/10);
         strandArtifactPowerCalculator = new TumorPowerCalculator(errorProbability, MTAC.STRAND_ARTIFACT_LOD_THRESHOLD, 0.0f);
     }
 
@@ -118,48 +118,40 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
      * genotype likelihoods and assemble into a list of variant contexts and genomic events ready for calling
      *
      * The list of samples we're working with is obtained from the readLikelihoods
-
-     * @param haplotypes                             Haplotypes to assign likelihoods to
      * @param readLikelihoods                       Map from reads->(haplotypes,likelihoods)
      * @param perSampleFilteredReadList              Map from sample to reads that were filtered after assembly and before calculating per-read likelihoods.
      * @param ref                                    Reference bytes at active region
      * @param refLoc                                 Corresponding active region genome location
      * @param activeRegionWindow                     Active window
-     * @param activeAllelesToGenotype                Alleles to genotype
      *
      * @return                                       A CalledHaplotypes object containing a list of VC's with genotyped events and called haplotypes
      *
      */
-    // TODO - can this be refactored? this is hard to follow!
     public CalledHaplotypes callMutations (
-            final List<Haplotype> haplotypes,
             final ReadLikelihoods<Haplotype> readLikelihoods,
             final Map<String, Integer> originalNormalReadQualities,
             final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList,
             final byte[] ref,
             final GenomeLoc refLoc,
             final GenomeLoc activeRegionWindow,
-            final RefMetaDataTracker tracker,
-            final List<VariantContext> activeAllelesToGenotype) {
-        // sanity check input arguments
-        if (haplotypes == null || haplotypes.isEmpty()) throw new IllegalArgumentException("haplotypes input should be non-empty and non-null, got "+haplotypes);
+            final RefMetaDataTracker tracker) {
+        //TODO: in GATK4 use Utils.nonNull
         if (readLikelihoods == null || readLikelihoods.sampleCount() == 0) throw new IllegalArgumentException("readLikelihoods input should be non-empty and non-null, got "+readLikelihoods);
         if (ref == null || ref.length == 0 ) throw new IllegalArgumentException("ref bytes input should be non-empty and non-null, got "+ref);
         if (refLoc == null || refLoc.size() != ref.length) throw new IllegalArgumentException(" refLoc must be non-null and length must match ref bytes, got "+refLoc);
         if (activeRegionWindow == null ) throw new IllegalArgumentException("activeRegionWindow must be non-null, got "+activeRegionWindow);
-        if (activeAllelesToGenotype == null ) throw new IllegalArgumentException("activeAllelesToGenotype must be non-null, got "+activeAllelesToGenotype);
 
+        final List<Haplotype> haplotypes = readLikelihoods.alleles();
+
+        // Somatic Tumor/Normal Sample Handling
         if (!readLikelihoods.samples().contains(tumorSampleName)) {
-            throw new IllegalArgumentException("readLikelihoods does not contain the tumor sample "+ tumorSampleName);
+            throw new IllegalArgumentException("readLikelihoods does not contain the tumor sample " + tumorSampleName);
         }
-
-        // if we don't have the normal sample, we are in tumor only mode
-        // TODO: check in MuTect2.java for code we can skip when in tumor only mode
         final boolean hasNormal = matchedNormalSampleName != null;
 
         // update the haplotypes so we're ready to call, getting the ordered list of positions on the reference
         // that carry events among the haplotypes
-        final TreeSet<Integer> startPosKeySet = decomposeHaplotypesIntoVariantContexts(haplotypes, readLikelihoods, ref, refLoc, activeAllelesToGenotype);
+        final TreeSet<Integer> startPosKeySet = decomposeHaplotypesIntoVariantContexts(haplotypes, readLikelihoods, ref, refLoc, NO_GIVEN_ALLELES);
 
         // Walk along each position in the key set and create each event to be outputted
         final Set<Haplotype> calledHaplotypes = new HashSet<>();
@@ -170,7 +162,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 continue;
             }
 
-            final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, activeAllelesToGenotype);
+            final List<VariantContext> eventsAtThisLoc = getVCsAtThisLocation(haplotypes, loc, NO_GIVEN_ALLELES);
 
             if( eventsAtThisLoc.isEmpty() ) { continue; }
 
@@ -203,14 +195,12 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
              * If we just want a map of Alleles to Haplotypes, we should be able to do so directly; no need for intermediate maps, which just complicates the code.
              **/
 
-
             final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
 
             // converting ReadLikelihoods<Haplotype> to ReadLikeliHoods<Allele>
             ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper, genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC), ALLELE_EXTENSION));
 
-            // LDG: do we want to do this before or after pulling out overlapping reads?
-            // TODO: do we want this at all? How does downsampling help?
+            //LDG: do we want to do this before or after pulling out overlapping reads?
             if (MTAC.isSampleContaminationPresent()) {
                 readAlleleLikelihoods.contaminationDownsampling(MTAC.getSampleContamination());
             }
@@ -232,24 +222,18 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 tumorLods.set(altAllele, tumorHetGenotypeLLs.get(altAllele) - tumorHetGenotypeLLs.getRef());
             }
 
-
             // TODO: another good breakpoint e.g. compute normal LOD/set thresholds
             // TODO: anything related to normal should be encapsulated in Optional
 
-            // Normal LOD must exceed this threshold for the variant to make it in the vcf
-            // TODO: variable name too log
-            double normalLodThresholdForVCF = -Double.MIN_VALUE;
-
             // A variant candidate whose normal LOD is below this threshold will be filtered as 'germline_risk'
             // This is a more stringent threshold than normalLodThresholdForVCF
-            double normalLodFilterThreshold = -Double.MIN_VALUE;
-
+            double normalLodFilterThreshold = -Double.MAX_VALUE;
             PerReadAlleleLikelihoodMap normalPRALM = null;
             final PerAlleleCollection<Double> normalLods = PerAlleleCollection.createPerAltAlleleCollection();
 
+            // if normal bam is available, compute normal LOD
             // TODO: this if statement should be a standalone method for computing normal LOD
             // TODO: then we can do something like normalLodThreshold = hasNormal ? thisMethod() : Optional.empty()
-            // if normal bam is available, compute normal LOD
             if (hasNormal) {
                 normalPRALM = readAlleleLikelihoods.toPerReadAlleleLikelihoodMap(readAlleleLikelihoods.sampleIndex(matchedNormalSampleName));
                 filterPRALMForOverlappingReads(normalPRALM, mergedVC.getReference(), loc, true);
@@ -258,10 +242,8 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
                 final GenomeLoc eventGenomeLoc = genomeLocParser.createGenomeLoc(activeRegionWindow.getContig(), loc);
                 final Collection<VariantContext> cosmicVC = tracker.getValues(MTAC.cosmicRod, eventGenomeLoc);
                 final Collection<VariantContext> dbsnpVC = tracker.getValues(MTAC.dbsnp.dbsnp, eventGenomeLoc);
-
                 final boolean germlineAtRisk = !dbsnpVC.isEmpty() && cosmicVC.isEmpty();
 
-                normalLodThresholdForVCF = MTAC.INITIAL_NORMAL_LOD_THRESHOLD;
                 normalLodFilterThreshold = germlineAtRisk ? MTAC.NORMAL_DBSNP_LOD_THRESHOLD : MTAC.NORMAL_LOD_THRESHOLD;
 
                 // compute normal LOD = LL(X|REF)/LL(X|ALT) where REF is the diploid HET with AF = 0.5
@@ -284,7 +266,7 @@ public class SomaticGenotypingEngine extends HaplotypeCallerGenotypingEngine {
 
             for (final Allele altAllele : mergedVC.getAlternateAlleles()) {
                 final boolean passesTumorLodThreshold = tumorLods.getAlt(altAllele) >= MTAC.INITIAL_TUMOR_LOD_THRESHOLD;
-                final boolean passesNormalLodThreshold = hasNormal ? normalLods.getAlt(altAllele) >= normalLodThresholdForVCF : true;
+                final boolean passesNormalLodThreshold = hasNormal ? normalLods.getAlt(altAllele) >= MTAC.INITIAL_NORMAL_LOD_THRESHOLD : true;
                 if (passesTumorLodThreshold && passesNormalLodThreshold) {
                     numPassingAlts++;
                     allelesThatPassThreshold.add(altAllele);
