@@ -212,6 +212,24 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testFilteringDPfromFORMATWithMissing() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --genotypeFilterExpression 'DP < 10' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("4bf46103a71bac92a11eae04b97f9877"));
+        executeTest("testFilteringDPfromFORMATWithMissing", spec);
+    }
+
+    @Test
+    public void testFilteringDPfromFORMATAndFailMissing() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --missingValuesInExpressionsShouldEvaluateAsFailing --genotypeFilterExpression 'DP < 10' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("baeda696c92adc8745ac4ebbdead6c91"));
+        executeTest("testFilteringDPfromFORMATAndFailMissing", spec);
+    }
+
+    @Test
     public void testInvertGenotypeFilterExpression() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
