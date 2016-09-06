@@ -129,7 +129,7 @@ public class ReadPosRankSumTest extends RankSumTest implements StandardAnnotatio
 
     @Override
     protected boolean isUsableRead(final GATKSAMRecord read, final int refLoc) {
-        return super.isUsableRead(read, refLoc) && read.getSoftStart() + read.getCigar().getReadLength() > refLoc;
+        return super.isUsableRead(read, refLoc) && read.getSoftEnd() >= refLoc;
     }
 
 
