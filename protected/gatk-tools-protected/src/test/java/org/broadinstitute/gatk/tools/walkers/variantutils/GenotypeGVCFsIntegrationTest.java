@@ -157,7 +157,8 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Collections.singletonList("edf083b3bf9cdec31b997a70fd56a7b2"));
+                Collections.singletonList("ea11554de21ef8f25e9983db8b5a8480"));
+        spec.disableShadowBCF();
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
 
@@ -243,6 +244,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 1,
                 Collections.singletonList("ce064429e6cbcaa956d52ef22e102f2f"));
         executeTest("testNDA", spec);
+    }
+
+    @Test
+    public void testAllSitesNonBiallelic() {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                baseBPResolutionString("-allSites"),
+                1,
+                Collections.singletonList("77924e6b958a30f954e1c3a9f504a6a7"));
+        spec.disableShadowBCF();
+        executeTest("testAllSitesNonBiallelic", spec);
     }
 
     @Test
@@ -579,7 +590,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 baseTestString(" -V " + privateTestDir + "set.zero.RGQs.no.call.sample1.g.vcf" +
                         " -V " + privateTestDir + "set.zero.RGQs.no.call.sample2.g.vcf" +
                         " -L chr16:1279274-1279874 -allSites", hg19ReferenceWithChrPrefixInChromosomeNames),
-                Collections.singletonList("fc7016c0cd5cfa186bab80329eb0bc13"));
+                Collections.singletonList("e88db6e49c12487c55de42769d2f8c6c"));
         spec.disableShadowBCF();
         executeTest("testSetZeroRGQsToNoCall", spec);
     }
@@ -657,7 +668,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testGenotypingSpanningDeletionWithAllSites() {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "spanningDel.genotyping.g.vcf -allSites", b37KGReference),
-                Collections.singletonList("e2370ba728cc9b73950b2ed616ef669f"));
+                Collections.singletonList("d3d862faf954f9bb8b1619c3e889ad8c"));
         spec.disableShadowBCF();
         executeTest("testGenotypingSpanningDeletionWithAllSites", spec);
     }

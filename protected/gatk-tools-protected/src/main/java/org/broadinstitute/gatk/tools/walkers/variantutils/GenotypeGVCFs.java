@@ -157,7 +157,7 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     @Argument(fullName="uniquifySamples", shortName="uniquifySamples", doc="Assume duplicate samples are present and uniquify all names with '.variant' and file number index")
     public boolean uniquifySamples = false;
 
-   @ArgumentCollection
+    @ArgumentCollection
     public GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
 
     /**
@@ -194,6 +194,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     public List<RodBinding<VariantContext>> getResourceRodBindings() { return Collections.emptyList(); }
     public boolean alwaysAppendDbsnpId() { return false; }
 
+    // INFO Header names that require alt alleles
+    final Set<String> infoHeaderAltAllelesLineNames = new LinkedHashSet<>();
 
     public void initialize() {
         boolean inputsAreTagged = false;
@@ -248,6 +250,18 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
         headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY));
         headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
+
+        if ( INCLUDE_NON_VARIANTS ) {
+            // Save INFO header names that require alt alleles
+            for ( final VCFHeaderLine headerLine : headerLines ) {
+                if (headerLine instanceof VCFInfoHeaderLine ) {
+                    if (((VCFInfoHeaderLine) headerLine).getCountType() == VCFHeaderLineCount.A) {
+                        infoHeaderAltAllelesLineNames.add(((VCFInfoHeaderLine) headerLine).getID());
+                    }
+                }
+            }
+        }
+
         if ( dbsnp != null && dbsnp.dbsnp.isBound() )
             VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
 
@@ -319,10 +333,40 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         } else if (INCLUDE_NON_VARIANTS) {
             result = new VariantContextBuilder(result).genotypes(cleanupGenotypeAnnotations(result, true)).make();
             result = annotationEngine.annotateContext(tracker, ref, null, result);
+            result = removeNonRefAlleles(result);
         } else {
             return null;
         }
         return result;
+    }
+
+    /**
+     * Remove NON-REF alleles from the variant context
+     *
+     * @param vc   the variant context
+     * @return variant context with the NON-REF alleles removed if multiallelic or replaced with NO-CALL alleles if biallelic
+     */
+    private VariantContext removeNonRefAlleles(final VariantContext vc) {
+
+        // If NON_REF is the only alt allele, ignore this site
+        final List<Allele> newAlleles = new ArrayList<>();
+        // Only keep alleles that are not NON-REF
+        for ( final Allele allele : vc.getAlleles() ) {
+            if ( !allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE) ) {
+                newAlleles.add(allele);
+            }
+        }
+
+        final VariantContextBuilder builder = new VariantContextBuilder(vc).alleles(newAlleles);
+
+        // No alt allele, so remove INFO fields that require alt alleles
+        if ( newAlleles.size() == 1 ) {
+            for ( final String name : infoHeaderAltAllelesLineNames ) {
+                builder.rmAttributes(Arrays.asList(name));
+            }
+        }
+
+        return builder.make();
     }
 
     /**
