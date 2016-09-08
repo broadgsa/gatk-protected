@@ -107,7 +107,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "729ebefdce0d5ea6f535c354c329e6b9", "d38aab5bf8ef0bc7c18e8c909819da84");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "a6abb0aa68d3b4d15185a119350e76dc", "d38aab5bf8ef0bc7c18e8c909819da84");
     }
 
     @Test
@@ -500,6 +500,17 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                 " --no_cmdline_in_header -o %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5));
         executeTest("testSetZeroGQsToNoCall", spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerReadPosRankSum() throws IOException {
+        final File testBAM = new File(privateTestDir + "testReadPos.snippet.bam");
+        final String md5Variants = "03b3c464f22a3572f7d66890c18bdda4";
+        final String md5BAMOut = "2e0843f6e8e90c407825e9c47ce4a32d";
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s -L 1:3753063 -ip 100 ", REF, testBAM) +
+                " --no_cmdline_in_header -o %s -bamout %s";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5Variants, md5BAMOut));
+        executeTest("testHaplotypeCallerReadPosRankSum", spec);
     }
 }
 
