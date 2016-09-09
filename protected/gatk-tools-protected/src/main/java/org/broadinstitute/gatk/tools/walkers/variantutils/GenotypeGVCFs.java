@@ -133,6 +133,9 @@ import java.util.*;
 @Reference(window=@Window(start=-10,stop=10))
 @SuppressWarnings("unused")
 public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWriter> implements AnnotatorCompatible, TreeReducible<VariantContextWriter> {
+
+    private static String GVCF_BLOCK = "GVCFBlock";
+
     /**
      * The gVCF files to merge together
      */
@@ -229,6 +232,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
 
         // take care of the VCF headers
         final Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+
+        // Remove GCVFBlocks
+        for ( final Iterator<VCFHeaderLine> iter = headerLines.iterator(); iter.hasNext(); ) {
+            if ( iter.next().getKey().contains(GVCF_BLOCK) ) {
+                iter.remove();
+            }
+        }
+
         headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
         headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
 
