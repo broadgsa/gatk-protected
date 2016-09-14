@@ -487,7 +487,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      * @param maxAlternativeAlleles maximum number of alternative alleles allowed.
      * @return never {@code null}.
      */
-    private Set<Allele> excessAlternativeAlleles(final GenotypingLikelihoods<Allele> genotypeLikelihoods, final int maxAlternativeAlleles) {
+    @VisibleForTesting
+    static Set<Allele> excessAlternativeAlleles(final GenotypingLikelihoods<Allele> genotypeLikelihoods, final int maxAlternativeAlleles) {
         final int alleleCount = genotypeLikelihoods.alleleCount();
         final int excessAlternativeAlleleCount = Math.max(0, alleleCount - 1 - maxAlternativeAlleles);
         if (excessAlternativeAlleleCount <= 0) {
@@ -539,8 +540,11 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
             }
         });
 
-        for (int i = 1; i < alleleCount; i++) {
-            lessFrequentFirst.add(genotypeLikelihoods.alleleAt(i));
+        for (int i = 0; i < alleleCount; i++) {
+            final Allele a = genotypeLikelihoods.alleleAt(i);
+            if(a.isNonReference()){
+                lessFrequentFirst.add(genotypeLikelihoods.alleleAt(i));
+            }
         }
 
         final Set<Allele> result = new HashSet<>(excessAlternativeAlleleCount);

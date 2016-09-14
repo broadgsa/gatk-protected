@@ -59,10 +59,15 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.variant.variantcontext.*;
+import org.broadinstitute.gatk.tools.walkers.genotyper.*;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.gatk.utils.genotyper.AlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedAlleleList;
+import org.broadinstitute.gatk.utils.genotyper.IndexedSampleList;
+import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.EventMap;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
@@ -530,5 +535,34 @@ public class HaplotypeCallerGenotypingEngineUnitTest extends BaseTest {
 
         Assert.assertEquals(uniqueGroups.size(), expectedNumGroups);
         Assert.assertEquals(counter, expectedGroupSize);
+    }
+
+    @Test
+    public void testExcessAlternativeAllelesKeepRef(){
+
+        // prep data
+        final Allele ref = Allele.create("A", true);
+        final Allele altC = Allele.create("C", false);
+        final Allele altG = Allele.create("G", false);
+        final Allele altT = Allele.create("T", false);
+        final AlleleList<Allele> indexedAlleleList = new IndexedAlleleList<>(altC, altG, altT, ref);// specifically make the ref allele not at index 0
+
+        final IndexedSampleList indexedSampleList = new IndexedSampleList("Dummy");
+
+        final List<GATKSAMRecord> reads = new ArrayList<>();
+        for (int i=0; i<10; ++i) {
+            reads.add(GATKSAMRecord.createRandomRead(101));
+        }
+        final Map<String, List<GATKSAMRecord>> sampleToReads = Collections.singletonMap(indexedSampleList.sampleAt(0), reads);
+        final ReadLikelihoods<Allele> readLikelihoods = new ReadLikelihoods<>(indexedSampleList, indexedAlleleList, sampleToReads);
+        final PloidyModel ploidyModel = new HomogeneousPloidyModel(indexedSampleList, 2);
+        final GenotypingModel genotypingModel = new InfiniteRandomMatingPopulationModel();
+
+        final GenotypingLikelihoods<Allele> genotypeLikelihoods = genotypingModel.calculateLikelihoods(readLikelihoods, new GenotypingData<>(ploidyModel,readLikelihoods));
+
+        // test
+        final Set<Allele> excessAltAlleles = HaplotypeCallerGenotypingEngine.excessAlternativeAlleles(genotypeLikelihoods, 2);
+        Assert.assertFalse(excessAltAlleles.contains(ref));
+        Assert.assertEquals(excessAltAlleles.size(), 1);
     }
 }
