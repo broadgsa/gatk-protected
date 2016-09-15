@@ -330,7 +330,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
         } else {
             final Iterator<Allele> it = allelesToDrop.iterator();
             final StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG; i++) {
+            for (int i = 0; i < MAX_DROPPED_ALTERNATIVE_ALLELES_TO_LOG - 1; i++) {
                 builder.append(it.next().toString()).append(", ");
             }
             allelesToDropString = builder.append(it.next().toString()).append(" and ").append(allelesToDrop.size() - 20).append(" more").toString();
