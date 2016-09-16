@@ -67,8 +67,8 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
     private static final String SAMPLE_EXCLUSION_MD5 = "2e52f21e7dcc67151a51630807a4eef2";
     private static final String INVERT_SELECTION_MD5 = "26d192b868746ab14133f145ae812e7c";
-    private static final String MAX_FILTERED_GT_SELECTION_MD5 = "f83ac0deb7a8b022d6d40a85627a71ec";
-    private static final String MIN_FILTERED_GT_SELECTION_MD5 = "346620b7a5d66dabf89d3f42d6e27db7";
+    private static final String MAX_FILTERED_GT_SELECTION_MD5 = "66d92fac72b339195b393c9915643a14";
+    private static final String MIN_FILTERED_GT_SELECTION_MD5 = "965c0cf7daa03a1731b371bb20b582d4";
     private static final String NO_CALL_FILTERING_KEEP_ONE = "6e2401190c5ada6a3bed2640c068f43b";
     private static final String NO_CALL_FILTERING_KEEP_TWO =  "6bced1ab6a3d58f1fd905b7f601987a3";
 
@@ -744,7 +744,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
+                Arrays.asList("cb5ef9233503bebc81593e436a6de943")
         );
 
         spec.disableShadowBCF();
@@ -759,7 +759,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 "-T SelectVariants --setFilteredGtToNocall --removeUnusedAlternates --excludeNonVariants -R " + b37KGReference + " --variant " +
                         testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("349136d92f915f8c7ba8a2f92e51d6b7"));
+                Arrays.asList("f5b2592361d8ab0d47e5047e63f78e4c"));
         executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
     }
 
