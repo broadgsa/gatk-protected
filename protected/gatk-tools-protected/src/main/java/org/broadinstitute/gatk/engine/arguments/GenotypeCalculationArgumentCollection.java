@@ -72,6 +72,12 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
     public boolean ANNOTATE_NUMBER_OF_ALLELES_DISCOVERED = false;
 
     /**
+     * Use the new allele frequency / QUAL score model
+     */
+    @Argument(fullName = "useNewAFCalculator", shortName = "newQual", doc = "If provided, we will use the new AF model instead of the so-called exact model", required = false)
+    public boolean USE_NEW_AF_CALCULATOR = false;
+
+    /**
      * The expected heterozygosity value used to compute prior probability that a locus is non-reference.
      *
      * From the heterozygosity we calculate the probability of N samples being hom-ref at a site as 1 - sum_i_2N (hets / i)
@@ -101,6 +107,13 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      */
     @Argument(fullName = "indel_heterozygosity", shortName = "indelHeterozygosity", doc = "Heterozygosity for indel calling", required = false)
     public double indelHeterozygosity = HomoSapiensConstants.INDEL_HETEROZYGOSITY;
+
+    /**
+     * The standard deviation of the distribution of alt allele fractions.  The above heterozygosity parameters give the
+     * *mean* of this distribution; this parameter gives its spread.
+     */
+    @Argument(fullName = "heterozygosity_stdev", shortName = "heterozygosityStandardDeviation", doc = "Standard deviation of eterozygosity for SNP and indel calling.", required = false)
+    public double heterozygosityStandardDeviation = 0.01;
 
     /**
      * The minimum phred-scaled Qscore threshold to separate high confidence from low confidence calls. Only genotypes with

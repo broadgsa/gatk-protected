@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.genotyper;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.broadinstitute.gatk.utils.IndexRange;
 import org.broadinstitute.gatk.utils.MathUtils;
 
 import java.util.Arrays;
@@ -108,7 +109,18 @@ import java.util.List;
  */
 public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, Cloneable {
 
-    private double log10CombinationCount;
+    private static final double UNCOMPUTED_LOG_10_COMBINATION_COUNT = -1;
+
+    /**
+     * The log10 number of phased genotypes corresponding to this unphased genotype.  For example,
+     * [0, 1, 1, 1] = AB:  log10(2)
+     * [0, 2] = AA:  log10(1)
+     * [0, 1, 1, 1, 2, 1] = ABC: log10(6)
+     * [0, 2, 1, 2] = AABB: log10(4!/(2!2!))
+     * This is evaluated lazily i.e. it is initialized to {@link GenotypeAlleleCounts::UNCOMPUTED_LOG_10_COMBINATION_COUNT}
+     * and only calculated if its getter is invoked.
+     */
+    private double log10CombinationCount = UNCOMPUTED_LOG_10_COMBINATION_COUNT;
 
     /**
      * The ploidy of the genotype.
@@ -156,38 +168,30 @@ public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, C
      * @param index the genotype index.
      */
     private GenotypeAlleleCounts(final int ploidy, final int index, final int... sortedAlleleCounts) {
+        this(ploidy, index, sortedAlleleCounts, sortedAlleleCounts.length >> 1);
+    }
+
+    private GenotypeAlleleCounts(final int ploidy, final int index, final int[] sortedAlleleCounts, final int distinctAlleleCount){
         this.ploidy = ploidy;
-        this.sortedAlleleCounts = sortedAlleleCounts;
-        distinctAlleleCount = sortedAlleleCounts.length >> 1;
-        log10CombinationCount = -1;
         this.index = index;
+        this.sortedAlleleCounts = sortedAlleleCounts;
+        this.distinctAlleleCount = distinctAlleleCount;
     }
 
     /**
-     * Returns the log10 of the number of possible allele combinations that would give raise to this allele count.
-     * @return 0 or less.
+     * Gets the log10 combination count, computing it if uninitialized.  Note that the invoked MathUtils method uses fast cached
+     * log10 values of integers for any reasonable ploidy.
+     *
+     * This method should be invoked on instances of {@link GenotypeAlleleCounts} cached in {@link GenotypeLikelihoodCalculators::genotypeTableByPloidy}.
+     * Such usage allows the result of this computation to be cached once for an entire run of HaplotypeCaller.
+     * @return
      */
     public double log10CombinationCount() {
-        if (log10CombinationCount == -1)
-            return log10CombinationCount = calculateLog10CombinationCount();
-        else
-            return log10CombinationCount;
-    }
-
-    /**
-     * Calculates log10 combination count.
-     *
-     * @return 0 or less.
-     */
-    private double calculateLog10CombinationCount() {
-        if (ploidy <= 1)
-            return 0;
-        else {
-            final int[] counts = new int[distinctAlleleCount];
-            for (int i = 0, j = 1; i < distinctAlleleCount; i++, j+=2)
-                counts[i] = sortedAlleleCounts[j];
-            return MathUtils.log10MultinomialCoefficient(ploidy, counts);
+        if (log10CombinationCount == UNCOMPUTED_LOG_10_COMBINATION_COUNT) {
+            log10CombinationCount = MathUtils.log10Factorial(ploidy)
+                    - new IndexRange(0, distinctAlleleCount).sum(n -> MathUtils.log10Factorial(sortedAlleleCounts[2*n+1]));
         }
+        return log10CombinationCount;
     }
 
     /**
@@ -784,5 +788,23 @@ public class GenotypeAlleleCounts implements Comparable<GenotypeAlleleCounts>, C
                 result[k++] = index;
         }
         return result;
+    }
+
+    @FunctionalInterface
+    public interface IntBiConsumer {
+        void accept(final int alleleIndex, final int alleleCount);
+    }
+
+    @FunctionalInterface
+    public interface IntToDoubleBiFunction {
+        double apply(final int alleleIndex, final int alleleCount);
+    }
+
+    public void forEachAlleleIndexAndCount(final IntBiConsumer action) {
+        new IndexRange(0, distinctAlleleCount).forEach(n -> action.accept(sortedAlleleCounts[2*n], sortedAlleleCounts[2*n+1]));
+    }
+
+    public double sumOverAlleleIndicesAndCounts(final IntToDoubleBiFunction func) {
+        return new IndexRange(0, distinctAlleleCount).sum(n -> func.apply(sortedAlleleCounts[2*n], sortedAlleleCounts[2*n+1]));
     }
 }
