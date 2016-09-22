@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.fasta;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -175,5 +176,34 @@ public class FastaAlternateReferenceIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("8fd887bca9f3949f2c23c3565f7dcc1b"));
         executeTest("test iupac", spec);
+    }
+
+    @Test
+    void testSpanDel() {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b37KGReference + " -V " + privateTestDir + "spanningDel.delOnly.starFirst.vcf -L 1:1273247 -o %s",
+                1,
+                Arrays.asList("69852222a8c9c9e1604808b62df96f8a"));
+        executeTest("test spanning deletion", spec);
+    }
+
+    @DataProvider(name = "iupacSsample")
+    public Object[][] getIupacSampleData() {
+        return new Object[][]{
+                {"NA1", "b5d95e28263c88b20325d7a545576ad4"},
+                {"NA2", "a8b4b79dea8ad1fde2c0d8ff42ca132d"},
+                {"NA3", "69852222a8c9c9e1604808b62df96f8a"}
+        };
+    }
+
+    @Test(dataProvider = "iupacSsample")
+    void testSpanDelIUPAC(final String sample, final String md5) {
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FastaAlternateReferenceMaker -R " + b37KGReference + " --use_IUPAC_sample " + sample + " -V " + privateTestDir + "spanningDel.delOnly.starFirst.vcf -L 1:1273247 -o %s",
+                1,
+                Arrays.asList(md5));
+        executeTest("test spanning deletion using IUPAC codes", spec);
     }
 }
