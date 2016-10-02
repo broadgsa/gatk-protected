@@ -54,6 +54,7 @@ package org.broadinstitute.gatk.engine.arguments;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
+import org.broadinstitute.gatk.utils.commandline.Hidden;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
 import java.util.Collections;
@@ -122,6 +123,15 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      */
     @Argument(fullName = "standard_min_confidence_threshold_for_calling", shortName = "stand_call_conf", doc = "The minimum phred-scaled confidence threshold at which variants should be called", required = false)
     public double STANDARD_CONFIDENCE_FOR_CALLING = 30.0;
+
+    /**
+     * This argument allows you to emit low quality calls as filtered records.
+     */
+    @Hidden
+    @Deprecated
+    @Argument(fullName = "standard_min_confidence_threshold_for_emitting", shortName = "stand_emit_conf",
+            doc = "This argument is no longer used in GATK versions 3.7 and newer. Please see the online documentation for the latest usage recommendations.", required = false)
+    public double STANDARD_CONFIDENCE_FOR_EMITTING = 30.0;
 
     /**
      * If there are more than this number of alternate alleles presented to the genotyper (either through discovery or GENOTYPE_GIVEN_ALLELES),
