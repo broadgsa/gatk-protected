@@ -251,7 +251,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-allSites"),
                 1,
-                Collections.singletonList("77924e6b958a30f954e1c3a9f504a6a7"));
+                Collections.singletonList("764ac46e0b985db187d85655240f7ec0"));
         spec.disableShadowBCF();
         executeTest("testAllSitesNonBiallelic", spec);
     }
@@ -685,9 +685,19 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     @Test
     public void testNewQualNaNBugFix() {
         final WalkerTestSpec spec = new WalkerTestSpec(
-            baseTestString(" -newQual -V " + privateTestDir + "input-newqual-nan-bug-fix.vcf", b37KGReferenceWithDecoy),
+                baseTestString(" -newQual -V " + privateTestDir + "input-newqual-nan-bug-fix.vcf", b37KGReferenceWithDecoy),
                 Collections.singletonList("503f4193c22fbcc451bd1c425b8b6bf8"));
         spec.disableShadowBCF();
         executeTest("testNewQualNaNBugFix", spec);
+    }
+
+    @Test
+    public void testHomRefHighMQ() {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "NA18503.22.vcf -V " + privateTestDir + "NA18504.22.vcf -V " +
+                        privateTestDir + "NA18505.22.vcf -allSites", b37KGReference),
+                Collections.singletonList("6d253024246e1024b9b6e8f885f53799"));
+        spec.disableShadowBCF();
+        executeTest("testHomRefHighMQ", spec);
     }
 }
