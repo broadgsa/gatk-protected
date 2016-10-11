@@ -681,4 +681,13 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testGenotypingSpanningDeletionAcrossLines", spec);
     }
+
+    @Test
+    public void testNewQualNaNBugFix() {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+            baseTestString(" -newQual -V " + privateTestDir + "input-newqual-nan-bug-fix.vcf", b37KGReferenceWithDecoy),
+                Collections.singletonList("503f4193c22fbcc451bd1c425b8b6bf8"));
+        spec.disableShadowBCF();
+        executeTest("testNewQualNaNBugFix", spec);
+    }
 }
