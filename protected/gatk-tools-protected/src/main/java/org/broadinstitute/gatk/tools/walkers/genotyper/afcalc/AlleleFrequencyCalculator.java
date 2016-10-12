@@ -159,8 +159,15 @@ public final class AlleleFrequencyCalculator extends AFCalculator {
                         pOfNonZeroAltAlleles[alleleIndex] += genotypePosterior);
             }
 
+            // Make sure that we handle appropriately pOfNonZeroAltAlleles that are close to 1; values just over 1.0 due to
+            // rounding error would result in NaN.
+            //  As every allele is present in at least one genotype, the p-non-zero-count for
+            // any allele is bound above by 1.0 - minimum genotype posterior because at least one genotype
+            // does not contain this allele.
+            final double maximumPNonZeroCount = 1.0 - MathUtils.arrayMin(genotypePosteriors);
+
             for (int allele = 0; allele < numAlleles; allele++) {
-                log10POfZeroCountsByAllele[allele] += Math.log10(1 - pOfNonZeroAltAlleles[allele]);
+                log10POfZeroCountsByAllele[allele] += Math.log10(1.0 - Math.min(maximumPNonZeroCount, pOfNonZeroAltAlleles[allele]));
             }
         }
 
