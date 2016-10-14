@@ -64,9 +64,12 @@ import org.broadinstitute.gatk.engine.walkers.Reference;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.walkers.TreeReducible;
 import org.broadinstitute.gatk.engine.walkers.Window;
+import org.broadinstitute.gatk.tools.walkers.annotator.RankSumTest;
+import org.broadinstitute.gatk.tools.walkers.annotator.RMSAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AS_StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompatible;
+import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.InfoFieldAnnotation;
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.StandardAnnotation;
 import org.broadinstitute.gatk.tools.walkers.genotyper.OutputMode;
 import org.broadinstitute.gatk.tools.walkers.genotyper.UnifiedArgumentCollection;
@@ -188,6 +191,8 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
     private UnifiedGenotypingEngine genotypingEngine;
     // the annotation engine
     private VariantAnnotatorEngine annotationEngine;
+    // the INFO field annotation key names to remove
+    private final List<String> infoFieldAnnotationKeyNamesToRemove = new ArrayList<>();
 
     public List<RodBinding<VariantContext>> getCompRodBindings() { return Collections.emptyList(); }
     public RodBinding<VariantContext> getSnpEffRodBinding() { return null; }
@@ -222,6 +227,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         final SampleList samples = new IndexedSampleList(SampleUtils.getSampleList(vcfRods, mergeType));
 
         annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse, Collections.<String>emptyList(), this, toolkit);
+
+        // Request INFO field annotations inheriting from RankSumTest and RMSAnnotation added to remove list
+        for ( final InfoFieldAnnotation annotation :  annotationEngine.getRequestedInfoAnnotations() ) {
+            if ( annotation instanceof RankSumTest || annotation instanceof RMSAnnotation ) {
+                final List<String> keyNames = annotation.getKeyNames();
+                if ( !keyNames.isEmpty() ) {
+                    infoFieldAnnotationKeyNamesToRemove.add(keyNames.get(0));
+                }
+            }
+        }
 
         // create the genotyping engine
         // when checking for presence of AS_StandardAnnotation we must deal with annoying feature that
@@ -321,7 +336,6 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         //do trimming after allele-specific annotation reduction or the mapping is difficult
         result = GATKVariantContextUtils.reverseTrimAlleles(result);
 
-
         // Re-annotate and fix/remove some of the original annotations.
         // Note that the order of these actions matters and is different for polymorphic and monomorphic sites.
         // For polymorphic sites we need to make sure e.g. the SB tag is sent to the annotation engine and then removed later.
@@ -337,7 +351,31 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
         } else {
             return null;
         }
+
+        result = removeInfoAnnotationsIfNoAltAllele(result);
+
         return result;
+    }
+
+    /**
+     * Remove INFO field annotations if no alternate alleles
+     *
+     * @param vc    the variant context
+     * @return variant context with the INFO field annotations removed if no alternate alleles
+    */
+    private VariantContext removeInfoAnnotationsIfNoAltAllele(final VariantContext vc)  {
+
+        // If no alt alleles, remove any RankSumTest or RMSAnnotation attribute
+        if ( vc.getAlternateAlleles().isEmpty() ) {
+            final VariantContextBuilder builder = new VariantContextBuilder(vc);
+
+            for ( final String annotation : infoFieldAnnotationKeyNamesToRemove ) {
+                builder.rmAttribute(annotation);
+            }
+            return builder.make();
+        } else {
+            return vc;
+        }
     }
 
     /**
@@ -357,16 +395,16 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             }
         }
 
-        final VariantContextBuilder builder = new VariantContextBuilder(vc).alleles(newAlleles);
-
-        // No alt allele, so remove INFO fields that require alt alleles
+        // If no alt allele, then remove INFO fields that require alt alleles
         if ( newAlleles.size() == 1 ) {
+            final VariantContextBuilder builder = new VariantContextBuilder(vc).alleles(newAlleles);
             for ( final String name : infoHeaderAltAllelesLineNames ) {
                 builder.rmAttributes(Arrays.asList(name));
             }
+            return builder.make();
+        } else {
+            return vc;
         }
-
-        return builder.make();
     }
 
     /**
@@ -420,13 +458,14 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
      * 4. change the PGT value from "0|1" to "1|1" for homozygous variant genotypes
      * 5. move GQ to RGQ if the site is monomorphic
      *
-     * @param VC            the VariantContext with the Genotypes to fix
+     * @param vc            the VariantContext with the Genotypes to fix
      * @param createRefGTs  if true we will also create proper hom ref genotypes since we assume the site is monomorphic
      * @return a new set of Genotypes
      */
-    private List<Genotype> cleanupGenotypeAnnotations(final VariantContext VC, final boolean createRefGTs) {
-        final GenotypesContext oldGTs = VC.getGenotypes();
+    private List<Genotype> cleanupGenotypeAnnotations(final VariantContext vc, final boolean createRefGTs) {
+        final GenotypesContext oldGTs = vc.getGenotypes();
         final List<Genotype> recoveredGs = new ArrayList<>(oldGTs.size());
+
         for ( final Genotype oldGT : oldGTs ) {
             final Map<String, Object> attrs = new HashMap<>(oldGT.getExtendedAttributes());
 
@@ -455,15 +494,15 @@ public class GenotypeGVCFs extends RodWalker<VariantContext, VariantContextWrite
             }
 
             // create AD if it's not there
-            if ( !oldGT.hasAD() && VC.isVariant() ) {
-                final int[] AD = new int[VC.getNAlleles()];
+            if ( !oldGT.hasAD() && vc.isVariant() ) {
+                final int[] AD = new int[vc.getNAlleles()];
                 AD[0] = depth;
                 builder.AD(AD);
             }
 
             if ( createRefGTs ) {
                 final int ploidy = oldGT.getPloidy();
-                final List<Allele> refAlleles = Collections.nCopies(ploidy,VC.getReference());
+                final List<Allele> refAlleles = Collections.nCopies(ploidy,vc.getReference());
 
                 //keep 0 depth samples and 0 GQ samples as no-call
                 if (depth > 0 && oldGT.hasGQ() && oldGT.getGQ() > 0) {
