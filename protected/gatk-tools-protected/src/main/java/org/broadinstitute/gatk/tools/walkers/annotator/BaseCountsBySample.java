@@ -60,15 +60,14 @@ import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.AnnotatorCompa
 import org.broadinstitute.gatk.tools.walkers.annotator.interfaces.GenotypeAnnotation;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.genotyper.MostLikelyAllele;
 import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.utils.sam.AlignmentUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
-import org.broadinstitute.gatk.utils.BaseUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Count of A, C, G, T bases for each sample
@@ -110,8 +109,9 @@ public class BaseCountsBySample extends GenotypeAnnotation {
                          final GenotypeBuilder gb,
                          final PerReadAlleleLikelihoodMap alleleLikelihoodMap) {
 
-        if ( alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty() )
-            gb.attribute(GATKVCFConstants.BASE_COUNTS_BY_SAMPLE_KEY, getBaseCounts(alleleLikelihoodMap, vc));
+        if ( alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty() ) {
+            gb.attribute(GATKVCFConstants.BASE_COUNTS_BY_SAMPLE_KEY, Arrays.stream(getBaseCounts(alleleLikelihoodMap, vc)).boxed().collect(Collectors.toList()));
+        }
     }
 
     @Override
@@ -123,31 +123,15 @@ public class BaseCountsBySample extends GenotypeAnnotation {
     }
 
     /**
-     * Base counts given for the most likely allele
+     * Counts of observed bases at a genomic position e.g. {13,0,0,1} at chr1:100,000,000
      *
      * @param perReadAlleleLikelihoodMap for each read, the underlying alleles represented by an aligned read, and corresponding relative likelihood.
      * @param vc variant context
      * @return count of A, C, G, T bases
-     * @throws IllegalStateException if alleles in vc are not in perReadAlleleLikelihoodMap
      */
     private int[] getBaseCounts(final PerReadAlleleLikelihoodMap perReadAlleleLikelihoodMap, final VariantContext vc) {
         final Set<Allele> alleles = new HashSet<>(vc.getAlleles());
 
-        // make sure that there's a meaningful relationship between the alleles in the perReadAlleleLikelihoodMap and our VariantContext
-        if ( !perReadAlleleLikelihoodMap.getAllelesSet().containsAll(alleles) )
-            throw new IllegalStateException("VC alleles " + alleles + " not a strict subset of per read allele map alleles " + perReadAlleleLikelihoodMap.getAllelesSet());
-
-        final int[] counts = new int[4];
-        for ( final Map.Entry<GATKSAMRecord,Map<Allele,Double>> el : perReadAlleleLikelihoodMap.getLikelihoodReadMap().entrySet()) {
-            final MostLikelyAllele a = PerReadAlleleLikelihoodMap.getMostLikelyAllele(el.getValue(), alleles);
-            if (! a.isInformative() ) continue; // read is non-informative
-            for (final byte base : el.getKey().getReadBases() ){
-                int index = BaseUtils.simpleBaseToBaseIndex(base);
-                if ( index != -1 )
-                    counts[index]++;
-            }
-        }
-
-        return counts;
+        return AlignmentUtils.countBasesAtPileupPosition(perReadAlleleLikelihoodMap, alleles, vc.getStart());
     }
 }
