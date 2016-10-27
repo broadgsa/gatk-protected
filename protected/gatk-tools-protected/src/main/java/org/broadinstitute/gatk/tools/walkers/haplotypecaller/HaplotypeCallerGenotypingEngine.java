@@ -54,10 +54,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.java.contract.Ensures;
 import com.google.java.contract.Requires;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.*;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.math3.stat.StatUtils;
 import org.broadinstitute.gatk.engine.arguments.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
@@ -87,8 +84,8 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     private static final String phase10 = "1|0";
     private static final int MAX_DROPPED_ALTERNATIVE_ALLELES_LOG_STRING_LENGTH = 500;
 
-    private final int MAX_GENOTYPE_COUNT_TO_ENUMERATE = configuration.genotypeArgs.MAX_GENOTYPE_COUNT;
-    private static final Map<Integer, Integer> practicaAlleleCountForPloidy = new HashMap<>();
+    private final int maxGenotypeCountToEnumerate;
+    private final Map<Integer, Integer> practicalAlleleCountForPloidy = new HashMap<>();
 
     private MergeVariantsAcrossHaplotypes crossHaplotypeEventMerger;
 
@@ -105,13 +102,18 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      * @param genomeLocParser {@inheritDoc}
      * @param doPhysicalPhasing whether to try physical phasing.
      */
-    public HaplotypeCallerGenotypingEngine(final AssemblyBasedCallerArgumentCollection configuration, final SampleList samples, final GenomeLocParser genomeLocParser, final AFCalculatorProvider afCalculatorProvider, final boolean doPhysicalPhasing) {
+    public HaplotypeCallerGenotypingEngine(final AssemblyBasedCallerArgumentCollection configuration,
+                                           final SampleList samples,
+                                           final GenomeLocParser genomeLocParser,
+                                           final AFCalculatorProvider afCalculatorProvider,
+                                           final boolean doPhysicalPhasing) {
         super(configuration,samples,genomeLocParser,afCalculatorProvider);
         if (genomeLocParser == null)
             throw new IllegalArgumentException("the genome location parser provided cannot be null");
         this.doPhysicalPhasing= doPhysicalPhasing;
         ploidyModel = new HomogeneousPloidyModel(samples,configuration.genotypeArgs.samplePloidy);
         genotypingModel = new InfiniteRandomMatingPopulationModel();
+        maxGenotypeCountToEnumerate = configuration.genotypeArgs.MAX_GENOTYPE_COUNT;
     }
 
     /**
@@ -257,34 +259,14 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
                 }
 
                 if( configuration.DEBUG && logger != null ) {
-                    if (logger != null) logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
+                    logger.info("Genotyping event at " + loc + " with alleles = " + mergedVC.getAlleles());
                 }
 
                 final Map<Allele, List<Haplotype>> alleleMapper = createAlleleMapper(mergeMap, eventMapper);
 
-                // if the number of allele is so high that enumerating all possible genotypes is impractical,
-                // as determined by MAX_GENOTYPE_COUNT_TO_ENUMERATE,
-                // trim alleles that are not well supported by good-scored haplotypes,
-                // otherwise alias, i.e. no trimming if genotype count is small
-                final int originalAlleleCount = alleleMapper.size();
-                Integer practicalAlleleCount = practicaAlleleCountForPloidy.get(ploidy);
-                if(practicalAlleleCount==null) { // maximum allele count given this ploidy and MAX_GENOTYPE_COUNT_TO_ENUMERATE hasn't been computed
-                    practicalAlleleCount = GenotypeLikelihoodCalculators.computeMaxAcceptableAlleleCount(ploidy, MAX_GENOTYPE_COUNT_TO_ENUMERATE);
-                }
+                mergedVC = removeAltAllelesIfTooManyGenotypes(ploidy, alleleMapper, mergedVC);
 
-                Map<Allele, List<Haplotype>> practicalAlleleMapper = null;
-                if (practicalAlleleCount < originalAlleleCount) {
-                    practicalAlleleMapper = reduceNumberOfAlternativeAllelesBasedOnHaplotypesScores(alleleMapper, practicalAlleleCount);
-                    if( configuration.DEBUG && logger != null ) {
-                        logger.warn(String.format("Removed alt alleles where ploidy is %d and original allele count is %d, whereas after trimming the allele count becomes %d",
-                                ploidy, originalAlleleCount, practicalAlleleCount));
-                        logger.warn(String.format("Alleles kept are:%s", practicalAlleleMapper.keySet()));
-                    }
-                }else{
-                    practicalAlleleMapper = alleleMapper;
-                }
-
-                final ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(practicalAlleleMapper,
+                final ReadLikelihoods<Allele> readAlleleLikelihoods = readLikelihoods.marginalize(alleleMapper,
                                                                                                   genomeLocParser.createPaddedGenomeLoc(genomeLocParser.createGenomeLoc(mergedVC),
                                                                                                                                         ALLELE_EXTENSION));
                 if (configuration.isSampleContaminationPresent())
@@ -358,52 +340,82 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
     }
 
     /**
-     * Trim excessive alt alleles when the combination of ploidy and alleles is so large that exhaustively enumerating
-     * all possible genotypes is impractical.
-     * Use the highest haplotype score of each allele to decide which ones to trim away, and in case of tie, use the second best.
-     * @param alleleMapper          original allele to haplotype map to be trimmed
-     * @param desiredNumOfAlleles   desired allele count (ref allele won't be removed)
-     * @return trimmed map of the desired size
+     * If the number of alleles is so high that enumerating all possible genotypes is impractical, as determined by
+     * {@link #maxGenotypeCountToEnumerate}, remove alt alleles from the input {@code alleleMapper} that are
+     * not well supported by good-scored haplotypes.
+     * Otherwise do nothing.
+     *
+     * Alleles kept are guaranteed to have higher precedence than those removed, where precedence is determined by
+     * {@link AlleleScoredByHaplotypeScores}.
+     *
+     * After the remove operation, entries in map are guaranteed to have the same relative order as they were in the input map,
+     * that is, entries will be only be removed but not not shifted relative to each other.
+     *  @param ploidy        ploidy of the sample
+     * @param alleleMapper  original allele to haplotype map
      */
-    private Map<Allele, List<Haplotype>> reduceNumberOfAlternativeAllelesBasedOnHaplotypesScores(final Map<Allele, List<Haplotype>> alleleMapper, final int desiredNumOfAlleles) {
+    private VariantContext removeAltAllelesIfTooManyGenotypes(final int ploidy, final Map<Allele, List<Haplotype>> alleleMapper, final VariantContext mergedVC) {
 
-        final PriorityQueue<AlleleScoredByHaplotypeScores> altAlleleMaxPriorityQ = new PriorityQueue<>((sa1, sa2) -> - sa2.compareTo(sa1)); // -1 to turn it into max priority q
+        final int originalAlleleCount = alleleMapper.size();
+        practicalAlleleCountForPloidy.putIfAbsent(ploidy, GenotypeLikelihoodCalculators.computeMaxAcceptableAlleleCount(ploidy, maxGenotypeCountToEnumerate));
+        final int practicalAlleleCount = practicalAlleleCountForPloidy.get(ploidy);
 
-        final Set<Allele> allelesToRetain = new HashSet<>();
-        // populate allelePriorityQ with the relevant information
+        if (originalAlleleCount > practicalAlleleCount) {
+            final List<Allele> allelesToKeep = whichAllelesToKeepBasedonHapScores(alleleMapper, practicalAlleleCount);
+            alleleMapper.keySet().retainAll(allelesToKeep);
+            logger.warn(String.format("Removed alt alleles where ploidy is %d and original allele count is %d, whereas after trimming the allele count becomes %d. Alleles kept are:%s",
+                    ploidy, originalAlleleCount, practicalAlleleCount, allelesToKeep));
+            return removeExcessAltAllelesFromVC(mergedVC, allelesToKeep);
+        } else {
+            return mergedVC;
+        }
+    }
+
+    /**
+     * Returns a list of alleles that is a subset of the key set of input map {@code alleleMapper}.
+     * The size of the returned list is min({@code desiredNumOfAlleles}, alleleMapper.size()).
+     *
+     * Alleles kept are guaranteed to have higher precedence than those removed, where precedence is determined by
+     * {@link AlleleScoredByHaplotypeScores}.
+     *
+     * Entries in the returned list are guaranteed to have the same relative order as they were in the input map.
+     *
+     * @param alleleMapper          original allele to haplotype map
+     * @param desiredNumOfAlleles   desired allele count, including ref allele
+     */
+    @VisibleForTesting
+    static List<Allele> whichAllelesToKeepBasedonHapScores(final Map<Allele, List<Haplotype>> alleleMapper,
+                                                           final int desiredNumOfAlleles) {
+
+        if(alleleMapper.size() <= desiredNumOfAlleles){
+            return alleleMapper.keySet().stream().collect(Collectors.toList());
+        }
+
+        final PriorityQueue<AlleleScoredByHaplotypeScores> alleleMaxPriorityQ = new PriorityQueue<>();
         for(final Allele allele : alleleMapper.keySet()){
-
-            if(allele.isReference()){ // collect scores information only on alt alleles; ref allele is never trimmed by this function
-                allelesToRetain.add(allele);
-                continue;
-            }
-
-            final List<Double> hapScores = alleleMapper.get(allele).stream().map(hap -> hap.getScore()).collect(Collectors.toList());
-            Collections.sort(hapScores);
+            final List<Double> hapScores = alleleMapper.get(allele).stream().map(Haplotype::getScore).sorted().collect(Collectors.toList());
             final Double highestScore = hapScores.get(hapScores.size()-1);
             final Double secondHighestScore = hapScores.size()>1 ? hapScores.get(hapScores.size()-2) : Double.NEGATIVE_INFINITY;
 
-            altAlleleMaxPriorityQ.add(new AlleleScoredByHaplotypeScores(allele, highestScore, secondHighestScore));
+            alleleMaxPriorityQ.add(new AlleleScoredByHaplotypeScores(allele, highestScore, secondHighestScore));
         }
 
+        final Set<Allele> allelesToRetain = new LinkedHashSet<>();
         while(allelesToRetain.size()<desiredNumOfAlleles){
-            allelesToRetain.add(altAlleleMaxPriorityQ.poll().getAllele());
+            allelesToRetain.add(alleleMaxPriorityQ.poll().getAllele());
         }
-
-        return alleleMapper.entrySet().stream().filter(p -> allelesToRetain.contains(p.getKey()))
-                .collect(Collectors.toMap(p->p.getKey(), p->p.getValue()));
+        return alleleMapper.keySet().stream().filter(allelesToRetain::contains).collect(Collectors.toList());
     }
 
     /**
      * A utility class that provides ordering information, given best and second best haplotype scores.
      * If there's a tie between the two alleles when comparing their best haplotype score, the second best haplotype score
      * is used for breaking the tie. In the case that one allele doesn't have a second best allele, i.e. it has only one
-     * supportive haplotype, its second best score is set as null, and is always considered "worse" than another allele
-     * that has the same best haplotype score, but also has a second best haplotype score.
-     * TODO: in the extremely unlikely case that two alleles, having the same best haplotype score, neither have a second
-     * best haplotype score, the case is undecided.
+     * supportive haplotype, its second best score is set as {@link Double#NEGATIVE_INFINITY}.
+     * In the extremely unlikely cases that two alleles, having the same best haplotype score, neither have a second
+     * best haplotype score, or the same second best haplotype score, the order is exactly the same as determined by
+     * {@link Allele#compareTo(Allele)}.
      */
-    private static final class AlleleScoredByHaplotypeScores {
+    private static final class AlleleScoredByHaplotypeScores implements Comparable<AlleleScoredByHaplotypeScores>{
         private final Allele allele;
         private final Double bestHaplotypeScore;
         private final Double secondBestHaplotypeScore;
@@ -414,19 +426,49 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
             this.secondBestHaplotypeScore = secondBestHaplotypeScore;
         }
 
+        @Override
         public int compareTo(final AlleleScoredByHaplotypeScores other) {
-            if(bestHaplotypeScore > other.bestHaplotypeScore) {
-                return 1;
-            } else if (bestHaplotypeScore < other.bestHaplotypeScore) {
+
+            if(allele.isReference() && other.allele.isNonReference()){
                 return -1;
+            } else if(allele.isNonReference() && other.allele.isReference()){
+                return 1;
+            } else if(bestHaplotypeScore > other.bestHaplotypeScore) {
+                return -1;
+            } else if (bestHaplotypeScore < other.bestHaplotypeScore) {
+                return 1;
+            } else if (!secondBestHaplotypeScore.equals(other.secondBestHaplotypeScore)) {
+                return secondBestHaplotypeScore > other.secondBestHaplotypeScore ? -1 : 1;
             } else {
-                return secondBestHaplotypeScore > other.secondBestHaplotypeScore ? 1 : -1;
+                return allele.compareTo(other.allele);
             }
         }
 
         public Allele getAllele(){
             return allele;
         }
+    }
+
+    /**
+     * Returns an VC that is similar to {@code inputVC} in every aspect except that alleles not in {@code allelesToKeep}
+     * are removed in the returned VC.
+     * @throws IllegalArgumentException if 1) {@code allelesToKeep} is null or contains null elements; or
+     *                                     2) {@code allelesToKeep} doesn't contain a reference allele; or
+     *                                     3) {@code allelesToKeep} is not a subset of {@code inputVC.getAlleles()}
+     */
+    @VisibleForTesting
+    static VariantContext removeExcessAltAllelesFromVC(final VariantContext inputVC, final Collection<Allele> allelesToKeep){
+        Utils.validateArg(allelesToKeep!=null, "alleles to keep is null");
+        Utils.validateArg(!allelesToKeep.contains(null), "alleles to keep contains null elements");
+        Utils.validateArg(allelesToKeep.stream().anyMatch(Allele::isReference), "alleles to keep doesn't contain reference allele!");
+        Utils.validateArg(inputVC.getAlleles().containsAll(allelesToKeep), "alleles to keep is not a subset of input VC alleles");
+        if(inputVC.getAlleles().size() == allelesToKeep.size()) return inputVC;
+
+        final VariantContextBuilder vcb = new VariantContextBuilder(inputVC);
+        final List<Allele> originalList = inputVC.getAlleles();
+        originalList.retainAll(allelesToKeep);
+        vcb.alleles(originalList);
+        return vcb.make();
     }
 
     /**

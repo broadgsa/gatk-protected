@@ -512,5 +512,15 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5Variants, md5BAMOut));
         executeTest("testHaplotypeCallerReadPosRankSum", spec);
     }
+
+    @Test
+    public void testHaplotypeCallerRemoveAltAlleleBasedOnHaptypeScores() {
+        final File testBAM = new File(privateTestDir + "pretendTobeTetraPloidTetraAllelicSite.bam");
+        final String md5 = "289304f56833ea76b60cd08763b0f68b";
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s -L 20:11363580-11363600 -ploidy 4 -maxGT 15 ", REF, testBAM) +
+                " --no_cmdline_in_header -o %s";
+        final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5));
+        executeTest("testHaplotypeCallerRemoveAltAlleleBasedOnHaptypeScores", spec);
+    }
 }
 
