@@ -86,6 +86,11 @@ public class GaussianMixtureModel {
         gaussians = new ArrayList<>( numGaussians );
         for( int iii = 0; iii < numGaussians; iii++ ) {
             final MultivariateGaussian gaussian = new MultivariateGaussian( numAnnotations );
+            gaussian.pMixtureLog10 = Math.log10( 1.0 / ((double)numGaussians) );
+            gaussian.sumProb = 1.0 / ((double) numGaussians);
+            gaussian.hyperParameter_a = priorCounts;
+            gaussian.hyperParameter_b = shrinkage;
+            gaussian.hyperParameter_lambda = dirichletParameter;
             gaussians.add( gaussian );
         }
         this.shrinkage = shrinkage;
@@ -190,6 +195,9 @@ public class GaussianMixtureModel {
             final double[] pVarInGaussianNormalized = MathUtils.normalizeFromLog10( pVarInGaussianLog10, false );
             gaussianIndex = 0;
             for( final MultivariateGaussian gaussian : gaussians ) {
+                if (Double.isNaN(pVarInGaussianNormalized[gaussianIndex])){
+                    logger.info(" Got a NaN at gaussian:" + Integer.toString(gaussianIndex) + " datum:" + datum.toString());
+                }
                 gaussian.assignPVarInGaussian( pVarInGaussianNormalized[gaussianIndex++] );
             }
         }
@@ -315,4 +323,5 @@ public class GaussianMixtureModel {
     protected List<MultivariateGaussian> getModelGaussians() {return Collections.unmodifiableList(gaussians);}
 
     protected int getNumAnnotations() {return empiricalMu.length;}
+
 }
