@@ -488,8 +488,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     @Test
-    public void testHBaseCountsBySample() throws IOException{
-        HCTest(NA12878_BAM, " -L 20:10001000-10010000 -A BaseCountsBySample", "c4550a5933cc954bad70980750e0df52");
+    public void testBaseCounts() throws IOException{
+        HCTest(CEUTRIO_BAM, "-A BaseCountsBySample -A BaseCounts", "40def0e9c06031d6b624a22a093574c0");
     }
 
     @Test
