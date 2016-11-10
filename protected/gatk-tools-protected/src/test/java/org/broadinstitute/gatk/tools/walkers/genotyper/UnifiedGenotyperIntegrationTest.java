@@ -129,12 +129,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testOutputParameterAllConfident() {
-        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "f6937cc8ec068f2d38b5d277a92be34b");
+        testOutputParameters("--output_mode EMIT_ALL_CONFIDENT_SITES", "06386b0a4495583aa924e5addd56c5dc");
     }
 
     @Test
     public void testOutputParameterAllSites() {
-        testOutputParameters("--output_mode EMIT_ALL_SITES", "1cddd7b1e730765c2b7b55d8a1d69b4c");
+        testOutputParameters("--output_mode EMIT_ALL_SITES", "b8b21ad6a2ff1f908e8e0073b57ba0e0");
     }
 
     private void testOutputParameters(final String args, final String md5) {
@@ -190,12 +190,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testHeterozyosity1() {
-        testHeterozosity( 0.01, "6b8bdde9d303139806c5177fae53b1fd" );
+        testHeterozosity( 0.01, "7bbba110f720fc8c115fe2d53b34d693" );
     }
 
     @Test
     public void testHeterozyosity2() {
-        testHeterozosity( 1.0 / 1850, "b1604d1ba68dfe2fcfb861ef6420a8ba" );
+        testHeterozosity( 1.0 / 1850, "767e8eacd216ac7437456e690287cecf" );
     }
 
     private void testHeterozosity(final double arg, final String md5) {
@@ -238,7 +238,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
         // Note that we need to turn off any randomization for this to work, so no downsampling and no annotations
 
-        String md5 = "398d3ad38834fea8961ab6f46a21dc4b";
+        String md5 = "75b4b097747f91b8b7ceea153d2b7e1c";
         final String myCommand = "-T UnifiedGenotyper --disableDithering -R " + b36KGReference + " --no_cmdline_in_header -glm BOTH -minIndelFrac 0.0 --dbsnp " + b36dbSNP129;
 
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
@@ -274,7 +274,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -o %s" +
                         " -L 1:10,000,000-10,100,000",
                 1,
-                Arrays.asList("7ed55f70feeacf8ecc6b36f0d741dfc7"));
+                Arrays.asList("6464138c0bd2ab2cac06773f19e37a4c"));
 
         executeTest(String.format("test multiple technologies"), spec);
     }
@@ -293,7 +293,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                         " -L 1:10,000,000-10,100,000" +
                         " -baq CALCULATE_AS_NECESSARY",
                 1,
-                Arrays.asList("90224ac1c9e2ce9b77fee8dd6e044efe"));
+                Arrays.asList("8885492069487efcf67e13608e762acd"));
 
         executeTest(String.format("test calling with BAQ"), spec);
     }
@@ -310,7 +310,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000 " +
                 "-A SnpEff",
                 1,
-                Arrays.asList("2a1eced23dd605d1b0a3efde3f04e23f"));
+                Arrays.asList("81ac0ffd22a0d0907848019944034359"));
 
         executeTest("testSnpEffAnnotationRequestedWithoutRodBinding", spec);
     }

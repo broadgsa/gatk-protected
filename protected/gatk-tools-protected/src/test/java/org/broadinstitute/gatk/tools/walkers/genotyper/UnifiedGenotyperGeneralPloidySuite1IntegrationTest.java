@@ -69,7 +69,7 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
 
     @Test(enabled = true)
     public void testSNP_ACS_Pools() {
-        executor.PC_LSV_Test_short("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 6 -out_mode EMIT_ALL_CONFIDENT_SITES", "LSV_SNP_ACS", "SNP", "ebdf749d404aaef298780a53059a4f93");
+        executor.PC_LSV_Test_short("-A AlleleCountBySample -maxAltAlleles 1 -ploidy 6 -out_mode EMIT_ALL_CONFIDENT_SITES", "LSV_SNP_ACS", "SNP", "853b47780322b8133577aea528b9fd77");
     }
 
     @Test(enabled = true)
@@ -88,6 +88,6 @@ public class UnifiedGenotyperGeneralPloidySuite1IntegrationTest extends WalkerTe
         //TODO the old MD5 is kept for the record.
         //TODO this should be revisit once we get into addressing inaccuracies by the independent allele approach.
 //        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "b5ff7530827f4b9039a58bdc8a3560d2");
-        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "5b76f96b6b74944e0c0d9914700588f0");
+        executor.PC_LSV_Test_NoRef("-A AlleleCountBySample -maxAltAlleles 2 -ploidy 1", "LSV_INDEL_DISC_NOREF_p1", "INDEL", "f6b9e1ac0c51c9702525ee52bb2db18a");
     }
 }

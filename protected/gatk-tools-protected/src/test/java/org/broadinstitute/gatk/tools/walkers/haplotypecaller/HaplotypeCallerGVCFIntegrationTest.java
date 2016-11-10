@@ -87,7 +87,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         //TODO this might need to be addressed at some point.
         //TODO the following test is commented out for the record
         //tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "7f09c261950bf86e435edfa69ed2ec71"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "8d30370465d74fd549d76dd31adc4c0c"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "a4286ada7f9efaa83f7a8f0e72c3cb45"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "cf5545094ebb264fa8eb879fd848d9ef"});
         tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "0086cc735cf792a9f236ec057c73b750"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "2e81881e92061ad4eb29025ffdc129c7"});

@@ -378,7 +378,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                 // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
                 // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
                 final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
-                final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(allele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING/3);
+                final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(allele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING);
 
                 siteIsMonomorphic &= !isPlausible;
                 boolean toOutput = (isPlausible || forceKeepAllele(allele) || isNonRefWhichIsLoneAltAllele);
@@ -793,7 +793,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
             final double normalizedLog10ACeq0Posterior = log10ACeq0Posterior - log10PosteriorNormalizationConstant;
             // This is another condition to return a 0.0 also present in AFCalculator code as well.
-            if (normalizedLog10ACeq0Posterior >= QualityUtils.qualToErrorProbLog10(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING/3))
+            if (normalizedLog10ACeq0Posterior >= QualityUtils.qualToErrorProbLog10(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING))
                 return 0.0;
 
             return 1.0 - Math.pow(10.0, normalizedLog10ACeq0Posterior);
