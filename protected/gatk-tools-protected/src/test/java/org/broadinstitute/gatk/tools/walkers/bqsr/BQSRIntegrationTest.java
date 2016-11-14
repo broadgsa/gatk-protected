@@ -109,13 +109,13 @@ public class BQSRIntegrationTest extends WalkerTest {
     @DataProvider(name = "BQSRTest")
     public Object[][] createBQSRTestData() {
         return new Object[][]{
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "fc9df1faf67bab70d32f89bcf4fa39db")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "73ec38eb23b1739ecef8194cbb1132a3")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "2d5721193ed4410d1a7d8db467a1fa05")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "16df7f1745f17f190c9fc33c475b91d8")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "01811003ae811ee74c4b8d3eb5e992fe")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "5e0eea6b0b300fbd2edabc3506ad3a60")},
-                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "8500b9747c16cb8eb17082163bdb8069")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, "", "dde4269a873c6f7a751e775cbc79fdb9")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov ContextCovariate", "fae427cb969638060e2294540e120dfc")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --no_standard_covs -cov CycleCovariate", "651be7dcd798c71ceaefb773ed792193")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --indels_context_size 4", "f5fd024e900d0d77c681483da1e5dfd5")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --low_quality_tail 5", "751189ec8cd406628cf4e698c69e8d11")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --quantizing_levels 6", "b921c36eb7f5be8f8b91b651247a83d7")},
+                {new BQSRTest(hg18Reference, HiSeqBam, HiSeqInterval, " --mismatches_context_size 4", "6c3c6176eb6214dc7ef121fa11916e5d")},
                 {new BQSRTest(b36KGReference, SimpleCigarMatchMismatchBam, SimpleCigarMatchMismatchInterval, "", "56dfb2918a4cdae3ef9d705a43e85194")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA12892.SLX.SRP000031.2009_06.selected.1Mb.1RG.bam", "1:10,000,000-10,200,000", "", "0b5a8e259e997e4c7b5836d4c28e6f4d")},
                 {new BQSRTest(b36KGReference, validationDataLocation + "NA19240.chr1.BFAST.SOLID.bam", "1:10,000,000-10,200,000", "", "281682124584ab384f23359934df0c3b")},

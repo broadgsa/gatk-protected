@@ -62,7 +62,7 @@ public class ErrorRatePerCycleIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T ErrorRatePerCycle -R " + b37KGReference + " -I " + b37GoodBAM + " -L 20:10,000,000-10,100,000 -o %s",
                 1,
-                Arrays.asList("6191340f0b56ee81fb248c8f5c913a8e"));
+                Arrays.asList("a83453820b7afb5ee79856093d62901f"));
         executeTest("ErrorRatePerCycle:", spec);
     }
 }
