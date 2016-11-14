@@ -108,7 +108,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000", b37KGReference),
                 1,
-                Collections.singletonList("b82f29eee8b1369b376ace857bf9b55a"));
+                Collections.singletonList("7b2a135e694f9d1190e041e6fd420123"));
         executeTest("combineSingleSamplePipelineGVCF", spec);
     }
 
@@ -157,7 +157,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " --includeNonVariantSites -L 20:10,030,000-10,033,000 -L 20:10,386,000-10,386,500", b37KGReference),
                 1,
-                Collections.singletonList("ea11554de21ef8f25e9983db8b5a8480"));
+                Collections.singletonList("a9ecd152ec4b5b541887a0aed016f40d"));
         spec.disableShadowBCF();
         executeTest("combineSingleSamplePipelineGVCF_includeNonVariants", spec);
     }
@@ -171,7 +171,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Collections.singletonList("b304c7e3bb3625a1cdb5531c77b13bcd"));
+                Collections.singletonList("06e218297fa5399538d13b6a8db4cfe3"));
         executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
     }
 
@@ -183,7 +183,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-11,000,000 --dbsnp " + b37dbSNP132, b37KGReference),
                 1,
-                Collections.singletonList("08adc638b9539fd275836ed008d900ee"));
+                Collections.singletonList("181fcb5d240b9bd92e3c793ca5aa7954"));
         executeTest("combineSingleSamplePipelineGVCF_addDbsnp", spec);
     }
 
@@ -251,7 +251,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-allSites"),
                 1,
-                Collections.singletonList("764ac46e0b985db187d85655240f7ec0"));
+                Collections.singletonList("2425f2567bfcf187ebae3fb5fa7558b1"));
         spec.disableShadowBCF();
         executeTest("testAllSitesNonBiallelic", spec);
     }
@@ -270,7 +270,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-stand_call_conf 300"),
                 1,
-                Collections.singletonList("30903101c5459f602d7004934bc85ca9"));
+                Collections.singletonList("0ea995f728391647c69f2a3c9a6c1d03"));
         executeTest("testStandardConf", spec);
     }
 
@@ -310,7 +310,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:combined2 " + privateTestDir + "combine.single.sample.pipeline.combined.vcf" +
                         " --uniquifySamples", b37KGReference),
                 1,
-                Collections.singletonList("1cb3bddf47c620d294b08acd70d35fa3"));
+                Collections.singletonList("0c99b1b20fb035a5dada036bd4cf39e5"));
         executeTest("testUniquifiedSamples", spec);
 
     }
@@ -590,7 +590,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                 baseTestString(" -V " + privateTestDir + "set.zero.RGQs.no.call.sample1.g.vcf" +
                         " -V " + privateTestDir + "set.zero.RGQs.no.call.sample2.g.vcf" +
                         " -L chr16:1279274-1279874 -allSites", hg19ReferenceWithChrPrefixInChromosomeNames),
-                Collections.singletonList("e88db6e49c12487c55de42769d2f8c6c"));
+                Collections.singletonList("903047b6262fcb82070556ff74f26a75"));
         spec.disableShadowBCF();
         executeTest("testSetZeroRGQsToNoCall", spec);
     }
@@ -668,7 +668,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testGenotypingSpanningDeletionWithAllSites() {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "spanningDel.genotyping.g.vcf -allSites", b37KGReference),
-                Collections.singletonList("d3d862faf954f9bb8b1619c3e889ad8c"));
+                Collections.singletonList("04cfe93e92444cbde80e13ca8b8c3913"));
         spec.disableShadowBCF();
         executeTest("testGenotypingSpanningDeletionWithAllSites", spec);
     }
@@ -686,7 +686,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testNewQualNaNBugFix() {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -newQual -V " + privateTestDir + "input-newqual-nan-bug-fix.vcf", b37KGReferenceWithDecoy),
-                Collections.singletonList("503f4193c22fbcc451bd1c425b8b6bf8"));
+                Collections.singletonList("e1a7801c9bb5e80d204635bac6105abf"));
         spec.disableShadowBCF();
         executeTest("testNewQualNaNBugFix", spec);
     }

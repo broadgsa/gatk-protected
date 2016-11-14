@@ -107,7 +107,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "a6abb0aa68d3b4d15185a119350e76dc", "d38aab5bf8ef0bc7c18e8c909819da84");
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "700c5d20e9d9d9a431fcda9bff91f72e", "a0daf5a80158d4a462248415c1e17565");
     }
 
     @Test
@@ -203,7 +203,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeCallerSingleSampleIndelQualityScores() {
-        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "3625167f0e788d409c7eab1898d5eafe");
+        HCTestIndelQualityScores(NA12878_RECALIBRATED_BAM, "", "49b8fb444c6f88def2069b8b0efe47c7");
     }
 
     private void HCTestNearbySmallIntervals(String bam, String args, String md5) {
@@ -361,7 +361,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestAggressivePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -pairHMMSub " + HMM_SUB_IMPLEMENTATION +  " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("c2dab66ad3740320004874c83051bbfc"));
+                Arrays.asList("fcc81209c562f3c7f1627b187a4dfab4"));
         executeTest("HC calling with aggressive indel error modeling on WGS intervals", spec);
     }
 
@@ -369,7 +369,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -pairHMMSub " + HMM_SUB_IMPLEMENTATION +  " " + ALWAYS_LOAD_VECTOR_HMM  + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("a8ea15ac136042891434ccb0b3c3b686"));
+                Arrays.asList("61aef3fe9d18eec1df526e99a8456115"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 

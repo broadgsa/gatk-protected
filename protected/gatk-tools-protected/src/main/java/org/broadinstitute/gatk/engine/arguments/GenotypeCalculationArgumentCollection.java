@@ -122,7 +122,7 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      * is the default).
      */
     @Argument(fullName = "standard_min_confidence_threshold_for_calling", shortName = "stand_call_conf", doc = "The minimum phred-scaled confidence threshold at which variants should be called", required = false)
-    public double STANDARD_CONFIDENCE_FOR_CALLING = 30.0;
+    public double STANDARD_CONFIDENCE_FOR_CALLING = 10.0;
 
     /**
      * This argument allows you to emit low quality calls as filtered records.
