@@ -64,6 +64,9 @@ import java.util.Arrays;
 import java.util.List;
 
 public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
+    private static String TRAINING_VCF =  comparisonDataLocation + "Validated/HapMap/3.3/sites_r27_nr.b37_fwd.vcf";
+    private static String TRUTH_VCF =  comparisonDataLocation + "Validated/Omni2.5_chip/Omni25_genotypes_2141_samples.b37.vcf";
+
     private static class VRTest {
         String inVCF;
         String aggregateVCF;
@@ -93,15 +96,15 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
     }
 
     VRTest lowPass = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
-            "41e2d951a17de433fe378bb3d9ec75d4",  // tranches
-            "3fe87e69c6a613addb7eff5449e86aa1",  // recal file
-            "78b8f1934d77341df2f6a9fdbd30fa74"); // cut VCF
+            "3ccb3aa81aebee74d32641105a64ea32",  // tranches
+            "1a87e9cdc66c53891eab61ab39ff2434",  // recal file
+            "217ee1523b6ddaf31f0eb0464b89bab6"); // cut VCF
 
     VRTest lowPassPlusExomes = new VRTest(validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf",
             validationDataLocation + "1kg_exomes_unfiltered.AFR.unfiltered.vcf",
-            "ce4bfc6619147fe7ce1f8331bbeb86ce",  // tranches
-            "5a298554e9175961f63506c4e42ea78b",  // recal file
-            "f284c0cbb00407cc5273c6f1a871513e"); // cut VCF
+            "be89401e09dd06817c43f152c789f854",  // tranches
+            "8ce11e7555cccb3f13ea34a9074aec00",  // recal file
+            "c09c2425744e8d914d69a2585dba0e97"); // cut VCF
 
     @DataProvider(name = "VRTest")
     public Object[][] createData1() {
@@ -119,8 +122,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b37KGReference +
                         " -resource:known=true,prior=10.0 " + GATKDataLocation + "dbsnp_132_b37.leftAligned.vcf" +
-                        " -resource:truth=true,training=true,prior=15.0 " + comparisonDataLocation + "Validated/HapMap/3.3/sites_r27_nr.b37_fwd.vcf" +
-                        " -resource:training=true,truth=true,prior=12.0 " + comparisonDataLocation + "Validated/Omni2.5_chip/Omni25_sites_1525_samples.b37.vcf" +
+                        " -resource:truth=true,training=true,prior=15.0 " + TRAINING_VCF +
+                        " -resource:training=true,truth=true,prior=12.0 " + TRUTH_VCF +
                         " -T VariantRecalibrator" +
                         " -input " + params.inVCF +
                         " -L 20:1,000,000-40,000,000" +
@@ -159,8 +162,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b37KGReference +
                         " -resource:known=true,prior=10.0 " + GATKDataLocation + "dbsnp_132_b37.leftAligned.vcf" +
-                        " -resource:truth=true,training=true,prior=15.0 " + comparisonDataLocation + "Validated/HapMap/3.3/sites_r27_nr.b37_fwd.vcf" +
-                        " -resource:training=true,truth=true,prior=12.0 " + comparisonDataLocation + "Validated/Omni2.5_chip/Omni25_sites_1525_samples.b37.vcf" +
+                        " -resource:truth=true,training=true,prior=15.0 " + TRAINING_VCF +
+                        " -resource:training=true,truth=true,prior=12.0 " + TRUTH_VCF +
                         " -T VariantRecalibrator" +
                         " -input " + params.inVCF +
                         " -aggregate " + params.aggregateVCF +
@@ -210,8 +213,8 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b37KGReference +
                         " -resource:known=true,prior=10.0 " + GATKDataLocation + "dbsnp_132_b37.leftAligned.vcf" +
-                        " -resource:truth=true,training=true,prior=15.0 " + comparisonDataLocation + "Validated/HapMap/3.3/sites_r27_nr.b37_fwd.vcf" +
-                        " -resource:training=true,truth=true,prior=12.0 " + comparisonDataLocation + "Validated/Omni2.5_chip/Omni25_sites_1525_samples.b37.vcf" +
+                        " -resource:truth=true,training=true,prior=15.0 " + TRAINING_VCF +
+                        " -resource:training=true,truth=true,prior=12.0 " + TRUTH_VCF +
                         " -T VariantRecalibrator" +
                         " -input " + params.inVCF +
                         " -L 20:10,000,000-20,000,000" +
