@@ -77,8 +77,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
-
+import htsjdk.variant.variantcontext.writer.SortingVariantContextWriter;
 import java.util.*;
 
 /**
@@ -186,7 +185,7 @@ public class HaplotypeResolver extends RodWalker<Integer, Integer> {
             headerLines.add(new VCFInfoHeaderLine(STATUS_KEY, 1, VCFHeaderLineType.String, "Extent to which records match"));
         final VCFHeader vcfHeader = new VCFHeader(headerLines, Collections.<String>emptySet());
         baseWriter.writeHeader(vcfHeader);
-        writer = VariantContextWriterFactory.sortOnTheFly(baseWriter, ACTIVE_WINDOW);
+        writer = new SortingVariantContextWriter(baseWriter, ACTIVE_WINDOW);
     }
 
     public Integer map(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
