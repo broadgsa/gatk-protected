@@ -174,7 +174,7 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
     public void emitPLsAtAllSites() {
         WalkerTest.WalkerTestSpec spec1 = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,010,000 --output_mode EMIT_ALL_SITES -allSitePLs", 1,
-                Arrays.asList("afcb9c4fd4a0e9ba4694d911bc75a7b2"));
+                Arrays.asList("067d0a9d90c978c5563ea56a86fc682f"));
         // GDA: TODO: BCF encoder/decoder doesn't seem to support non-standard values in genotype fields. IE even if there is a field defined in FORMAT and in the header the BCF2 encoder will still fail
         spec1.disableShadowBCF();
 
@@ -190,12 +190,12 @@ public class UnifiedGenotyperIntegrationTest extends WalkerTest {
 
     @Test
     public void testHeterozyosity1() {
-        testHeterozosity( 0.01, "8abbec54f4bf82d7c48bf40b43fdaa91" );
+        testHeterozosity( 0.01, "0175a3d4dedea857f87149522d133d78" );
     }
 
     @Test
     public void testHeterozyosity2() {
-        testHeterozosity( 1.0 / 1850, "4221b00b0d10c005fb69fd2a298e384c" );
+        testHeterozosity( 1.0 / 1850, "080a14940e4d3f5c14c533d019b99341" );
     }
 
     private void testHeterozosity(final double arg, final String md5) {

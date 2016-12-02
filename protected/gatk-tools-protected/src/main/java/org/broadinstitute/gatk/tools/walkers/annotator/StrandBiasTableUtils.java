@@ -51,9 +51,9 @@
 
 package org.broadinstitute.gatk.tools.walkers.annotator;
 
-import cern.jet.math.Arithmetic;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.utils.QualityUtils;
+import org.apache.commons.math3.distribution.HypergeometricDistribution;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,22 +83,51 @@ public class StrandBiasTableUtils {
 
         int[][] table = copyContingencyTable(normalizedTable);
 
-        double pCutoff = computePValue(table);
+        int[] rowSums = { sumRow(table, 0), sumRow(table, 1) };
+        int[] colSums = { sumColumn(table, 0), sumColumn(table, 1) };
+        int N = rowSums[0] + rowSums[1];
+        int sampleSize = colSums[0];
+        int numberOfNonSuccesses = rowSums[1];
+        int numberOfSuccesses = rowSums[0];
+        /*
+         * The lowest possible number of successes you can sample is what's left of your sample size after
+         * drawing every non success in the urn. If the number of non successes in the urn is greater than the sample
+         * size then the minimum number of drawn successes is 0.
+         */
+        int lo = Math.max(0, sampleSize - numberOfNonSuccesses);
+        /*
+         * The highest possible number of successes you can draw is either the total sample size or the number of
+         * successes in the urn. (Whichever is smaller)
+         */
+        int hi = Math.min(sampleSize, numberOfSuccesses);
 
-        double pValue = pCutoff;
-        while (rotateTable(table)) {
-            double pValuePiece = computePValue(table);
-
-            if (pValuePiece <= pCutoff) {
-                pValue += pValuePiece;
-            }
+        /**
+         * If the support of the distribution is only one value, creating the HypergeometricDistribution
+         * doesn't make sense. There would be only one possible observation so the p-value has to be 1.
+         */
+        if (lo == hi) {
+            return 1.0;
         }
 
-        table = copyContingencyTable(normalizedTable);
-        while (unrotateTable(table)) {
-            double pValuePiece = computePValue(table);
+        /**
+         * For the hypergeometric distribution from which to calculate the probabilities:
+         * The population (N = a+b+c+d) is the sum of all four numbers in the contingency table. Then the number of
+         * "successes" (K = a+b) is the sum of the top row, and the sample size (n = a+c) is the sum of the first column.
+         */
+        final HypergeometricDistribution dist = new HypergeometricDistribution(N, numberOfSuccesses, sampleSize);
 
-            if (pValuePiece <= pCutoff) {
+        //Then we determine a given probability with the sampled successes (k = a) from the first entry in the table.
+        double pCutoff = dist.probability(table[0][0]);
+
+        double pValue = 0.0;
+        /**
+         * Now cycle through all possible k's and add those whose probabilities are smaller than our observed k
+         * to the p-value, since this is a two-sided test
+         */
+        for(int i = lo; i <= hi; i++){
+            double pValuePiece = dist.probability(i);
+
+            if(pValuePiece <= pCutoff) {
                 pValue += pValuePiece;
             }
         }
@@ -188,45 +217,6 @@ public class StrandBiasTableUtils {
         }
 
         return c;
-    }
-
-    protected static boolean rotateTable(int[][] table) {
-        table[0][0]--;
-        table[1][0]++;
-
-        table[0][1]++;
-        table[1][1]--;
-
-        return (table[0][0] >= 0 && table[1][1] >= 0);
-    }
-
-    protected static boolean unrotateTable(int[][] table) {
-        table[0][0]++;
-        table[1][0]--;
-
-        table[0][1]--;
-        table[1][1]++;
-
-        return (table[0][1] >= 0 && table[1][0] >= 0);
-    }
-
-    protected static double computePValue(int[][] table) {
-
-        int[] rowSums = { sumRow(table, 0), sumRow(table, 1) };
-        int[] colSums = { sumColumn(table, 0), sumColumn(table, 1) };
-        int N = rowSums[0] + rowSums[1];
-
-        // calculate in log space for better precision
-        double pCutoff = Arithmetic.logFactorial(rowSums[0])
-                + Arithmetic.logFactorial(rowSums[1])
-                + Arithmetic.logFactorial(colSums[0])
-                + Arithmetic.logFactorial(colSums[1])
-                - Arithmetic.logFactorial(table[0][0])
-                - Arithmetic.logFactorial(table[0][1])
-                - Arithmetic.logFactorial(table[1][0])
-                - Arithmetic.logFactorial(table[1][1])
-                - Arithmetic.logFactorial(N);
-        return Math.exp(pCutoff);
     }
 
     private static int sumRow(int[][] table, int column) {
