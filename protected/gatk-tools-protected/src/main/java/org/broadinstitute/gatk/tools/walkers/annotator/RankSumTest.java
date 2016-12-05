@@ -71,7 +71,8 @@ import java.util.*;
 
 
 /**
- * Abstract root for all RankSum-based annotations
+ * Abstract root for all RankSum-based annotations.
+ * The RankSumTest concept is documented at https://software.broadinstitute.org/gatk/documentation/article?id=8031
  */
 //TODO: will eventually implement ReducibleAnnotation in order to preserve accuracy for CombineGVCFs and GenotypeGVCFs -- see RMSAnnotation.java for an example of an abstract ReducibleAnnotation
 public abstract class RankSumTest extends InfoFieldAnnotation implements ActiveRegionBasedAnnotation {

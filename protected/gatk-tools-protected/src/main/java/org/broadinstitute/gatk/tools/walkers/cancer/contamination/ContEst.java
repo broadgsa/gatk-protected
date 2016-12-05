@@ -197,29 +197,29 @@ public class ContEst extends RodWalker<Map<String, Map<String, ContaminationStat
     public SeqGenotypeMode genotypeMode = SeqGenotypeMode.HARD_THRESHOLD;
 
     // ------------------------------------------------------------------------------------------------------------------------------------------------------
-    // hidden arguments
+    // advanced arguments
     // ------------------------------------------------------------------------------------------------------------------------------------------------------
-    @Hidden
+    @Advanced
     @Argument(fullName = "trim_interval", doc = "progressively trim from 0 to TRIM_FRACTION by this interval", required = false)
     public double TRIM_INTERVAL = 0;
 
-    @Hidden
+    @Advanced
     @Argument(fullName = "min_site_depth", required = false, doc = "minimum depth at a site to consider in calculation")
     public int MIN_SITE_DEPTH = 0;
 
-    @Hidden
+    @Advanced
     @Argument(fullName = "fixed_epsilon_qscore", required = false, doc = "use a constant epsilon (phred scale) for calculation")
     public Byte FIXED_EPSILON = null;
 
-    @Hidden
+    @Advanced
     @Argument(fullName = "min_genotype_depth", required = false, doc = "what minimum depth is required to call a site in seq genotype mode")
     public int MIN_GENOTYPE_DEPTH_FOR_SEQ = 50;
 
-    @Hidden
+    @Advanced
     @Argument(fullName = "min_genotype_ratio", required = false, doc = "the ratio of alt to other bases to call a site a hom non-ref variant")
     public double MIN_GENOTYPE_RATIO = 0.80;
 
-    @Hidden
+    @Advanced
     @Argument(fullName = "min_genotype_llh", required = false, doc = "the min log likelihood for UG to call a genotype")
     public double MIN_UG_LOG_LIKELIHOOD = 5;
     // ------------------------------------------------------------------------------------------------------------------------------------------------------

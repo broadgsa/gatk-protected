@@ -75,7 +75,7 @@ import java.util.*;
  * <p>The output is a Phred-scaled p-value. The higher the output value, the more likely there is to be bias. More bias is indicative of false positive calls.</p>
  *
  * <h3>Statistical notes</h3>
- * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of this application of Fisher's Exact Test.</p>
+ * <p>See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=8056">method document on statistical tests</a> for a more detailed explanation of this application of Fisher's Exact Test.</p>
  *
  * <h3>Caveats</h3>
  * <ul>
