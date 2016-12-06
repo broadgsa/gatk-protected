@@ -83,7 +83,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf", b37KGReference),
                 1,
-                Collections.singletonList("de36b46bc523b305bf344591a285c0d9"));
+                Collections.singletonList("cdff1a18cd820c9d9c2b5b05ab7ef8a9"));
         executeTest("testUpdatePGT", spec);
     }
 
@@ -93,7 +93,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample -log " + logFileName, b37KGReference),
                 1,
-                Collections.singletonList("c8eba89f434ca5e9dc0f157bcd4bea11"));
+                Collections.singletonList("7a459c5ff606239620e5f7b089186dfb"));
         executeTest("testUpdatePGTStrandAlleleCountsBySample", spec);
 
         final File file = new File(logFileName);
@@ -171,7 +171,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
                         " -V:sample3 " + privateTestDir + "combine.single.sample.pipeline.3.vcf" +
                         " -L 20:10,000,000-20,000,000", b37KGReference),
                 1,
-                Collections.singletonList("06e218297fa5399538d13b6a8db4cfe3"));
+                Collections.singletonList("8a37077d9a52b9d556cdd19403e27635"));
         executeTest("combineSingleSamplePipelineGVCFHierarchical", spec);
     }
 
@@ -242,7 +242,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-nda"),
                 1,
-                Collections.singletonList("ce064429e6cbcaa956d52ef22e102f2f"));
+                Collections.singletonList("b92742a67c5b1718fb5674393b2008fd"));
         executeTest("testNDA", spec);
     }
 
@@ -251,7 +251,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-allSites"),
                 1,
-                Collections.singletonList("2425f2567bfcf187ebae3fb5fa7558b1"));
+                Collections.singletonList("77ae407c276aa7070fa22b110160c684"));
         spec.disableShadowBCF();
         executeTest("testAllSitesNonBiallelic", spec);
     }
@@ -261,7 +261,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-maxAltAlleles 1"),
                 1,
-                Collections.singletonList("1f1c0605fc8a500c9646132e0d7420a0"));
+                Collections.singletonList("312f01d41dff851f449d9b4ecf0e78d2"));
         executeTest("testMaxAltAlleles", spec);
     }
 
@@ -270,7 +270,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseBPResolutionString("-stand_call_conf 300"),
                 1,
-                Collections.singletonList("0ea995f728391647c69f2a3c9a6c1d03"));
+                Collections.singletonList("89582b2a32e3f04d3daa565a0c185003"));
         executeTest("testStandardConf", spec);
     }
 
@@ -293,7 +293,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + gVCF.getAbsolutePath(), b37KGReference),
                 1,
-                Collections.singletonList("8a6e69c8d0b4dd9bf0646173f1b1f32c"));
+                Collections.singletonList("f613d0bc0d45aafe53227bc0d13712f1"));
         spec.disableShadowBCF();  //TODO: Remove when BaseTest.assertAttributesEquals() works with SAC
         executeTest("testStrandAlleleCountsBySample", spec);
     }
@@ -686,7 +686,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     public void testNewQualNaNBugFix() {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -newQual -V " + privateTestDir + "input-newqual-nan-bug-fix.vcf", b37KGReferenceWithDecoy),
-                Collections.singletonList("e1a7801c9bb5e80d204635bac6105abf"));
+                Collections.singletonList("ab5994dcaf9b2d41269b4ff4729b5e81"));
         spec.disableShadowBCF();
         executeTest("testNewQualNaNBugFix", spec);
     }

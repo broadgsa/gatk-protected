@@ -72,23 +72,33 @@ public class StrandBiasTableUtilsTest {
         //> fisher(c(2068, 6796, 1133, 0))
 
         final List<Object[]> tests = new ArrayList<>();
-        tests.add(new Object[]{0, 0, 0, 0, 1.0});
-        tests.add(new Object[]{100000, 100000, 100000, 100000, 1.0});
-        tests.add(new Object[]{1, 2, 3, 4, 1.0});
-        tests.add(new Object[]{0, 0, 100000, 100000, 1.0});
-        tests.add(new Object[]{100000, 100000, 100000, 0, 0.0});             //below R's or Java's precision
+        tests.add(new Object[]{9,11,12,10,                     0.7578618});
+        tests.add(new Object[]{12,10,9,11,                     0.7578618});
+        tests.add(new Object[]{9,10,12,10,                     0.7578618});
+        tests.add(new Object[]{9,9,12,10,                      1.0});
+        tests.add(new Object[]{9,13,12,10,                     0.5466948});
+        tests.add(new Object[]{12,10,9,13,                     0.5466948});
+        tests.add(new Object[]{9,12,11,9,                      0.5377362});
 
-        tests.add(new Object[]{200000, 100000, 1, 2, 1.0});                   //differs from GATK4 implementation
-        tests.add(new Object[]{100, 100, 100, 0, 3.730187e-23});
-        tests.add(new Object[]{13736, 9047, 41, 1433, 1.232E-4});              //differs from GATK4 implementation
-        tests.add(new Object[]{66, 14, 64, 4, 0.0688244});
-        tests.add(new Object[]{351169, 306836, 153739, 2379, 0.0});              //below R's or Java's precision
-        tests.add(new Object[]{116449, 131216, 289, 16957, 0.0026801});               //differs from GATK4 implementation
-        tests.add(new Object[]{137, 159, 9, 23, 0.10752410});                     //differs from GATK4 implementation
-        tests.add(new Object[]{129, 90, 21, 20, 0.6450772});                       //differs from GATK4 implementation
-        tests.add(new Object[]{14054, 9160, 16, 7827, 0.0});             //below R's or Java's precision
-        tests.add(new Object[]{32803, 9184, 32117, 3283, 0.0289540});              //differs from GATK4 implementation
-        tests.add(new Object[]{2068, 6796, 1133, 0, 0.0});             //below R's or Java's precision
+        tests.add(new Object[]{0, 0, 0, 0,                     1.0});
+        tests.add(new Object[]{100000, 100000, 100000, 100000, 1.0}  );
+        tests.add(new Object[]{0, 0, 100000, 100000,           1.0});
+        tests.add(new Object[]{100000,100000,100000,0,         1.312515e-15});
+
+        tests.add(new Object[]{0, 0, 0, 3,                     1.0});
+        tests.add(new Object[]{9, 0, 0, 0,                     1.0});
+        tests.add(new Object[]{200000, 100000, 1, 2,           1.0});
+
+        tests.add(new Object[]{100,100,100,0,                  3.730187e-23});
+        tests.add(new Object[]{13736,9047,41,1433,             6.162592e-05});
+        tests.add(new Object[]{66, 14, 64, 4,                  4.243330e-02});
+        tests.add(new Object[]{351169, 306836, 153739, 2379,   2.193607e-09});
+        tests.add(new Object[]{116449, 131216, 289, 16957,     1.340052e-03});
+        tests.add(new Object[]{137, 159, 9, 23,                6.088506e-02});
+        tests.add(new Object[]{129, 90, 21, 20,                3.919603e-01});
+        tests.add(new Object[]{14054, 9160, 16, 7827,          7.466277e-17});
+        tests.add(new Object[]{32803, 9184, 32117, 3283,       1.795855e-02});
+        tests.add(new Object[]{2068, 6796, 1133, 0,            5.919091e-13});
 
         return tests.toArray(new Object[][]{});
     }
