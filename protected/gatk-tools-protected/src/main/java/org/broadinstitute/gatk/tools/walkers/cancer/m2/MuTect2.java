@@ -194,8 +194,6 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     private double log10GlobalReadMismappingRate;
     private static final int REFERENCE_PADDING = 500;
     private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
-    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
-    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
 
     @ArgumentCollection
     protected M2ArgumentCollection MTAC = new M2ArgumentCollection();
@@ -286,6 +284,16 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     @Advanced
     @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Disable physical phasing", required = false)
     protected boolean doNotRunPhysicalPhasing = false;
+
+    /**
+     * When downsampling, level the coverage of the reads in each sample to no more than maxReadsInRegionPerSample reads,
+     * not reducing coverage at any read start to less than minReadsPerAlignmentStart
+     */
+    @Argument(fullName = "maxReadsInRegionPerSample", shortName = "maxReadsInRegionPerSample", doc="Maximum reads in an active region", required = false)
+    protected int maxReadsInRegionPerSample = 1000;
+
+    @Argument(fullName = "minReadsPerAlignmentStart", shortName = "minReadsPerAlignStart", doc="Minimum number of reads sharing the same alignment start for each genomic location in an active region", required = false)
+    protected int minReadsPerAlignmentStart = 5;
 
     public RodBinding<VariantContext> getDbsnpRodBinding() { return MTAC.dbsnp.dbsnp; }
 
