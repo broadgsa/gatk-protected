@@ -63,12 +63,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
 
@@ -236,15 +238,19 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     }
 
     /**
-     * Test HaplotypeCaller to ensure it does not throw an exception when a .g.vcf.gz output file is specified and the indexing arguments are omitted
+     * Test HaplotypeCaller to ensure it does not throw an exception when a .g.vcf.gz output file is specified and the indexing arguments are omitted.
+     * Verify that the output file is using the GZIP file format.
      */
     @Test()
-    public void testGVCFGzIndexNoThrow() {
+    public void testGVCFGzIndexNoThrow() throws IOException {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "noCallRefModel.bam", "20:17000000-17000100");
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine  + " -o %s", Arrays.asList(GATKVCFUtils.GVCF_GZ_EXT), Arrays.asList(""));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine, Arrays.asList(""));
+        final File outputFile = createTempFile("testGVCFGzIndexNoThrow", "." + GATKVCFUtils.GVCF_GZ_EXT);
+        spec.setOutputFileLocation(outputFile);
         spec.disableShadowBCF();
-        executeTest("testGVCFIndexNoThrow", spec);
+        executeTest("testGVCFGzIndexNoThrow", spec);
+        final GZIPInputStream gzipOutputFileStream = new GZIPInputStream(new FileInputStream(outputFile));
     }
 
     @Test()

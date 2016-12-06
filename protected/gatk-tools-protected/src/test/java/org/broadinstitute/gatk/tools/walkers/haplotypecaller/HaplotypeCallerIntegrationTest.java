@@ -53,6 +53,8 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.tribble.FeatureReader;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -526,6 +528,22 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testAlleleBalance() throws IOException{
         HCTest(CEUTRIO_BAM, " -L 20:10001000-10010000 -A AlleleBalance -A AlleleBalanceBySample", "a210161843f4cb80143ff56e4e5c250f");
+    }
+
+    @Test()
+    public void testBCFInFileNameGivesVCF()  {
+        final String md5 = "d41d8cd98f00b204e9800998ecf8427e";
+        final String commandLine = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --maxReadsInRegionPerSample 1000" +
+                        " --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 --pcr_indel_model NONE" +
+                        " -pairHMMSub %s %s -R %s -I %s -L %s -minPruning 3 --no_cmdline_in_header",
+                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, NA12878_BAM, "20:10000000-10100000");
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine, Arrays.asList(md5));
+        final File outputFile = createTempFile("testBCFInFileNameGivesVCF", ".bcftoolsFile.vcf");
+        spec.setOutputFileLocation(outputFile);
+        spec.disableShadowBCF();
+        executeTest("testBCFInFileNameGivesVCF", spec);
+        // Will throw an exception if the file in not a VCF
+        FeatureReader<VariantContext> reader = AbstractFeatureReader.getFeatureReader(outputFile.getAbsolutePath(), new VCFCodec(), false);
     }
 }
 
