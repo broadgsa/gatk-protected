@@ -211,21 +211,26 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         executeTest("testFilteringDPfromFORMAT", spec);
     }
 
+    // The current htsjdk implementation of JEXL matching on genotype fields is buggy. When the filter uses an
+    // annotation that is present in both FORMAT and INFO, and the FORMAT value is missing, the current code (Dec 2016)
+    // will look up the INFO value. Here we use a made-up annotation Z instead of DP to avoid having to rig the test
+    // so that the INFO value will give the same matching results as the FORMAT value.
     @Test
-    public void testFilteringDPfromFORMATWithMissing() {
+    public void testFilteringZfromFORMATWithMissing() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
-                        + " --genotypeFilterExpression 'DP < 10' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
-                Arrays.asList("cc55e6a7bae2ab3503ecefc973ec1c2d"));
+                        + " --genotypeFilterExpression 'Z < 10' --genotypeFilterName lowZ -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("47607708dee31b6033f14a3613c8acb8"));
         executeTest("testFilteringDPfromFORMATWithMissing", spec);
     }
 
+    // Same comment as above.
     @Test
-    public void testFilteringDPfromFORMATAndFailMissing() {
+    public void testFilteringZfromFORMATAndFailMissing() {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
-                        + " --missingValuesInExpressionsShouldEvaluateAsFailing --genotypeFilterExpression 'DP < 10' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
-                Arrays.asList("521e6f33325a051ced28152a1e7c273d"));
+                        + " --missingValuesInExpressionsShouldEvaluateAsFailing --genotypeFilterExpression 'Z < 10' --genotypeFilterName lowZ -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("4f519e725203931841940707c50ab6a3"));
         executeTest("testFilteringDPfromFORMATAndFailMissing", spec);
     }
 
