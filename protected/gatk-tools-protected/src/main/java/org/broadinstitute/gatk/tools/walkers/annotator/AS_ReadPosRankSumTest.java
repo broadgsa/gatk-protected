@@ -74,7 +74,7 @@ import java.util.List;
  * <p>This annotation can be used to evaluate confidence in a variant call and is a recommended covariate for variant recalibration (VQSR). Finding a statistically significant difference in relative position either way suggests that the sequencing process may have been biased or affected by an artifact. In practice, we only filter out low negative values when evaluating variant quality because the idea is to filter out variants for which the quality of the data supporting the alternate allele is comparatively low. The reverse case, where it is the quality of data supporting the reference allele that is lower (resulting in positive ranksum scores), is not really informative for filtering variants.</p>
  *
  * <h3>Statistical notes</h3>
- * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for site position within reads (position within reads supporting REF vs. position within reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=4732">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
+ * <p>The value output for this annotation is the u-based z-approximation from the Mann-Whitney-Wilcoxon Rank Sum Test for site position within reads (position within reads supporting REF vs. position within reads supporting ALT). See the <a href="http://www.broadinstitute.org/gatk/guide/article?id=8031">method document on statistical tests</a> for a more detailed explanation of the ranksum test.</p>
  *
  * <h3>Caveat</h3>
  * <ul>
@@ -101,6 +101,11 @@ public class AS_ReadPosRankSumTest extends AS_RankSumTest implements AS_Standard
         final int offset = ReadUtils.getReadCoordinateForReferenceCoordinate(read.getSoftStart(), read.getCigar(), refLoc, ReadUtils.ClippingTail.RIGHT_TAIL, true);
         if ( offset == ReadUtils.CLIPPING_GOAL_NOT_REACHED )
             return null;
+
+        // If the offset inside a deletion, it does not lie on a read.
+        if ( AlignmentUtils.isInsideDeletion(read.getCigar(), offset) ) {
+            return INVALID_ELEMENT_FROM_READ;
+        }
 
         int readPos = AlignmentUtils.calcAlignmentByteArrayOffset(read.getCigar(), offset, false, 0, 0);
         final int numAlignedBases = AlignmentUtils.getNumAlignedBasesCountingSoftClips( read );

@@ -72,7 +72,9 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import java.util.*;
 
 /**
- * Allele-specific implementation of rank sum test annotations
+ * Allele-specific implementation of rank sum test annotations.
+ * The RankSumTest concept is documented at https://software.broadinstitute.org/gatk/documentation/article?id=8031
+ *
  */
 public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnnotation {
     private final static Logger logger = Logger.getLogger(AS_RMSAnnotation.class);
@@ -277,7 +279,8 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
             final GATKSAMRecord read = el.getKey();
             if ( isUsableRead(read, refLoc) ) {
                 final Double value = getElementForRead(read, refLoc, a);
-                if ( value == null )
+                // Bypass read if the clipping goal is not reached or the refloc is inside a spanning deletion
+                if ( value == null || value == INVALID_ELEMENT_FROM_READ )
                     continue;
 
                 if(perAlleleValues.containsKey(a.getMostLikelyAllele()))

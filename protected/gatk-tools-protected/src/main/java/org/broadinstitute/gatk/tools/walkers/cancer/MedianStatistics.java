@@ -49,41 +49,37 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.queue.qscripts.dev
+package org.broadinstitute.gatk.tools.walkers.cancer;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
+/**
+ * Created by tsato on 6/27/16.
+ */
+public class MedianStatistics {
+    private double leftMedian;
+    private double rightMedian;
+    private double leftMAD;
+    private double rightMAD;
 
-class run_M2_dream extends QScript {
+    public MedianStatistics(double leftMedian, double rightMedian, double leftMAD, double rightMAD) {
+        this.leftMedian = leftMedian;
+        this.rightMedian = rightMedian;
+        this.leftMAD = leftMAD;
+        this.rightMAD = rightMAD;
+    }
 
-  @Argument(shortName = "L",  required=false, doc = "Intervals file")
-  var intervalsFile: List[File] = Nil
-  @Argument(shortName = "normal",  required=true, doc = "Normal sample BAM")
-  var normalBAM: String = ""
-  @Argument(shortName = "tumor", required=true, doc = "Tumor sample BAM")
-  var tumorBAM: String = ""
-  @Argument(shortName = "o",  required=true, doc = "Output file")
-  var outputFile: String = ""
-  @Argument(shortName = "sc",  required=false, doc = "base scatter count")
-  var scatter: Int = 10 
+    public double getLeftMedian() {
+        return leftMedian;
+    }
 
+    public double getRightMedian() {
+        return rightMedian;
+    }
 
-    def script() {
+    public double getLeftMAD() {
+        return leftMAD;
+    }
 
-    val mutect2 = new MuTect2
-
-    mutect2.reference_sequence = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-    mutect2.cosmic :+= new File("/xchip/cga/reference/hg19/hg19_cosmic_v54_120711.vcf")
-    mutect2.dbsnp = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/dbsnp_138.b37.vcf")
-    mutect2.normal_panel :+= new File("/xchip/cga/reference/hg19/wgs_hg19_125_cancer_blood_normal_panel.vcf")
-
-    mutect2.intervalsString = intervalsFile
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(normalBAM, "normal"), new TaggedFile(tumorBAM, "tumor"))
-
-    mutect2.scatterCount = scatter
-    mutect2.out = outputFile
-    add(mutect2)
-  }
-
+    public double getRightMAD() {
+        return rightMAD;
+    }
 }

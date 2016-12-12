@@ -70,7 +70,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultiSamplePilot1() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "low_coverage_CEU.chr1.10k-11k.bam -o %s -L 1:10,022,000-10,025,000", 1,
-                Arrays.asList("c759b04ed0d948bda95008e29f3f5c2d"));
+                Arrays.asList("605f447127bf9c92f60bbaa9c6a6732e"));
         executeTest("test MultiSample Pilot1", spec);
     }
 
@@ -94,7 +94,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testSingleSamplePilot2() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 baseCommand + " -I " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.bam -o %s -L 1:10,000,000-10,100,000", 1,
-                Arrays.asList("281db46f39e3367f207838c620a82bd2"));
+                Arrays.asList("ac9905e26a2c51129d22b5c617679c6a"));
         executeTest("test SingleSample Pilot2", spec);
     }
 
@@ -102,7 +102,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMultipleSNPAlleles() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm BOTH --dbsnp " + b37dbSNP129 + " -I " + privateTestDir + "multiallelic.snps.bam -o %s -L " + privateTestDir + "multiallelic.snps.intervals", 1,
-                Arrays.asList("94ca1e00d4fad9c5279271c2779ff797"));
+                Arrays.asList("3304a20af6745beeec07ef2c47d617d3"));
         executeTest("test Multiple SNP alleles", spec);
     }
 
@@ -126,7 +126,7 @@ public class UnifiedGenotyperNormalCallingIntegrationTest extends WalkerTest{
     public void testMismatchedPLs() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-T UnifiedGenotyper --contamination_fraction_to_filter 0.05 --disableDithering -R " + b37KGReference + " --no_cmdline_in_header -glm INDEL -I " + privateTestDir + "mismatchedPLs.bam -o %s -L 1:24020341", 1,
-                Arrays.asList("c5aff2572ce09c413e7f5c9e1b3f92d6"));
+                Arrays.asList("5dc0ccd66105e0f12c72987d56c85235"));
         executeTest("test mismatched PLs", spec);
     }
 }

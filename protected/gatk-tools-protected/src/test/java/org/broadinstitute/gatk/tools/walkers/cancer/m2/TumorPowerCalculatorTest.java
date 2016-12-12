@@ -49,92 +49,32 @@
 * 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
 */
 
-package org.broadinstitute.gatk.tools.walkers.cancer.m2
+package org.broadinstitute.gatk.tools.walkers.cancer.m2;
 
-import java.io.File
+import org.testng.annotations.Test;
 
-import org.broadinstitute.gatk.queue.QScript
-import org.broadinstitute.gatk.queue.extensions.gatk._
-import org.broadinstitute.gatk.queue.function.CommandLineFunction
-import org.broadinstitute.gatk.queue.util.QScriptUtils
-import org.broadinstitute.gatk.utils.commandline.{Input, Output}
-import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils.FilteredRecordMergeType
+import static org.testng.Assert.*;
 
-import scala.collection.mutable.ListBuffer
+/**
+ * Created by tsato on 6/19/16.
+ */
+public class TumorPowerCalculatorTest {
 
-class create_M2_pon extends QScript {
-
-  @Argument(shortName = "bams", required = true, doc = "file of all BAM files")
-  var allBams: String = ""
-
-  @Argument(shortName = "o", required = true, doc = "Output prefix")
-  var outputPrefix: String = ""
-
-  @Argument(shortName = "minN", required = false, doc = "minimum number of sample observations to include in PON")
-  var minN: Int = 2
-
-  @Argument(doc="Reference fasta file to process with", fullName="reference", shortName="R", required=false)
-  var reference = new File("/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta")
-
-  @Argument(doc="Intervals file to process with", fullName="intervals", shortName="L", required=true)
-  var intervals : File = ""
-
-  @Argument(shortName = "sc", required = false, doc = "base scatter count")
-  var scatter: Int = 10
-
-
-  def script() {
-    val bams = QScriptUtils.createSeqFromFile(allBams)
-    val genotypesVcf = outputPrefix + ".genotypes.vcf"
-    val finalVcf = outputPrefix + ".vcf"
-
-    val perSampleVcfs = new ListBuffer[File]()
-    for (bam <- bams) {
-      val outputVcf = "sample-vcfs/" + bam.getName + ".vcf"
-      add( createM2Config(bam, outputVcf))
-      perSampleVcfs += outputVcf
+    private boolean closeEnough(double x, double y, double epsilon){
+        return(Math.abs(x - y) < epsilon);
     }
 
-    val cv = new CombineVariants()
-    cv.reference_sequence = reference
-    cv.memoryLimit = 2
-    cv.setKey = "null"
-    cv.minimumN = minN
-    cv.memoryLimit = 16
-    cv.filteredrecordsmergetype = FilteredRecordMergeType.KEEP_IF_ANY_UNFILTERED
-    cv.filteredAreUncalled = true
-    cv.variant = perSampleVcfs
-    cv.out = genotypesVcf
-
-    // using this instead of "sites_only" because we want to keep the AC info
-    val vc = new VcfCutter()
-    vc.inVcf = genotypesVcf
-    vc.outVcf = finalVcf
-
-    add (cv, vc)
-
-  }
+    @Test
+    public void testCachedPowerCalculation() throws Exception {
+        TumorPowerCalculator tpc = new TumorPowerCalculator(0.001, 2.0, 0.0);
+        final double epsilon = 0.0001;
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(100,0.2), 1.0, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(30,0.1), 0.8864, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(0,0.02), 0.0, epsilon));
+        assertTrue(closeEnough(tpc.cachedPowerCalculation(5, 0.01), 0.0520, epsilon));
 
 
-  def createM2Config(bam : File, outputVcf : File): org.broadinstitute.gatk.queue.extensions.gatk.MuTect2 = {
-    val mutect2 = new org.broadinstitute.gatk.queue.extensions.gatk.MuTect2
+    }
 
-    mutect2.reference_sequence = reference
-    mutect2.artifact_detection_mode = true
-    mutect2.intervalsString :+= intervals
-    mutect2.memoryLimit = 2
-    mutect2.input_file = List(new TaggedFile(bam, "tumor"))
 
-    mutect2.scatterCount = scatter
-    mutect2.out = outputVcf
-
-    mutect2
-  }
-}
-
-class VcfCutter extends CommandLineFunction {
-  @Input(doc = "vcf to cut") var inVcf: File = _
-  @Output(doc = "output vcf") var outVcf: File = _
-
-  def commandLine = "cat %s | cut -f1-8 > %s".format(inVcf, outVcf)
 }

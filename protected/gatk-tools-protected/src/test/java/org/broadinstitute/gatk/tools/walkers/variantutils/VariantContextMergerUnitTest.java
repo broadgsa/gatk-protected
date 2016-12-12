@@ -51,13 +51,16 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.*;
 import org.broadinstitute.gatk.engine.GenomeAnalysisEngine;
 import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.utils.*;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.fasta.CachingIndexedFastaSequenceFile;
+import org.broadinstitute.gatk.utils.sam.ArtificialSAMUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
+import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.DataProvider;
@@ -65,10 +68,7 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Tests {@link org.broadinstitute.gatk.tools.walkers.variantutils.ReferenceConfidenceVariantContextMerger}.
@@ -170,6 +170,84 @@ public class VariantContextMergerUnitTest  extends BaseTest {
         }
     }
 
+    @Test
+    public void testMergeTooManyAlleles() {
+        final int ALLELE_COUNT = 100;
+        final int SAMPLE_COUNT = 200;
+        final double MNP_PROB = 0.1;
+        final double MNP_MUT_RATE = 0.1;
+        final double NO_PL_PROB = 0.1;
+        final Random rdn = new Random(13);
+        final RandomDNA randomDNA = new RandomDNA(rdn);
+        final Allele refAllele = Allele.create(randomDNA.nextBases(30), true);
+        final Set<Allele> alleles = new LinkedHashSet<>(ALLELE_COUNT);
+        alleles.add(refAllele);
+        alleles.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+        while (alleles.size() < ALLELE_COUNT) {
+            if (rdn.nextDouble() <= MNP_PROB) {
+                final byte[] bytes = refAllele.getBases().clone();
+                for (int i = 0; i < bytes.length; i++) {
+                    bytes[i] = rdn.nextDouble() <= MNP_MUT_RATE ? randomDNA.nextBase() : bytes[i];
+                }
+                if (!Arrays.equals(bytes, refAllele.getBases())) {
+                    alleles.add(Allele.create(bytes, false));
+                }
+            } else {
+                final int newLength = rdn.nextInt(refAllele.getBases().length + 100) + 1;
+                if (newLength < refAllele.getBases().length) {
+                    alleles.add(Allele.create(Arrays.copyOf(refAllele.getBases(), newLength), false));
+                } else if (newLength > refAllele.getBases().length) {
+                    final byte[] bases = randomDNA.nextBases(newLength);
+                    System.arraycopy(refAllele.getBases(), 0, bases, 0, refAllele.getBases().length);
+                } // else same length... we skip and try again.
+            }
+        }
+        final List<Allele> alleleList = new ArrayList<>(alleles);
+
+        final SAMFileHeader header = ArtificialSAMUtils.createArtificialSamHeader(1, 1, 100000);
+        final GenomeLocParser genomeLocParser = new GenomeLocParser(header.getSequenceDictionary());
+        final List<VariantContext> variantContexts = new ArrayList<>(SAMPLE_COUNT);
+        for (int i = 0; i < SAMPLE_COUNT; i++) {
+            final GenotypeBuilder genotypeBuilder = new GenotypeBuilder("SAMPLE_" + (i+1));
+            genotypeBuilder.alleles(GATKVariantContextUtils.noCallAlleles(2));
+            final List<Allele> sampleAlleles = new ArrayList<>();
+            sampleAlleles.add(refAllele);
+            sampleAlleles.add(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+            for (int j = 2; j < alleles.size(); j++) {
+                if (rdn.nextDouble() <= 0.01) {
+                    sampleAlleles.add(alleleList.get(j));
+                }
+            }
+            if (rdn.nextDouble() > NO_PL_PROB) {
+                final int[] PLs = new int[(sampleAlleles.size() * (sampleAlleles.size() + 1)) >> 1];
+                for (int j = 0; j < PLs.length; j++) {
+                    PLs[j] = rdn.nextInt(1000);
+                }
+                genotypeBuilder.PL(PLs);
+            }
+            final int[] AD = new int[sampleAlleles.size()];
+            for (int j = 0; j < AD.length; j++) {
+                AD[j] = rdn.nextInt(100);
+            }
+            genotypeBuilder.AD(AD);
+
+            variantContexts.add(new VariantContextBuilder()
+                    .loc("chr1", 10000, 10000 + refAllele.getBases().length - 1)
+                    .alleles(sampleAlleles)
+                    .genotypes(genotypeBuilder.make())
+                    .make());
+        }
+        final VariantContext result = ReferenceConfidenceVariantContextMerger.merge(variantContexts,
+                genomeLocParser.createGenomeLoc("chr1", 10000), refAllele.getBases()[0], false, true, null);
+        Assert.assertNotNull(result);
+        Assert.assertEquals(result.getGenotypes().size(), SAMPLE_COUNT);
+        Assert.assertTrue(result.getNAlleles() > GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED,
+                "Not necessarily a bug, need to fix the random data generation to make sure there is enough alt-alleles to go beyond this threshold");
+        System.err.println("Alleles: " + result.getNAlleles());
+        for (int i = 0; i < SAMPLE_COUNT; i++) {
+            Assert.assertFalse(result.getGenotype(i).hasPL(), "" + i);
+        }
+    }
 
     @DataProvider(name = "referenceConfidenceMergeData")
     public Object[][] makeReferenceConfidenceMergeData() {

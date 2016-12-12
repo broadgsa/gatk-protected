@@ -71,6 +71,7 @@ import org.broadinstitute.gatk.tools.walkers.haplotypecaller.*;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.QualityUtils;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegion;
 import org.broadinstitute.gatk.utils.activeregion.ActiveRegionReadState;
@@ -108,26 +109,19 @@ import static java.lang.Math.pow;
 /**
  * Call somatic SNPs and indels via local re-assembly of haplotypes
  *
- * <p>MuTect2 is a somatic SNP and indel caller that combines the DREAM challenge-winning somatic genotyping engine of the original MuTect (<a href='http://www.nature.com/nbt/journal/v31/n3/full/nbt.2514.html'>Cibulskis et al., 2013</a>) with the assembly-based machinery of HaplotypeCaller.</p>
- *
- * <p>The basic operation of MuTect2 proceeds similarly to that of the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php">HaplotypeCaller</a>   </p>
+ * <p>MuTect2 is a somatic SNP and indel caller that combines the DREAM challenge-winning somatic genotyping engine of the original MuTect (<a href='http://www.nature.com/nbt/journal/v31/n3/full/nbt.2514.html'>Cibulskis et al., 2013</a>) with the assembly-based machinery of HaplotypeCaller. The basic operation of MuTect2 proceeds similarly to that of the <a href="https://www.broadinstitute.org/gatk/guide/tooldocs/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php">HaplotypeCaller</a>.</p>
  *
  * <h3>Differences from HaplotypeCaller</h3>
- * <p>While the HaplotypeCaller relies on a ploidy assumption (diploid by default) to inform its genotype likelihood and
- * variant quality calculations, MuTect2 allows for a varying allelic fraction for each variant, as is often seen in tumors with purity less
- * than 100%, multiple subclones, and/or copy number variation (either local or aneuploidy). MuTect2 also differs from the HaplotypeCaller in that it does apply some hard filters
- * to variants before producing output.</p>
+ * <p>While the HaplotypeCaller relies on a ploidy assumption (diploid by default) to inform its genotype likelihood and variant quality calculations, MuTect2 allows for a varying allelic fraction for each variant, as is often seen in tumors with purity less than 100%, multiple subclones, and/or copy number variation (either local or aneuploidy). MuTect2 also differs from the HaplotypeCaller in that it does apply some hard filters to variants before producing output.</p>
+ * <p>Note that the GVCF generation capabilities of HaplotypeCaller are NOT available in MuTect2, even though some of the relevant arguments are listed below. There are currently no plans to make GVCF calling available in MuTect2.</p>
  *
  * <h3>Usage examples</h3>
- * <p>These are example commands that show how to run MuTect2 for typical use cases. Square brackets ("[ ]")
- * indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the
- * Best Practices documentation for detailed recommendations. </p>
+ * <p>These are example commands that show how to run MuTect2 for typical use cases. Square brackets ("[ ]") indicate optional arguments. Note that parameter values shown here may not be the latest recommended; see the Best Practices documentation for detailed recommendations. </p>
  *
  * <br />
  * <h4>Tumor/Normal variant calling</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar \
+ *   java -jar GenomeAnalysisTK.jar \
  *     -T MuTect2 \
  *     -R reference.fasta \
  *     -I:tumor tumor.bam \
@@ -140,10 +134,9 @@ import static java.lang.Math.pow;
  *
  * <h4>Normal-only calling for panel of normals creation</h4>
  * <pre>
- *   java
- *     -jar GenomeAnalysisTK.jar
- *     -T MuTect2
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -T MuTect2 \
+ *     -R reference.fasta \
  *     -I:tumor normal1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     [--cosmic COSMIC.vcf] \
@@ -152,12 +145,11 @@ import static java.lang.Math.pow;
  *     -o output.normal1.vcf
  * </pre>
  * <br />
- * For full PON creation, call each of your normals separately in artifact detection mode. Then use CombineVariants to
- * output only sites where a variant was seen in at least two samples:
+ * For full PON creation, call each of your normals separately in artifact detection mode as shown above. Then use CombineVariants to output only sites where a variant was seen in at least two samples:
  * <pre>
- * java -jar GenomeAnalysisTK.jar
- *     -T CombineVariants
- *     -R reference.fasta
+ *   java -jar GenomeAnalysisTK.jar \
+ *     -T CombineVariants \
+ *     -R reference.fasta \
  *     -V output.normal1.vcf -V output.normal2.vcf [-V output.normal2.vcf ...] \
  *     -minN 2 \
  *     --setKey "null" \
@@ -169,7 +161,10 @@ import static java.lang.Math.pow;
  *
  * <h3>Caveats</h3>
  * <ul>
- * <li>MuTect2 currently only supports the calling of a single tumor-normal pair at a time</li>
+ * <li>As noted in several places in the documentation, MuTect2 is currently released under BETA status; it is NOT recommended for production work and is NOT available for commercial/for-profit licensing.</li>
+ * <li>MuTect2 currently only supports the calling of a single tumor-normal pair at a time.</li>
+ * <li>Tumor-only variant calling is possible but it is NOT supported and we will not answer any questions about it until it becomes a supported feature.</li>
+ * <li>Some of the arguments listed below are not functional; they are exclusive to HaplotypeCaller and are listed here due to technical entanglements in the code. This will be resolved in the upcoming GATK 4 release.</li>
  * </ul>
  *
  */
@@ -189,23 +184,16 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     protected SampleList samplesList;
     protected boolean printTCGAsampleHeader = false;
 
-    // fasta reference reader to supplement the edges of the reference sequence
     protected CachingIndexedFastaSequenceFile referenceReader;
-
-    // the assembly engine
     protected LocalAssemblyEngine assemblyEngine = null;
-
-    // the likelihoods engine
     protected ReadLikelihoodCalculationEngine likelihoodCalculationEngine = null;
-
-    // the genotyping engine
-    protected HaplotypeCallerGenotypingEngine genotypingEngine = null;
-
+    protected SomaticGenotypingEngine genotypingEngine = null;
+    private HaplotypeBAMWriter haplotypeBAMWriter;
 
     private byte MIN_TAIL_QUALITY;
     private double log10GlobalReadMismappingRate;
-
-
+    private static final int REFERENCE_PADDING = 500;
+    private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
 
     @ArgumentCollection
     protected M2ArgumentCollection MTAC = new M2ArgumentCollection();
@@ -216,34 +204,98 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     @ArgumentCollection
     protected LikelihoodEngineArgumentCollection LEAC = new LikelihoodEngineArgumentCollection();
 
-
     @Argument(fullName = "debug_read_name", required = false, doc="trace this read name through the calling process")
-    public String DEBUG_READ_NAME = null;
+    protected String DEBUG_READ_NAME = null;
 
     @Hidden
     @Advanced
     @Argument(fullName = "MQ_filtering_level", shortName = "MQthreshold", required = false, doc="Set an alternate MQ threshold for debugging")
     final public int MQthreshold = 20;
 
-
-    /***************************************/
-    // Reference Metadata inputs
-    /***************************************/
     /**
-     * MuTect2 has the ability to use COSMIC data in conjunction with dbSNP to adjust the threshold for evidence of a variant
-     * in the normal.  If a variant is present in dbSNP, but not in COSMIC, then more evidence is required from the normal
-     * sample to prove the variant is not present in germline.
+     * If a call overlaps with a record from the provided comp track, the INFO field will be annotated
+     *  as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
+     *  Records that are filtered in the comp track will be ignored.
+     *  Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
      */
-    @Input(fullName="cosmic", shortName = "cosmic", doc="VCF file of COSMIC sites", required=false)
-    public List<RodBinding<VariantContext>> cosmicRod = Collections.emptyList();
+    @Advanced
+    @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
+    public List<RodBinding<VariantContext>> comps = Collections.emptyList();
+    public List<RodBinding<VariantContext>> getCompRodBindings() { return comps; }
 
     /**
-     * A panel of normals can be a useful (optional) input to help filter out commonly seen sequencing noise that may appear as low allele-fraction somatic variants.
+     * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
      */
-    @Input(fullName="normal_panel", shortName = "PON", doc="VCF file of sites observed in normal", required=false)
-    public List<RodBinding<VariantContext>> normalPanelRod = Collections.emptyList();
+    @Advanced
+    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
+    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator", "OxoGReadCounts"}));
 
-    private HaplotypeBAMWriter haplotypeBAMWriter;
+    /**
+     * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
+     * so annotations will be excluded even if they are explicitly included with the other options.
+     */
+    @Advanced
+    @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
+    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions"}));
+
+    /**
+     * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
+     */
+    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
+    protected String[] annotationClassesToUse = { };
+
+    @Output(doc="File to which variants should be written")
+    protected VariantContextWriter vcfWriter = null;
+
+    /**
+     * Active region trimmer reference.
+     */
+    @ArgumentCollection
+    protected ActiveRegionTrimmer trimmer = new ActiveRegionTrimmer();
+
+    @Hidden
+    @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
+    protected String keepRG = null;
+
+    @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
+    public byte MIN_BASE_QUALTY_SCORE = 10;
+
+    public PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL pcrErrorModel = PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.HOSTILE;
+
+    @Hidden
+    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
+    protected boolean errorCorrectReads = false;
+
+    @Hidden
+    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="If specified, we will write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
+    protected boolean captureAssemblyFailureBAM = false;
+
+    @Advanced
+    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
+    protected boolean dontUseSoftClippedBases = false;
+
+    @Hidden
+    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
+    protected boolean justDetermineActiveRegions = false;
+
+    /**
+     * As of GATK 3.3, HaplotypeCaller outputs physical (read-based) information (see version 3.3 release notes and documentation for details). This argument disables that behavior.
+     */
+    @Advanced
+    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Disable physical phasing", required = false)
+    protected boolean doNotRunPhysicalPhasing = false;
+
+    /**
+     * When downsampling, level the coverage of the reads in each sample to no more than maxReadsInRegionPerSample reads,
+     * not reducing coverage at any read start to less than minReadsPerAlignmentStart
+     */
+    @Argument(fullName = "maxReadsInRegionPerSample", shortName = "maxReadsInRegionPerSample", doc="Maximum reads in an active region", required = false)
+    protected int maxReadsInRegionPerSample = 1000;
+
+    @Argument(fullName = "minReadsPerAlignmentStart", shortName = "minReadsPerAlignStart", doc="Minimum number of reads sharing the same alignment start for each genomic location in an active region", required = false)
+    protected int minReadsPerAlignmentStart = 5;
+
+    public RodBinding<VariantContext> getDbsnpRodBinding() { return MTAC.dbsnp.dbsnp; }
 
     @Override
     public void initialize() {
@@ -252,15 +304,15 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         samplesList = new IndexedSampleList(new ArrayList<>(ReadUtils.getSAMFileSamples(getToolkit().getSAMFileHeader())));
 
         // MUTECT: check that we have at least one tumor bam
-        for(SAMReaderID id : getToolkit().getReadsDataSource().getReaderIDs()) {
+        for(final SAMReaderID id : getToolkit().getReadsDataSource().getReaderIDs()) {
             if (id.getTags().getPositionalTags().size() == 0) {
                 throw new RuntimeException("BAMs must be tagged as either 'tumor' or 'normal'");
             }
 
             // only supports single-sample BAMs (ie first read group is representative)
-            String bamSampleName = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
+            final String bamSampleName = getToolkit().getReadsDataSource().getHeader(id).getReadGroups().get(0).getSample();
 
-            for(String tag : id.getTags().getPositionalTags()) {
+            for(final String tag : id.getTags().getPositionalTags()) {
                 if (BAM_TAG_TUMOR.equalsIgnoreCase(tag)) {
                     tumorSAMReaderIDs.add(id);
                     if (tumorSampleName == null) {
@@ -332,10 +384,9 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         final MergeVariantsAcrossHaplotypes variantMerger = new MergeVariantsAcrossHaplotypes();
 
         final GenomeAnalysisEngine toolkit = getToolkit();
-        final GenomeLocParser genomeLocParser = toolkit.getGenomeLocParser();
 
-        genotypingEngine = new SomaticGenotypingEngine( MTAC, samplesList, genomeLocParser, FixedAFCalculatorProvider.createThreadSafeProvider(getToolkit(), MTAC, logger), !doNotRunPhysicalPhasing, MTAC);
-
+        genotypingEngine = new SomaticGenotypingEngine( MTAC, samplesList, toolkit.getGenomeLocParser(), !doNotRunPhysicalPhasing, MTAC,
+                tumorSampleName, normalSampleName, DEBUG_READ_NAME);
         genotypingEngine.setCrossHaplotypeEventMerger(variantMerger);
         genotypingEngine.setAnnotationEngine(annotationEngine);
 
@@ -355,7 +406,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         trimmer.snpPadding = 50;
 
         samplesList = toolkit.getReadSampleList();
-        Set<String> sampleSet = SampleListUtils.asSet(samplesList);
+        final Set<String> sampleSet = SampleListUtils.asSet(samplesList);
 
         if( MTAC.CONTAMINATION_FRACTION_FILE != null )
             MTAC.setSampleContamination(AlleleBiasedDownsamplingUtils.loadContaminationFile(MTAC.CONTAMINATION_FRACTION_FILE, MTAC.CONTAMINATION_FRACTION, sampleSet, logger));
@@ -364,9 +415,12 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
 
     private VariantAnnotatorEngine initializeVCFOutput() {
         // initialize the output VCF header
+        if (MTAC.ENABLE_CLUSTERED_READ_POSITION_FILTER) {
+            annotationsToUse.add("ClusteredReadPosition");
+        }
         final VariantAnnotatorEngine annotationEngine = new VariantAnnotatorEngine(Arrays.asList(annotationClassesToUse), annotationsToUse, annotationsToExclude, this, getToolkit());
 
-        Set<VCFHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFHeaderLine> headerInfo = new HashSet<>();
 
         // all annotation fields from VariantAnnotatorEngine
         headerInfo.addAll(annotationEngine.getVCFAnnotationDescriptions());
@@ -382,7 +436,8 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.addAll(getM2HeaderLines());
         headerInfo.addAll(getSampleHeaderLines());
 
-        List<String> outputSampleNames = getOutputSampleNames();
+        // if printTCGAsampleHeader, we already checked for exactly 1 tumor and 1 normal in printTCGAsampleHeader assignment in initialize()
+        final List<String> outputSampleNames = printTCGAsampleHeader ? Arrays.asList("TUMOR", "NORMAL") : SampleListUtils.asList(samplesList);
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, outputSampleNames));
 
@@ -390,7 +445,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     }
 
     private Set<VCFHeaderLine> getM2HeaderLines(){
-        Set<VCFHeaderLine> headerInfo = new HashSet<>();
+        final Set<VCFHeaderLine> headerInfo = new HashSet<>();
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.NORMAL_LOD_KEY));
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TUMOR_LOD_KEY));
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.PANEL_OF_NORMALS_COUNT_KEY));
@@ -398,6 +453,13 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.EVENT_COUNT_IN_HAPLOTYPE_KEY));
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.EVENT_DISTANCE_MIN_KEY));
         headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY));
+
+        if (MTAC.ENABLE_STRAND_ARTIFACT_FILTER){
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TLOD_FWD_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TLOD_REV_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TUMOR_SB_POWER_FWD_KEY));
+            headerInfo.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.TUMOR_SB_POWER_REV_KEY));
+        }
 
         headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.ALLELE_FRACTION_KEY));
 
@@ -410,6 +472,9 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.TUMOR_LOD_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.GERMLINE_RISK_FILTER_NAME));
         headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.TRIALLELIC_SITE_FILTER_NAME));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.STRAND_ARTIFACT_FILTER_NAME));
+        headerInfo.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.CLUSTERED_READ_POSITION_FILTER_NAME));
+
 
         if ( ! doNotRunPhysicalPhasing ) {
             headerInfo.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.HAPLOTYPE_CALLER_PHASING_ID_KEY));
@@ -419,21 +484,21 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     }
 
     private Set<VCFHeaderLine> getSampleHeaderLines(){
-        Set<VCFHeaderLine> sampleLines = new HashSet<>();
+        final Set<VCFHeaderLine> sampleLines = new HashSet<>();
         if (printTCGAsampleHeader) {
             //NOTE: This will only list the first bam file for each tumor/normal sample if there is more than one
-            Map<String, String> normalSampleHeaderAttributes = new HashMap<>();
+            final Map<String, String> normalSampleHeaderAttributes = new HashMap<>();
             normalSampleHeaderAttributes.put("ID", "NORMAL");
             normalSampleHeaderAttributes.put("SampleName", normalSampleName);
             if (normalSAMReaderIDs.iterator().hasNext() && !getToolkit().getArguments().disableCommandLineInVCF)
                 normalSampleHeaderAttributes.put("File", normalSAMReaderIDs.iterator().next().getSamFilePath());
-            VCFSimpleHeaderLine normalSampleHeader = new VCFSimpleHeaderLine("SAMPLE", normalSampleHeaderAttributes);
-            Map<String, String> tumorSampleHeaderAttributes = new HashMap<>();
+            final VCFSimpleHeaderLine normalSampleHeader = new VCFSimpleHeaderLine("SAMPLE", normalSampleHeaderAttributes);
+            final Map<String, String> tumorSampleHeaderAttributes = new HashMap<>();
             tumorSampleHeaderAttributes.put("ID", "TUMOR");
             tumorSampleHeaderAttributes.put("SampleName", tumorSampleName);
             if (tumorSAMReaderIDs.iterator().hasNext() && !getToolkit().getArguments().disableCommandLineInVCF)
                 tumorSampleHeaderAttributes.put("File", tumorSAMReaderIDs.iterator().next().getSamFilePath());
-            VCFSimpleHeaderLine tumorSampleHeader = new VCFSimpleHeaderLine("SAMPLE", tumorSampleHeaderAttributes);
+            final VCFSimpleHeaderLine tumorSampleHeader = new VCFSimpleHeaderLine("SAMPLE", tumorSampleHeaderAttributes);
 
             sampleLines.add(normalSampleHeader);
             sampleLines.add(tumorSampleHeader);
@@ -441,28 +506,15 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         return sampleLines;
     }
 
-    private List<String> getOutputSampleNames(){
-        if (printTCGAsampleHeader) {
-         //Already checked for exactly 1 tumor and 1 normal in printTCGAsampleHeader assignment in initialize()
-            List<String> sampleNamePlaceholders = new ArrayList<>(2);
-            sampleNamePlaceholders.add("TUMOR");
-            sampleNamePlaceholders.add("NORMAL");
-            return sampleNamePlaceholders;
-        }
-        else {
-            return SampleListUtils.asList(samplesList);
-        }
-    }
-
     @Override
-    public ActivityProfileState isActive(RefMetaDataTracker tracker, ReferenceContext ref, AlignmentContext context) {
+    public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
         if( context == null || context.getBasePileup().isEmpty() )
             // if we don't have any data, just abort early
             return new ActivityProfileState(ref.getLocus(), 0.0);
 
         final Map<String, AlignmentContext> splitContexts = AlignmentContextUtils.splitContextBySampleName(context);
-        AlignmentContext tumorContext = splitContexts.get(tumorSampleName);
-        AlignmentContext normalContext = splitContexts.get(normalSampleName);
+        final AlignmentContext tumorContext = splitContexts.get(tumorSampleName);
+        final AlignmentContext normalContext = splitContexts.get(normalSampleName);
 
         // if there are no tumor reads... there is no activity!
         if (tumorContext == null) {
@@ -470,7 +522,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         }
 
         // KCIBUL -- this method was inlined and modified from ReferenceConfidenceModel
-        ReadBackedPileup tumorPileup = tumorContext.getBasePileup().getMappingFilteredPileup(MQthreshold);
+        final ReadBackedPileup tumorPileup = tumorContext.getBasePileup().getMappingFilteredPileup(MQthreshold);
         final double[] tumorGLs = calcGenotypeLikelihoodsOfRefVsAny(tumorPileup, ref.getBase(), MIN_BASE_QUALTY_SCORE);
         final double tumorLod = tumorGLs[1] - tumorGLs[0];
 
@@ -484,7 +536,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             // in any case, we have to handle the case where there is no normal (and thus no normal context) which is
             // different than having a normal but having no reads (where we should not enter the active region)
             if (normalSampleName != null && normalContext != null) {
-                int nonRefInNormal = getCountOfNonRefEvents(normalContext.getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE);
+                final int nonRefInNormal = getCountOfNonRefEvents(normalContext.getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE);
 
                 final double[] normalGLs = calcGenotypeLikelihoodsOfRefVsAny(normalContext.getBasePileup(), ref.getBase(), MIN_BASE_QUALTY_SCORE, 0.5f);
                 final double normalLod = normalGLs[0] - normalGLs[1];
@@ -498,7 +550,6 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
                 prob = 1;
                 logger.debug("At " + ref.getLocus().toString() + " tlod: " + tumorLod + " and no-normal calling");
             }
-
         }
 
         return new ActivityProfileState( ref.getLocus(), prob, ActivityProfileState.Type.NONE, null);
@@ -507,69 +558,48 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     private final static List<VariantContext> NO_CALLS = Collections.emptyList();
     @Override
     public List<VariantContext> map( final ActiveRegion originalActiveRegion, final RefMetaDataTracker metaDataTracker ) {
-        if ( justDetermineActiveRegions )
-            // we're benchmarking ART and/or the active region determination code in the HC, just leave without doing any work
+        if ( justDetermineActiveRegions ) {
             return NO_CALLS;
-
-        if( !originalActiveRegion.isActive() )
-            // Not active so nothing to do!
+        } else if( !originalActiveRegion.isActive() ) {
             return referenceModelForNoVariation(originalActiveRegion, true);
-
-        // No reads here so nothing to do!
-        if( originalActiveRegion.size() == 0 ) { return referenceModelForNoVariation(originalActiveRegion, true); }
-
+        } else if( originalActiveRegion.size() == 0 ) {
+            return referenceModelForNoVariation(originalActiveRegion, true);
+        }
         logReadInfo(DEBUG_READ_NAME, originalActiveRegion.getReads(), "Present in original active region");
 
         // create the assembly using just high quality reads (Q20 or higher).  We want to use lower
         // quality reads in the PairHMM (and especially in the normal) later, so we can't use a ReadFilter
-        ActiveRegion assemblyActiveRegion = new ActiveRegion(originalActiveRegion.getLocation(), originalActiveRegion.getSupportingStates(),originalActiveRegion.isActive(), getToolkit().getGenomeLocParser(), originalActiveRegion.getExtension());
-        for (GATKSAMRecord rec : originalActiveRegion.getReads()) {
+        final ActiveRegion assemblyActiveRegion = new ActiveRegion(originalActiveRegion.getLocation(), originalActiveRegion.getSupportingStates(),originalActiveRegion.isActive(), getToolkit().getGenomeLocParser(), originalActiveRegion.getExtension());
+        for (final GATKSAMRecord rec : originalActiveRegion.getReads()) {
             if (rec.getMappingQuality() >= MQthreshold ) {
                 assemblyActiveRegion.add(rec);
             }
         }
-
         logReadInfo(DEBUG_READ_NAME, assemblyActiveRegion.getReads(), "Present in assembly active region");
 
         // run the local assembler, getting back a collection of information on how we should proceed
-        final List<VariantContext> givenAlleles = new ArrayList<>();
-        final AssemblyResultSet untrimmedAssemblyResult = assembleReads(assemblyActiveRegion, givenAlleles);
-
-
+        final AssemblyResultSet untrimmedAssemblyResult = assembleReads(assemblyActiveRegion, Collections.EMPTY_LIST);
         final TreeSet<VariantContext> allVariationEvents = untrimmedAssemblyResult.getVariationEvents();
-        // TODO - line bellow might be unecessary : it might be that assemblyResult will always have those alleles anyway
-        // TODO - so check and remove if that is the case:
-        allVariationEvents.addAll(givenAlleles);
-
         final ActiveRegionTrimmer.Result trimmingResult = trimmer.trim(originalActiveRegion,allVariationEvents);
-
-
-        // Stop the trimming madness!!!
-        if (!trimmingResult.isVariationPresent())
-            return referenceModelForNoVariation(originalActiveRegion,false);
-
+        if (!trimmingResult.isVariationPresent()) {
+            return referenceModelForNoVariation(originalActiveRegion, false);
+        }
         logReadInfo(DEBUG_READ_NAME, trimmingResult.getCallableRegion().getReads(), "Present in trimming result");
 
         final AssemblyResultSet assemblyResult =
                 trimmingResult.needsTrimming() ? untrimmedAssemblyResult.trimTo(trimmingResult.getCallableRegion()) : untrimmedAssemblyResult;
 
-//        final AssemblyResultSet assemblyResult = untrimmedAssemblyResult;
+        // it is conceivable that the region is active yet has no events upon assembling only the well-mapped reads
+        if( ! assemblyResult.isVariationPresent() ) {
+            return referenceModelForNoVariation(originalActiveRegion, false);
+        }
 
-        // after talking to Ryan -- they grab the reads out of the assembly (and trim then) to pass into the PairHMM
-        // because at one point they were trying error correcting of the reads based on the haplotypes.. but that is not
-        // working out, so it's safe for us just to take the reads
-//
         final ActiveRegion regionForGenotyping = assemblyResult.getRegionForGenotyping();
         logReadInfo(DEBUG_READ_NAME, regionForGenotyping.getReads(), "Present in region for genotyping");
 
         if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
             haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.TRIMMMED, originalActiveRegion.getReads(), regionForGenotyping.getReads());
         }
-
-//
-//        final ActiveRegion regionForGenotyping = trimmingResult.getCallableRegion();
-
-//        final ActiveRegion regionForGenotyping = originalActiveRegion;
 
         // filter out reads from genotyping which fail mapping quality based criteria
         //TODO - why don't do this before any assembly is done? Why not just once at the beginning of this method
@@ -583,49 +613,36 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         }
 
         final Map<String, List<GATKSAMRecord>> perSampleFilteredReadList = splitReadsBySample(filteredReads);
-
         logReadInfo(DEBUG_READ_NAME, regionForGenotyping.getReads(), "Present in region for genotyping after filtering reads");
-
-        // abort early if something is out of the acceptable range
-        // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( ! assemblyResult.isVariationPresent() )
-            return referenceModelForNoVariation(originalActiveRegion, false);
-
-        // TODO is this ever true at this point??? perhaps GGA. Need to check.
-        if( regionForGenotyping.size() == 0 ) {
-            // no reads remain after filtering so nothing else to do!
-            return referenceModelForNoVariation(originalActiveRegion, false);
-        }
 
         // evaluate each sample's reads against all haplotypes
 
         final List<Haplotype> haplotypes = assemblyResult.getHaplotypeList();
         final Map<String,List<GATKSAMRecord>> reads = splitReadsBySample( regionForGenotyping.getReads() );
-        for (List<GATKSAMRecord> rec : reads.values()) {
+        for (final List<GATKSAMRecord> rec : reads.values()) {
             logReadInfo(DEBUG_READ_NAME, rec, "Present after splitting assemblyResult by sample");
         }
 
+        //TODO: this should be written as
+        //TODO final Map<String, Integer> ARreads_origNormalMQ = regionForGenotyping.getReads().stream()
+        //TODO        .collect(Collectors.toMap(GATKSAMRecord::getReadName, GATKSAMRecord::getMappingQuality));
+        //TODO: but for some reason sometimes streamifying Mutect2 code causes a MalformedWalkerArgumentsException
+        //TODO: this will probably not occur after the port to GATK4
         final HashMap<String, Integer> ARreads_origNormalMQ = new HashMap<>();
-        for (GATKSAMRecord read : regionForGenotyping.getReads()) {
+        for (final GATKSAMRecord read : regionForGenotyping.getReads()) {
             ARreads_origNormalMQ.put(read.getReadName(), read.getMappingQuality());
         }
 
         // modify MAPQ scores in normal to be high so that we don't do any base quality score capping
-        for(GATKSAMRecord rec : regionForGenotyping.getReads()) {
+        for(final GATKSAMRecord rec : regionForGenotyping.getReads()) {
             if (isReadFromNormal(rec)) {
                 rec.setMappingQuality(60);
             }
         }
 
         logger.debug("Computing read likelihoods with " + regionForGenotyping.getReads().size() + " reads against " + haplotypes.size() + " haplotypes across region " + assemblyResult.getRegionForGenotyping().toString());
+        final ReadLikelihoods<Haplotype> readLikelihoods = likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
 
-
-        // Calculate the likelihoods: CPU intensive part.
-        final ReadLikelihoods<Haplotype> readLikelihoods =
-                likelihoodCalculationEngine.computeReadLikelihoods(assemblyResult,samplesList,reads);
-
-        // Realign reads to their best haplotype.
-        // KCIBUL: this is new stuff -- review it!
         final Map<GATKSAMRecord,GATKSAMRecord> readRealignments = realignReadsToTheirBestHaplotype(readLikelihoods, assemblyResult.getReferenceHaplotype(), assemblyResult.getPaddedReferenceLoc());
 
         if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
@@ -636,34 +653,18 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         }
 
         readLikelihoods.changeReads(readRealignments);
-
-        for (GATKSAMRecord rec : readRealignments.keySet()) {
+        for (final GATKSAMRecord rec : readRealignments.keySet()) {
             logReadInfo(DEBUG_READ_NAME, rec, "Present after computing read likelihoods");
         }
 
-        // Note: we used to subset down at this point to only the "best" haplotypes in all samples for genotyping, but there
-        //  was a bad interaction between that selection and the marginalization that happens over each event when computing
-        //  GLs.  In particular, for samples that are heterozygous non-reference (B/C) the marginalization for B treats the
-        //  haplotype containing C as reference (and vice versa).  Now this is fine if all possible haplotypes are included
-        //  in the genotyping, but we lose information if we select down to a few haplotypes.  [EB]
-
-        final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes = ((SomaticGenotypingEngine)genotypingEngine).callMutations(
-                haplotypes,
+        final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes = genotypingEngine.callMutations(
                 readLikelihoods,
                 ARreads_origNormalMQ,
                 perSampleFilteredReadList,
                 assemblyResult.getFullReferenceWithPadding(),
                 assemblyResult.getPaddedReferenceLoc(),
                 regionForGenotyping.getLocation(),
-                getToolkit().getGenomeLocParser(),
-                metaDataTracker,
-                givenAlleles, false ,
-                tumorSampleName,
-                normalSampleName,
-                dbsnp.dbsnp,
-                cosmicRod,
-                DEBUG_READ_NAME
-                );
+                metaDataTracker);
 
         if ( MTAC.bamWriter != null ) {
             final Set<Haplotype> calledHaplotypeSet = new HashSet<>(calledHaplotypes.getCalledHaplotypes());
@@ -682,90 +683,18 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         }
 
         if( MTAC.DEBUG ) { logger.info("----------------------------------------------------------------------------------"); }
-
-
-        List<VariantContext> annotatedCalls = new ArrayList<>();
-        int eventCount = calledHaplotypes.getCalls().size();
-        Integer minEventDistance = null;
-        Integer maxEventDistance = null;
-        Integer lastPosition = null;
-        for (VariantContext vc : calledHaplotypes.getCalls()) {
-            if (lastPosition == null) {
-                lastPosition = vc.getStart();
-            } else {
-                int dist = Math.abs(vc.getStart() - lastPosition);
-                if (maxEventDistance == null || dist > maxEventDistance) {
-                    maxEventDistance = dist;
-                }
-                if (minEventDistance == null || dist < minEventDistance) {
-                    minEventDistance = dist;
-                }
-            }
-        }
-        Map<String, Object> eventDistanceAttributes = new HashMap<>();
-        eventDistanceAttributes.put(GATKVCFConstants.EVENT_COUNT_IN_HAPLOTYPE_KEY, eventCount);
-        eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MIN_KEY, minEventDistance);
-        eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY, maxEventDistance);
-
-
-        // can we do this with the Annotation classes instead?
-        for (VariantContext originalVC : calledHaplotypes.getCalls()) {
-            VariantContextBuilder vcb = new VariantContextBuilder(originalVC);
-
-            Map<String, Object> attributes = new HashMap<>(originalVC.getAttributes());
-            attributes.putAll(eventDistanceAttributes);
-            vcb.attributes(attributes);
-
-            Set<String> filters = new HashSet<>(originalVC.getFilters());
-
-            double tumorLod = originalVC.getAttributeAsDouble(GATKVCFConstants.TUMOR_LOD_KEY, -1);
-            if (tumorLod < MTAC.TUMOR_LOD_THRESHOLD) {
-                filters.add(GATKVCFConstants.TUMOR_LOD_FILTER_NAME);
-            }
-
-            // if we are in artifact detection mode,  apply the thresholds for the LOD scores
-            if (!MTAC.ARTIFACT_DETECTION_MODE) {
-                 filters.addAll(calculateFilters(metaDataTracker, originalVC, eventDistanceAttributes));
-            }
-
-            if (filters.size() > 0) {
-                vcb.filters(filters);
-            } else {
-                vcb.passFilters();
-            }
-
-            if (printTCGAsampleHeader) {
-                GenotypesContext genotypesWithBamSampleNames = originalVC.getGenotypes();
-                List<Genotype> renamedGenotypes = new ArrayList<>();
-                GenotypeBuilder GTbuilder = new GenotypeBuilder(genotypesWithBamSampleNames.get(tumorSampleName));
-                GTbuilder.name("TUMOR");
-                renamedGenotypes.add(GTbuilder.make());
-                GTbuilder = new GenotypeBuilder(genotypesWithBamSampleNames.get(normalSampleName));
-                GTbuilder.name("NORMAL");
-                renamedGenotypes.add(GTbuilder.make());
-                vcb.genotypes(renamedGenotypes);
-            }
-
-            annotatedCalls.add(vcb.make());
-        }
-
-
-
-
-
-
-        return annotatedCalls;
+        return annotateVCs(calledHaplotypes, metaDataTracker);
     }
 
-    private Set<String> calculateFilters(RefMetaDataTracker metaDataTracker, VariantContext vc, Map<String, Object> eventDistanceAttributes) {
-        Set<String> filters = new HashSet<>();
+    private Set<String> calculateFilters(final RefMetaDataTracker metaDataTracker, final VariantContext vc, final Map<String, Object> eventDistanceAttributes) {
+        final Set<String> filters = new HashSet<>();
 
-        Integer eventCount = (Integer) eventDistanceAttributes.get(GATKVCFConstants.EVENT_COUNT_IN_HAPLOTYPE_KEY);
-        Integer maxEventDistance = (Integer) eventDistanceAttributes.get(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY);
+        final Integer eventCount = (Integer) eventDistanceAttributes.get(GATKVCFConstants.EVENT_COUNT_IN_HAPLOTYPE_KEY);
+        final Integer maxEventDistance = (Integer) eventDistanceAttributes.get(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY);
 
-        Collection<VariantContext> panelOfNormalsVC = metaDataTracker.getValues(normalPanelRod,
+        final Collection<VariantContext> panelOfNormalsVC = metaDataTracker.getValues(MTAC.normalPanelRod,
                 getToolkit().getGenomeLocParser().createGenomeLoc(vc.getChr(), vc.getStart()));
-        VariantContext ponVc = panelOfNormalsVC.isEmpty()?null:panelOfNormalsVC.iterator().next();
+        final VariantContext ponVc = panelOfNormalsVC.isEmpty()?null:panelOfNormalsVC.iterator().next();
 
         if (ponVc != null) {
             filters.add(GATKVCFConstants.PON_FILTER_NAME);
@@ -780,13 +709,13 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         double normalF = 0;
         int normalAltQualityScoreSum = 0;
         if (hasNormal()) {
-            Genotype normalGenotype = vc.getGenotype(normalSampleName);
+            final Genotype normalGenotype = vc.getGenotype(normalSampleName);
 
             // NOTE: how do we get the non-ref depth here?
             normalAltCounts = normalGenotype.getAD()[1];
             normalF = (Double) normalGenotype.getExtendedAttribute(GATKVCFConstants.ALLELE_FRACTION_KEY);
 
-            Object qss = normalGenotype.getExtendedAttribute(GATKVCFConstants.QUALITY_SCORE_SUM_KEY);
+            final Object qss = normalGenotype.getExtendedAttribute(GATKVCFConstants.QUALITY_SCORE_SUM_KEY);
             if (qss != null) {
                 normalAltQualityScoreSum = (Integer) ((Object[]) qss)[1];
             } else {
@@ -796,26 +725,21 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
 
         if ( (normalAltCounts > MTAC.MAX_ALT_ALLELES_IN_NORMAL_COUNT || normalF > MTAC.MAX_ALT_ALLELE_IN_NORMAL_FRACTION ) && normalAltQualityScoreSum > MTAC.MAX_ALT_ALLELES_IN_NORMAL_QSCORE_SUM) {
             filters.add(GATKVCFConstants.ALT_ALLELE_IN_NORMAL_FILTER_NAME);
-        } else {
-
-            // NOTE: does normal alt counts presume the normal had all these events in CIS?
-            if ( eventCount > 1 && normalAltCounts >= 1) {
-                filters.add(GATKVCFConstants.MULTI_EVENT_ALT_ALLELE_IN_NORMAL_FILTER_NAME);
-            } else if (eventCount >= 3) {
-                filters.add(GATKVCFConstants.HOMOLOGOUS_MAPPING_EVENT_FILTER_NAME);
-            }
-
+        } else if ( eventCount > 1 && normalAltCounts >= 1) {
+            filters.add(GATKVCFConstants.MULTI_EVENT_ALT_ALLELE_IN_NORMAL_FILTER_NAME);
+        } else if (eventCount >= 3) {
+            filters.add(GATKVCFConstants.HOMOLOGOUS_MAPPING_EVENT_FILTER_NAME);
         }
 
         // STR contractions, that is the deletion of one repeat unit of a short repeat (>1bp repeat unit)
         // such as ACTACTACT -> ACTACT, are overwhelmingly false positives so we
         // hard filter them out by default
         if (vc.isIndel()) {
-            ArrayList rpa = (ArrayList) vc.getAttribute(GATKVCFConstants.REPEATS_PER_ALLELE_KEY);
-            String ru = vc.getAttributeAsString(GATKVCFConstants.REPEAT_UNIT_KEY, "");
+            final ArrayList rpa = (ArrayList) vc.getAttribute(GATKVCFConstants.REPEATS_PER_ALLELE_KEY);
+            final String ru = vc.getAttributeAsString(GATKVCFConstants.REPEAT_UNIT_KEY, "");
             if (rpa != null && rpa.size() > 1 && ru.length() > 1) {
-                int refCount = (Integer) rpa.get(0);
-                int altCount = (Integer) rpa.get(1);
+                final int refCount = (Integer) rpa.get(0);
+                final int altCount = (Integer) rpa.get(1);
 
                 if (refCount - altCount == 1) {
                     filters.add(GATKVCFConstants.STR_CONTRACTION_FILTER_NAME);
@@ -829,9 +753,21 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             filters.add(GATKVCFConstants.CLUSTERED_EVENTS_FILTER_NAME);
         }
 
+        // clustered read position filter
+        if (MTAC.ENABLE_CLUSTERED_READ_POSITION_FILTER){
+            final Double tumorFwdPosMedian = (Double) vc.getAttribute(GATKVCFConstants.MEDIAN_LEFT_OFFSET_KEY);
+            final Double tumorRevPosMedian = (Double) vc.getAttribute(GATKVCFConstants.MEDIAN_RIGHT_OFFSET_KEY);
+            final Double tumorFwdPosMAD = (Double) vc.getAttribute(GATKVCFConstants.MAD_MEDIAN_LEFT_OFFSET_KEY);
+            final Double tumorRevPosMAD = (Double) vc.getAttribute(GATKVCFConstants.MAD_MEDIAN_RIGHT_OFFSET_KEY);
+            //If the variant is near the read end (median threshold) and the positions are very similar (MAD threshold) then filter
+            if ( (tumorFwdPosMedian != null && tumorFwdPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorFwdPosMAD != null && tumorFwdPosMAD <= MTAC.PIR_MAD_THRESHOLD) ||
+                    (tumorRevPosMedian != null && tumorRevPosMedian <= MTAC.PIR_MEDIAN_THRESHOLD && tumorRevPosMAD != null && tumorRevPosMAD <= MTAC.PIR_MAD_THRESHOLD))
+                filters.add(GATKVCFConstants.CLUSTERED_READ_POSITION_FILTER_NAME);
+        }
+        // TODO: Move strand bias filter here
+
         return filters;
     }
-
 
     private final static byte REF_MODEL_DELETION_QUAL = (byte) 30;
     /**
@@ -844,14 +780,15 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
      */
     protected double[] calcGenotypeLikelihoodsOfRefVsAny(final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual, final double f) {
         final double[] genotypeLikelihoods = new double[2];
-        int AA = 0, AB=1;
+        final int AA = 0;
+        final int AB=1;
         for( final PileupElement p : pileup ) {
             final byte qual = (p.isDeletion() ? REF_MODEL_DELETION_QUAL : p.getQual());
             if( p.isDeletion() || qual > minBaseQual ) {
 
                 // TODO: why not use base qualities here?
                 //double pobs = QualityUtils.qualToErrorProbLog10(qual);
-                double pobs = 1.0d - pow(10, (30 / -10.0));
+                final double pobs = 1.0d - pow(10, (30 / -10.0));
                 if( isNonRef(refBase, p)) {
                     genotypeLikelihoods[AB] += Math.log10(f*pobs + (1-f)*pobs/3.0d);
                     genotypeLikelihoods[AA] += Math.log10((1-pobs)/3);
@@ -869,6 +806,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         return (normalSampleName != null);
     }
 
+    //TODO: streamify in GATK4
     protected int getCountOfNonRefEvents(final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual) {
         int i=0;
         for( final PileupElement p : pileup ) {
@@ -883,7 +821,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     }
 
     protected double[] calcGenotypeLikelihoodsOfRefVsAny(final ReadBackedPileup pileup, final byte refBase, final byte minBaseQual) {
-        double f = calculateF(pileup, refBase, minBaseQual);
+        final double f = calculateF(pileup, refBase, minBaseQual);
         return calcGenotypeLikelihoodsOfRefVsAny(pileup, refBase, minBaseQual, f);
     }
 
@@ -901,11 +839,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
                 }
             }
         }
-        double f = (double) altCount / ((double) refCount + (double) altCount);
-        return f;
+        return (double) altCount / (refCount + altCount);
     }
 
-    private boolean isNonRef(byte refBase, PileupElement p) {
+    private boolean isNonRef(final byte refBase, final PileupElement p) {
         return p.getBase() != refBase || p.isDeletion() || p.isBeforeDeletionStart() || p.isAfterDeletionEnd() || p.isBeforeInsertion() || p.isAfterInsertion() || p.isNextToSoftClip();
     }
 
@@ -914,35 +851,19 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     protected Set<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion) {
         final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
-
+            //TODO: Takuto points out that this is questionable.  Let's think hard abut it.
             // KCIBUL: only perform read quality filtering on tumor reads...
             if (isReadFromNormal(rec)) {
-
                 if( rec.getReadLength() < MIN_READ_LENGTH ) {
                     readsToRemove.add(rec);
                 }
-
-            } else {
-
-
-                if( rec.getReadLength() < MIN_READ_LENGTH ||
-                    rec.getMappingQuality() < MQthreshold ||
-                    BadMateFilter.hasBadMate(rec) ||
-
+            } else if( rec.getReadLength() < MIN_READ_LENGTH || rec.getMappingQuality() < MQthreshold || BadMateFilter.hasBadMate(rec) ||
                     (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
-                    readsToRemove.add(rec);
-                }
+                readsToRemove.add(rec);
             }
         }
         activeRegion.removeAll(readsToRemove);
         return readsToRemove;
-    }
-
-    private static GATKSAMRecord findReadByName(Collection<GATKSAMRecord> reads, String name) {
-        for(GATKSAMRecord read : reads) {
-            if (name.equals(read.getReadName())) return read;
-        }
-        return null;
     }
 
     /**
@@ -979,13 +900,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     // enable non primary and extended reads in the active region
     @Override
     public EnumSet<ActiveRegionReadState> desiredReadStates() {
-//        if ( includeUnmappedReads )
-//            throw new UserException.BadArgumentValue("includeUnmappedReads", "is not yet functional");
-//        else
-            return EnumSet.of(
-                    ActiveRegionReadState.PRIMARY,
-                    ActiveRegionReadState.NONPRIMARY,
-                    ActiveRegionReadState.EXTENDED);
+            return EnumSet.of(ActiveRegionReadState.PRIMARY, ActiveRegionReadState.NONPRIMARY, ActiveRegionReadState.EXTENDED);
     }
 
     //---------------------------------------------------------------------------------------------------------------
@@ -1000,7 +915,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     }
 
     @Override
-    public Integer reduce(List<VariantContext> callsInRegion, Integer numCalledRegions) {
+    public Integer reduce(final List<VariantContext> callsInRegion, final Integer numCalledRegions) {
         for( final VariantContext call : callsInRegion ) {
             vcfWriter.add( call );
         }
@@ -1008,7 +923,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
     }
 
     @Override
-    public void onTraversalDone(Integer result) {
+    public void onTraversalDone(final Integer result) {
 //        if ( SCAC.emitReferenceConfidence == ReferenceConfidenceMode.GVCF ) ((GVCFWriter)vcfWriter).close(false); // GROSS -- engine forces us to close our own VCF writer since we wrapped it
 //        referenceConfidenceModel.close();
         //TODO remove the need to call close here for debugging, the likelihood output stream should be managed
@@ -1017,119 +932,10 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         logger.info("Ran local assembly on " + result + " active regions");
     }
 
-
     // The following are not used but are required by the AnnotatorCompatible interface
     public RodBinding<VariantContext> getSnpEffRodBinding() { return null; }
     public List<RodBinding<VariantContext>> getResourceRodBindings() { return Collections.emptyList(); }
     public boolean alwaysAppendDbsnpId() { return false; }
-
-    /**
-     * rsIDs from this file are used to populate the ID column of the output.  Also, the DB INFO flag will be set when appropriate.
-     * dbSNP overlap is only used to require more evidence of absence in the normal if the variant in question has been seen before in germline.
-     */
-    @ArgumentCollection
-    protected DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
-    public RodBinding<VariantContext> getDbsnpRodBinding() { return dbsnp.dbsnp; }
-
-    /**
-     * If a call overlaps with a record from the provided comp track, the INFO field will be annotated
-     *  as such in the output with the track name (e.g. -comp:FOO will have 'FOO' in the INFO field).
-     *  Records that are filtered in the comp track will be ignored.
-     *  Note that 'dbSNP' has been special-cased (see the --dbsnp argument).
-     */
-    @Advanced
-    @Input(fullName="comp", shortName = "comp", doc="comparison VCF file", required=false)
-    public List<RodBinding<VariantContext>> comps = Collections.emptyList();
-    public List<RodBinding<VariantContext>> getCompRodBindings() { return comps; }
-
-
-
-    /**
-     * Which annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available annotations.
-     */
-    @Advanced
-    @Argument(fullName="annotation", shortName="A", doc="One or more specific annotations to apply to variant calls", required=false)
-//    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"ClippingRankSumTest", "DepthPerSampleHC"}));
-    //protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator",
-    //    "RMSMappingQuality","MappingQualityRankSumTest","FisherStrand","StrandOddsRatio","ReadPosRankSumTest","QualByDepth", "Coverage"}));
-    protected List<String> annotationsToUse = new ArrayList<>(Arrays.asList(new String[]{"DepthPerAlleleBySample", "BaseQualitySumPerAlleleBySample", "TandemRepeatAnnotator", "OxoGReadCounts"}));
-
-    /**
-     * Which annotations to exclude from output in the VCF file.  Note that this argument has higher priority than the -A or -G arguments,
-     * so annotations will be excluded even if they are explicitly included with the other options.
-     */
-    @Advanced
-    @Argument(fullName="excludeAnnotation", shortName="XA", doc="One or more specific annotations to exclude", required=false)
-    protected List<String> annotationsToExclude = new ArrayList<>(Arrays.asList(new String[]{"SpanningDeletions"}));
-
-    /**
-     * Which groups of annotations to add to the output VCF file. See the VariantAnnotator -list argument to view available groups.
-     */
-    @Argument(fullName="group", shortName="G", doc="One or more classes/groups of annotations to apply to variant calls", required=false)
-    //protected String[] annotationGroupsToUse = { StandardAnnotation.class.getSimpleName() };
-    protected String[] annotationClassesToUse = { };
-
-    /**
-     * A raw, unfiltered, highly sensitive callset in VCF format.
-     */
-    @Output(doc="File to which variants should be written")
-    protected VariantContextWriter vcfWriter = null;
-
-    /**
-     * Active region trimmer reference.
-     */
-    @ArgumentCollection
-    protected ActiveRegionTrimmer trimmer = new ActiveRegionTrimmer();
-
-    @Hidden
-    @Argument(fullName="keepRG", shortName="keepRG", doc="Only use read from this read group when making calls (but use all reads to build the assembly)", required = false)
-    protected String keepRG = null;
-
-
-
-
-    /**
-     * The minimum confidence needed for a given base for it to be used in variant calling.
-     */
-    @Argument(fullName = "min_base_quality_score", shortName = "mbq", doc = "Minimum base quality required to consider a base for calling", required = false)
-    public byte MIN_BASE_QUALTY_SCORE = 10;
-
-
-
-// PAIR-HMM-Related Goodness
-
-//    public PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL pcrErrorModel = PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.CONSERVATIVE;
-//    public PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL pcrErrorModel = PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.AGGRESSIVE;
-    public PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL pcrErrorModel = PairHMMLikelihoodCalculationEngine.PCR_ERROR_MODEL.HOSTILE;
-
-    // Parameters to control read error correction
-    @Hidden
-    @Argument(fullName="errorCorrectReads", shortName="errorCorrectReads", doc = "Use an exploratory algorithm to error correct the kmers used during assembly.  May cause fundamental problems with the assembly graph itself", required=false)
-    protected boolean errorCorrectReads = false;
-
-    @Hidden
-    @Argument(fullName="captureAssemblyFailureBAM", shortName="captureAssemblyFailureBAM", doc="If specified, we will write a BAM called assemblyFailure.bam capturing all of the reads that were in the active region when the assembler failed for any reason", required = false)
-    protected boolean captureAssemblyFailureBAM = false;
-
-    @Advanced
-    @Argument(fullName="dontUseSoftClippedBases", shortName="dontUseSoftClippedBases", doc="If specified, we will not analyze soft clipped bases in the reads", required = false)
-    protected boolean dontUseSoftClippedBases = false;
-
-    @Hidden
-    @Argument(fullName="justDetermineActiveRegions", shortName="justDetermineActiveRegions", doc = "If specified, the HC won't actually do any assembly or calling, it'll just run the upfront active region determination code.  Useful for benchmarking and scalability testing", required=false)
-    protected boolean justDetermineActiveRegions = false;
-
-
-
-
-    // reference base padding size
-    private static final int REFERENCE_PADDING = 500;
-
-    private static final byte MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION = 6;
-    private final static int maxReadsInRegionPerSample = 1000; // TODO -- should be an argument
-    private final static int minReadsPerAlignmentStart = 5; // TODO -- should be an argument
-
-
 
     /**
      * High-level function that runs the assembler on the active region reads,
@@ -1149,15 +955,12 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         final Haplotype referenceHaplotype = createReferenceHaplotype(activeRegion, paddedReferenceLoc);
 
         // Create ReadErrorCorrector object if requested - will be used within assembly engine.
-        ReadErrorCorrector readErrorCorrector = null;
-        if (errorCorrectReads)
-            readErrorCorrector = new ReadErrorCorrector(RTAC.kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION, RTAC.minObservationsForKmerToBeSolid, MTAC.DEBUG, fullReferenceWithPadding);
-
+        final ReadErrorCorrector readErrorCorrector = errorCorrectReads ? new ReadErrorCorrector(RTAC.kmerLengthForReadErrorCorrection, MIN_TAIL_QUALITY_WITH_ERROR_CORRECTION,
+                RTAC.minObservationsForKmerToBeSolid, MTAC.DEBUG, fullReferenceWithPadding) : null;
         try {
             final AssemblyResultSet assemblyResultSet = assemblyEngine.runLocalAssembly( activeRegion, referenceHaplotype, fullReferenceWithPadding, paddedReferenceLoc, giveAlleles,readErrorCorrector );
             assemblyResultSet.debugDump(logger);
             return assemblyResultSet;
-
         } catch ( final Exception e ) {
             // Capture any exception that might be thrown, and write out the assembly failure BAM if requested
             if ( captureAssemblyFailureBAM ) {
@@ -1202,23 +1005,16 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
             if( !clippedRead.isEmpty() && clippedRead.getCigar().getReadLength() > 0 ) {
                 clippedRead = ReadClipper.hardClipToRegion(clippedRead, activeRegion.getExtendedLoc().getStart(), activeRegion.getExtendedLoc().getStop());
                 if( activeRegion.readOverlapsRegion(clippedRead) && clippedRead.getReadLength() > 0 ) {
-                    //logger.info("Keeping read " + clippedRead + " start " + clippedRead.getAlignmentStart() + " end " + clippedRead.getAlignmentEnd());
                     readsToUse.add(clippedRead);
                 }
             }
         }
-
-        // TODO -- Performance optimization: we partition the reads by sample 4 times right now; let's unify that code.
 
         final List<GATKSAMRecord> downsampledReads = DownsamplingUtils.levelCoverageByPosition(ReadUtils.sortReadsByCoordinate(readsToUse), maxReadsInRegionPerSample, minReadsPerAlignmentStart);
 
         if ( MTAC.bamWriter != null && MTAC.emitDroppedReads ) {
             haplotypeBAMWriter.addDroppedReadsFromDelta(DroppedReadsTracker.Reason.DOWNSAMPLED, activeRegion.getReads(), downsampledReads);
         }
-
-        // handle overlapping read pairs from the same fragment
-        // KC: commented out as we handle overlapping read pairs in a different way...
-        //cleanOverlappingReadPairs(downsampledReads, normalSampleNames);
 
         activeRegion.clearReads();
         activeRegion.addAll(downsampledReads);
@@ -1246,32 +1042,27 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
      *
      * @param reads the list of reads to consider
      */
-    private void cleanOverlappingReadPairs(final List<GATKSAMRecord> reads, Set<String> normalSampleNames) {
-        Map<String, List<GATKSAMRecord>> data = splitReadsBySample(reads);
-        for ( String sampleName : data.keySet() ) {
+    private void cleanOverlappingReadPairs(final List<GATKSAMRecord> reads, final Set<String> normalSampleNames) {
+        final Map<String, List<GATKSAMRecord>> data = splitReadsBySample(reads);
+        for ( final String sampleName : data.keySet() ) {
             final boolean isTumor = !normalSampleNames.contains(sampleName);
             final List<GATKSAMRecord> perSampleReadList = data.get(sampleName);
 
             final FragmentCollection<GATKSAMRecord> fragmentCollection = FragmentUtils.create(perSampleReadList);
             for ( final List<GATKSAMRecord> overlappingPair : fragmentCollection.getOverlappingPairs() )
-
-                // in MuTect -- right now we compare the
                 FragmentUtils.adjustQualsOfOverlappingPairedFragments(overlappingPair);
-
-
         }
     }
 
-    public static void logReadInfo(String readName, Collection<GATKSAMRecord> records, String message) {
+    public static void logReadInfo(final String readName, final Collection<GATKSAMRecord> records, final String message) {
         if (readName != null) {
-            for (GATKSAMRecord rec : records) {
+            for (final GATKSAMRecord rec : records) {
                 logReadInfo(readName, rec, message);
             }
-
         }
     }
 
-    public static void logReadInfo(String readName, GATKSAMRecord rec, String message) {
+    public static void logReadInfo(final String readName, final GATKSAMRecord rec, final String message) {
         if (readName != null && rec != null && readName.equals(rec.getReadName())) {
             logger.info("Found " + rec.toString() + " - " + message);
         }
@@ -1300,18 +1091,63 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
         return result;
     }
 
-    private boolean isReadFromNormal(GATKSAMRecord rec) {
+    private boolean isReadFromNormal(final GATKSAMRecord rec) {
         return normalSampleName != null && normalSampleName.equals(rec.getReadGroup().getSample());
-
     }
-    // KCIBUL: new stuff -- read up on this!!
-    /**
-     * As of GATK 3.3, HaplotypeCaller outputs physical (read-based) information (see version 3.3 release notes and documentation for details). This argument disables that behavior.
-     */
-    @Advanced
-    @Argument(fullName="doNotRunPhysicalPhasing", shortName="doNotRunPhysicalPhasing", doc="Disable physical phasing", required = false)
-    protected boolean doNotRunPhysicalPhasing = false;
 
+    public String getTumorSampleName(){
+        return tumorSampleName;
+    }
+
+    final List<VariantContext> annotateVCs(final HaplotypeCallerGenotypingEngine.CalledHaplotypes calledHaplotypes, final RefMetaDataTracker metaDataTracker) {
+        final int eventCount = calledHaplotypes.getCalls().size();
+        final Map<String, Object> eventDistanceAttributes = new HashMap<>();    //TODO: should be Map<String, Integer> -- see TODO below
+        eventDistanceAttributes.put(GATKVCFConstants.EVENT_COUNT_IN_HAPLOTYPE_KEY, eventCount);
+        if (eventCount > 1) {
+            final int lastPosition = calledHaplotypes.getCalls().get(0).getStart();
+            final int[] eventDistances = new int[calledHaplotypes.getCalls().size() - 1];
+            for (int n = 0; n < eventDistances.length; n++) {
+                eventDistances[n] = Math.abs(calledHaplotypes.getCalls().get(n + 1).getStart() - lastPosition);
+            }
+            eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MIN_KEY, MathUtils.arrayMin(eventDistances));
+            eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY, MathUtils.arrayMax(eventDistances));
+        } else {    //TODO: putting null is a hack -- we should remove this and update the integration test md5s
+            eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MIN_KEY, null);
+            eventDistanceAttributes.put(GATKVCFConstants.EVENT_DISTANCE_MAX_KEY, null);
+        }
+
+        final List<VariantContext> annotatedCalls = new ArrayList<>();
+        // can we do this with the Annotation classes instead?
+        for (final VariantContext originalVC : calledHaplotypes.getCalls()) {
+            final VariantContextBuilder vcb = new VariantContextBuilder(originalVC);
+
+            final Map<String, Object> attributes = new HashMap<>(originalVC.getAttributes());
+            attributes.putAll(eventDistanceAttributes);
+            vcb.attributes(attributes);
+
+            final Set<String> filters = new HashSet<>(originalVC.getFilters());
+
+            final double tumorLod = originalVC.getAttributeAsDouble(GATKVCFConstants.TUMOR_LOD_KEY, -1);
+            if (tumorLod < MTAC.TUMOR_LOD_THRESHOLD) {
+                filters.add(GATKVCFConstants.TUMOR_LOD_FILTER_NAME);
+            }
+
+            // if we are in artifact detection mode, apply the thresholds for the LOD scores
+            if (!MTAC.ARTIFACT_DETECTION_MODE) {
+                filters.addAll(calculateFilters(metaDataTracker, originalVC, eventDistanceAttributes));
+            }
+
+            vcb.filters(filters.isEmpty() ? VariantContext.PASSES_FILTERS : filters);
+
+            if (printTCGAsampleHeader) {
+                final Genotype tumorGenotype = new GenotypeBuilder(originalVC.getGenotype(tumorSampleName)).name("TUMOR").make();
+                final Genotype normalGenotype = new GenotypeBuilder(originalVC.getGenotype(normalSampleName)).name("NORMAL").make();
+                vcb.genotypes(Arrays.asList(tumorGenotype, normalGenotype));
+            }
+            annotatedCalls.add(vcb.make());
+        }
+        return annotatedCalls;
+    }
 }
 
 

@@ -22,16 +22,18 @@ TODO: write a simple tool to do this more easily
 To calculate per pair-counts, run:
 ```
 # for SNPs
-for vcf in *.bam.vcf 
-do     
-    cat $vcf | grep PASS | awk '{ if ( length($4) + length($5) == 2) print $0 }' | wc -l 
-done
+for vcf in *.vcf
+do
+    cat $vcf | grep PASS | awk '{ if ( length($4) + length($5) == 2) print $0 }' | wc -l
+done > snp-fps.txt
+cat snp-fps.txt | awk '{ sum += $1 } END { print sum }'
 
 # for INDELs
-for vcf in *.bam.vcf 
-do     
-    cat $vcf | grep PASS | awk '{ if ( length($4) + length($5) != 2) print $0 }' | wc -l 
-done
+for vcf in *.vcf
+do
+    cat $vcf | grep PASS | awk '{ if ( length($4) + length($5) != 2) print $0 }' | wc -l
+done > indel-fps.txt
+cat indel-fps.txt | awk '{ sum += $1 } END { print sum }'
 ```
 
 ### Current M1 and Indelocator Performance
@@ -72,7 +74,7 @@ and then run the following Queue command
 java \
   -Djava.io.tmpdir=$TEMPDIR \
   -jar $QUEUE_JAR \
-  -S $GSA_UNSTABLE_HOME/private/gatk-tools-private/src/main/java/org/broadinstitute/gatk/tools/walkers/cancer/m2/run_M2_ICE_NN.scala \
+  -S $GSA_UNSTABLE_HOME/private/gatk-queue-extensions-internal/src/main/qscripts/org/broadinstitute/gatk/queue/qscripts/m2/run_M2_ICE_NN.scala \
   -sc 50 \
   --job_queue gsa -qsub -jobResReq virtual_free=5G -startFromScratch  \
   --allbams /humgen/gsa-hpprojects/NA12878Collection/bams/crsp_ice_validation//NA12878.intra.flowcell.replicate.bam_list \

@@ -69,6 +69,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class GVCFWriterUnitTest extends BaseTest {
     private static class MockWriter implements VariantContextWriter {
@@ -378,25 +379,32 @@ public class GVCFWriterUnitTest extends BaseTest {
     public Object[][] makeBandPartitionData() {
         List<Object[]> tests = new ArrayList<>();
 
-        tests.add(new Object[]{null, false});
-        tests.add(new Object[]{Collections.emptyList(), false});
-        tests.add(new Object[]{Arrays.asList(1), true});
-        tests.add(new Object[]{Arrays.asList(1, 10), true});
-        tests.add(new Object[]{Arrays.asList(1, 10, 30), true});
-        tests.add(new Object[]{Arrays.asList(10, 1, 30), false});
-        tests.add(new Object[]{Arrays.asList(-1, 1), false});
-        tests.add(new Object[]{Arrays.asList(1, null, 10), false});
+        tests.add(new Object[]{null, false, null});
+        tests.add(new Object[]{Collections.emptyList(), false, null});
+        tests.add(new Object[]{Collections.singletonList(1), true, Arrays.asList(0, 1)});
+        tests.add(new Object[]{Arrays.asList(1, 10), true, Arrays.asList(0, 1, 10)});
+        tests.add(new Object[]{Arrays.asList(1, 10, 30), true, Arrays.asList(0, 1, 10, 30)});
+        tests.add(new Object[]{Arrays.asList(10, 1, 30), false, null});
+        tests.add(new Object[]{Arrays.asList(-1, 1), false, null});
+        tests.add(new Object[]{Arrays.asList(1, null, 10), false, null});
+        tests.add(new Object[]{Arrays.asList(1, 1, 10), false, null});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL - 1), true, Arrays.asList(0, 1, 10, VCFConstants.MAX_GENOTYPE_QUAL - 1)});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL), true, Arrays.asList(0, 1, 10, VCFConstants.MAX_GENOTYPE_QUAL)});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL + 1), true, Arrays.asList(0, 1, 10)});
+        tests.add(new Object[]{Collections.singletonList(VCFConstants.MAX_GENOTYPE_QUAL + 1), true, Collections.singletonList(0)});
+        tests.add(new Object[]{Arrays.asList(1, 10, VCFConstants.MAX_GENOTYPE_QUAL + 2), false, null});
 
         return tests.toArray(new Object[][]{});
     }
 
     @Test(dataProvider = "BandPartitionData")
-    public void testMyData(final List<Integer> partitions, final boolean expectedGood) {
+    public void testBandPartitionData(final List<Integer> partitions, final boolean expectedGood, final List<Integer> expectedPartitionLowerBounds) {
         try {
-            GVCFWriter.parsePartitions(partitions,2);
+            final List<Integer> resultPartitionLowerBounds = GVCFWriter.parsePartitions(partitions, 2).stream().map(HomRefBlock::getGQLowerBound).collect(Collectors.toList());
             Assert.assertTrue(expectedGood, "Expected to fail but didn't");
-        } catch ( Exception e ) {
-            Assert.assertTrue(! expectedGood, "Expected to succeed but failed with message " + e.getMessage());
+            Assert.assertEquals(resultPartitionLowerBounds, expectedPartitionLowerBounds);
+        } catch ( final Exception e ) {
+            Assert.assertTrue(!expectedGood, "Expected to succeed but failed with message " + e.getMessage());
         }
     }
 }

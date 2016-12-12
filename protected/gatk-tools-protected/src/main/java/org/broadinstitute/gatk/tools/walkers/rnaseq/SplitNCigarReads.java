@@ -108,7 +108,8 @@ import java.util.ArrayList;
  *   -I input.bam \
  *   -o output.bam \
  *   -U ALLOW_N_CIGARS
- *
+ * </pre>
+ * 
  * <h3>Note</h3>
  * <p>When this tool is used as part of the RNAseq best practices, the command should include mapping quality
  * reassignment. See the Best Practices documentation for details.</p>

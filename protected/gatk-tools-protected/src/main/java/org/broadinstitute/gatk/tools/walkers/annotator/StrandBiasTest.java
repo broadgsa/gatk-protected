@@ -241,7 +241,7 @@ public abstract class StrandBiasTest extends InfoFieldAnnotation implements Acti
 
     /**
      Allocate and fill a 2x2 strand contingency table.  In the end, it'll look something like this:
-     *             fw      rc
+     *             fw      rv
      *   allele1   #       #
      *   allele2   #       #
      * @return a 2x2 contingency table

@@ -164,7 +164,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     public void testGenotypeFilters1() {
         WalkerTestSpec spec1 = new WalkerTestSpec(
                 baseTestString() + " -G_filter 'GQ == 0.60' -G_filterName foo --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("ced70cfb4e6681a3aa0633cd0510ada0"));
+                Arrays.asList("b6e8d70223826000ea1a6d6bc9c4fc65"));
         executeTest("test genotype filter #1", spec1);
     }
 
@@ -172,7 +172,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
     public void testGenotypeFilters2() {
         WalkerTestSpec spec2 = new WalkerTestSpec(
                 baseTestString() + " -G_filter 'isHomVar == 1' -G_filterName foo --variant " + privateTestDir + "vcfexample2.vcf -L 1:10,020,000-10,021,000", 1,
-                Arrays.asList("837b6a3ce3fad3bd77ec3e870c4d2f10"));
+                Arrays.asList("9cd315a433ab7d9da637156011328509"));
         executeTest("test genotype filter #2", spec2);
     }
 
@@ -207,8 +207,31 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormat.vcf", 1,
-                Arrays.asList("260dd9d7e35737fe695b241b7a5a52a2"));
+                Arrays.asList("b0016040127766a4163fcbd91afff3ea"));
         executeTest("testFilteringDPfromFORMAT", spec);
+    }
+
+    // The current htsjdk implementation of JEXL matching on genotype fields is buggy. When the filter uses an
+    // annotation that is present in both FORMAT and INFO, and the FORMAT value is missing, the current code (Dec 2016)
+    // will look up the INFO value. Here we use a made-up annotation Z instead of DP to avoid having to rig the test
+    // so that the INFO value will give the same matching results as the FORMAT value.
+    @Test
+    public void testFilteringZfromFORMATWithMissing() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --genotypeFilterExpression 'Z < 10' --genotypeFilterName lowZ -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("47607708dee31b6033f14a3613c8acb8"));
+        executeTest("testFilteringDPfromFORMATWithMissing", spec);
+    }
+
+    // Same comment as above.
+    @Test
+    public void testFilteringZfromFORMATAndFailMissing() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
+                        + " --missingValuesInExpressionsShouldEvaluateAsFailing --genotypeFilterExpression 'Z < 10' --genotypeFilterName lowZ -V " + privateTestDir + "filteringDepthInFormatWithMissing.vcf", 1,
+                Arrays.asList("4f519e725203931841940707c50ab6a3"));
+        executeTest("testFilteringDPfromFORMATAndFailMissing", spec);
     }
 
     @Test
@@ -216,7 +239,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf --invertGenotypeFilterExpression", 1,
-                Arrays.asList("907527b89d3f819cc3f6f88f51fcaaf6"));
+                Arrays.asList("c6bc275c97a9e737748d16132ee76f48"));
         executeTest("testInvertGenotypeFilterExpression", spec);
     }
 
@@ -225,7 +248,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " --genotypeFilterExpression 'DP >= 8' --genotypeFilterName highDP -V " + privateTestDir + "filteringDepthInFormat.vcf", 1,
-                Arrays.asList("d79b2e5a7502a6d6e902bc40d74cc826")); // Differs from testInvertFilter because FILTER description uses the -genotypeFilterExpression argument
+                Arrays.asList("9321b5993d51a4da02f69e5467164587")); // Differs from testInvertFilter because FILTER description uses the -genotypeFilterExpression argument
         executeTest("testInvertJexlGenotypeFilterExpression", spec);
     }
 
@@ -234,7 +257,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + privateTestDir + "filteringDepthInFormat.vcf --setFilteredGtToNocall", 1,
-                Arrays.asList("2ff3753215d418712309e50da323f6e8"));
+                Arrays.asList("00990d54017b7384ce9f979d796b9d16"));
         executeTest("testSetFilteredGtoNocall", spec);
     }
 
@@ -245,7 +268,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
                 "-T VariantFiltration -o %s --no_cmdline_in_header -R " + b37KGReference
                         + " -G_filter 'GQ < 20' -G_filterName lowDP -G_filter 'DP<10' -G_filterName lowGQ -V " + privateTestDir + "variantFiltrationInfoField.vcf --setFilteredGtToNocall",
                 1,
-                Arrays.asList("3b074975bb6f70c84b2dd81695bb89ff"));
+                Arrays.asList("0f8ed3a62a53feca0c4b86671e4b53e4"));
         executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
     }
 
@@ -256,7 +279,7 @@ public class VariantFiltrationIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
+                Arrays.asList("cb5ef9233503bebc81593e436a6de943")
         );
 
         spec.disableShadowBCF();

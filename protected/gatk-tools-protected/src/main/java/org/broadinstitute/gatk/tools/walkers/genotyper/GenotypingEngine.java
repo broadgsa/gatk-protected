@@ -60,6 +60,7 @@ import org.broadinstitute.gatk.tools.walkers.annotator.VariantAnnotatorEngine;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculationResult;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculator;
 import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AFCalculatorProvider;
+import org.broadinstitute.gatk.tools.walkers.genotyper.afcalc.AlleleFrequencyCalculator;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
 import org.broadinstitute.gatk.utils.MathUtils;
@@ -68,6 +69,7 @@ import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContextUtils;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.genotyper.SampleList;
 import org.broadinstitute.gatk.utils.gga.GenotypingGivenAllelesUtils;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
@@ -104,8 +106,9 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final GenomeLocParser genomeLocParser;
 
-    protected static int maxNumPLValuesObserved = 0;
-    protected static int numTimesMaxNumPLValuesExceeded = 0;
+    private final List<GenomeLoc> upstreamDeletionsLoc = new LinkedList<>();
+
+    protected final AFCalculator newAFCalculator;
 
     /**
      * Construct a new genotyper engine, on a specific subset of samples.
@@ -139,6 +142,11 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         log10AlleleFrequencyPriorsIndels = composeAlleleFrequencyPriorProvider(numberOfGenomes,
                 configuration.genotypeArgs.indelHeterozygosity, configuration.genotypeArgs.inputPrior);
         this.genomeLocParser = genomeLocParser;
+
+        final double refPseudocount = configuration.genotypeArgs.snpHeterozygosity / Math.pow(configuration.genotypeArgs.heterozygosityStandardDeviation,2);
+        final double snpPseudocount = configuration.genotypeArgs.snpHeterozygosity * refPseudocount;
+        final double indelPseudocount = configuration.genotypeArgs.indelHeterozygosity * refPseudocount;
+        newAFCalculator = new AlleleFrequencyCalculator(refPseudocount, snpPseudocount, indelPseudocount, configuration.genotypeArgs.samplePloidy);
     }
 
     protected GenotypingEngine(final Config configuration, final SampleList samples,
@@ -219,7 +227,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                                                  final AlignmentContext rawContext, Map<String, AlignmentContext> stratifiedContexts,
                                                  final VariantContext vc, final GenotypeLikelihoodsCalculationModel.Model model,
                                                  final boolean inheritAttributesFromInputVC,
-                                                 final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                 final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
                                                  final boolean doAlleleSpecificCalcs) {
 
         final boolean limitedContext = tracker == null || refContext == null || rawContext == null || stratifiedContexts == null;
@@ -230,10 +238,17 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final int defaultPloidy = configuration.genotypeArgs.samplePloidy;
         final int maxAltAlleles = configuration.genotypeArgs.MAX_ALTERNATE_ALLELES;
         final int maxNumPLValues = configuration.genotypeArgs.MAX_NUM_PL_VALUES;
-        final AFCalculator afCalculator = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
-        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
 
-        final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult);
+        // NOTE: in GATK4, allele subsetting has been extracted out of the AFCalculator into a utils class
+        // The new AFCalculator (AlleleFrequencyCalculator) of GATK4 therefore does not implement this subsetting,
+        // which *includes attaching a genotype call to a VariantContext*.  In order to backport the new AFCalculator
+        // it is necessary to use it only for the qual score calculation and not for any other duties.
+        final AFCalculator afCalculatorForAlleleSubsetting = afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles).setMaxNumPLValues(maxNumPLValues);
+        final AFCalculator afCalculatorForQualScore = configuration.genotypeArgs.USE_NEW_AF_CALCULATOR ? newAFCalculator : afCalculatorForAlleleSubsetting;
+
+        final AFCalculationResult AFresult = afCalculatorForQualScore.getLog10PNonRef(vc, defaultPloidy,maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
+
+        final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult, vc);
 
         final double PoFGT0 = Math.pow(10, AFresult.getLog10PosteriorOfAFGT0());
 
@@ -274,7 +289,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         // create the genotypes
 
-        final GenotypesContext genotypes = afCalculator.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
+        final GenotypesContext genotypes = afCalculatorForAlleleSubsetting.subsetAlleles(vc, defaultPloidy, outputAlleles, true);
         builder.genotypes(genotypes);
 
         // *** note that calculating strand bias involves overwriting data structures, so we do that last
@@ -341,13 +356,13 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         }
     }
 
-
     /**
      * Provided the exact mode computations it returns the appropriate subset of alleles that progress to genotyping.
      * @param afcr the exact model calcualtion result.
-     * @return never {@code null}.
+     * @param  vc the input variant context
+     * @return information about the alternative allele subsetting {@code null}.
      */
-    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr) {
+    private OutputAlleleSubset calculateOutputAlleleSubset(final AFCalculationResult afcr, final VariantContext vc) {
         final List<Allele> alleles = afcr.getAllelesUsedInGenotyping();
 
         final int alternativeAlleleCount = alleles.size() - 1;
@@ -355,21 +370,72 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         final int[] mleCounts = new int[alternativeAlleleCount];
         int outputAlleleCount = 0;
         boolean siteIsMonomorphic = true;
-        for (final Allele alternativeAllele : alleles) {
-            if (alternativeAllele.isReference()) continue;
-            // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
-            // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
-            final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && alternativeAllele == GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE;
-            final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(alternativeAllele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
-            final boolean toOutput = isPlausible || forceKeepAllele(alternativeAllele) || isNonRefWhichIsLoneAltAllele;
+        int referenceAlleleSize = 0;
+        for (final Allele allele : alleles) {
+            if (allele.isReference() ) {
+                referenceAlleleSize = allele.length();
+            } else {
+                // we want to keep the NON_REF symbolic allele but only in the absence of a non-symbolic allele, e.g.
+                // if we combined a ref / NON_REF gVCF with a ref / alt gVCF
+                final boolean isNonRefWhichIsLoneAltAllele = alternativeAlleleCount == 1 && allele.equals(GATKVCFConstants.NON_REF_SYMBOLIC_ALLELE);
+                final boolean isPlausible = afcr.isPolymorphicPhredScaledQual(allele, configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING);
 
-            siteIsMonomorphic &= ! isPlausible;
-            if (!toOutput) continue;
-            outputAlleles[outputAlleleCount] = alternativeAllele;
-            mleCounts[outputAlleleCount++] = afcr.getAlleleCountAtMLE(alternativeAllele);
+                siteIsMonomorphic &= !isPlausible;
+                boolean toOutput = (isPlausible || forceKeepAllele(allele) || isNonRefWhichIsLoneAltAllele);
+                if ( allele.equals(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED) ||
+                        allele.equals(Allele.SPAN_DEL) ) {
+                    toOutput &= coveredByDeletion(vc);
+                }
+                if (toOutput) {
+                    outputAlleles[outputAlleleCount] = allele;
+                    mleCounts[outputAlleleCount++] = afcr.getAlleleCountAtMLE(allele);
+                    recordDeletion(referenceAlleleSize, allele, vc);
+                }
+            }
         }
 
         return new OutputAlleleSubset(outputAlleleCount,outputAlleles,mleCounts,siteIsMonomorphic);
+    }
+
+    /**
+     *  Record deletion to keep
+     *  Add deletions to a list.
+     *
+     * @param referenceAlleleSize   reference allele length
+     * @param allele                allele of interest
+     * @param vc                    variant context
+     */
+    private void recordDeletion(final int referenceAlleleSize, final Allele allele, final VariantContext vc) {
+        final int deletionSize = referenceAlleleSize - allele.length();
+
+        // Allele ia a deletion
+        if (deletionSize > 0) {
+            final GenomeLoc genomeLoc = genomeLocParser.createGenomeLocOnContig(vc.getContig(), vc.getStart(), vc.getStart() + deletionSize);
+            upstreamDeletionsLoc.add(genomeLoc);
+        }
+    }
+
+    /**
+     * Is the variant context covered by an upstream deletion?
+     *
+     * @param vc    variant context
+     * @return  true if the location is covered by an upstream deletion, false otherwise
+     */
+    private boolean coveredByDeletion(final VariantContext vc) {
+        for (Iterator<GenomeLoc> it = upstreamDeletionsLoc.iterator(); it.hasNext(); ) {
+            final GenomeLoc loc = it.next();
+            if (!loc.getContig().equals(vc.getContig())) { // past contig deletion.
+                it.remove();
+            } else if (loc.getStop() < vc.getStart()) { // past position in current contig deletion.
+                it.remove();
+            } else if (loc.getStart() == vc.getStart()) {
+                // ignore this deletion, the symbolic one does not make reference to it.
+            } else { // deletion covers.
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -565,7 +631,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         if (!inputPriors.isEmpty()) {
             // user-specified priors
             if (inputPriors.size() != N)
-                throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples +1 ");
+                throw new UserException.BadArgumentValue("inputPrior","Invalid length of inputPrior vector: vector length must be equal to # samples * ploidy");
             for (final Double prior : inputPriors) {
                 if (prior <= 0 || prior >= 1) throw new UserException.BadArgumentValue("inputPrior","inputPrior vector values must be greater than 0 and less than 1");
             }
@@ -621,8 +687,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final boolean passesEmitThreshold(double conf, boolean bestGuessIsRef) {
         return (configuration.outputMode == OutputMode.EMIT_ALL_CONFIDENT_SITES || !bestGuessIsRef) &&
-                conf >= Math.min(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING,
-                        configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING);
+                conf >= configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING;
     }
 
     protected final boolean passesCallThreshold(double conf) {
@@ -632,7 +697,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
     protected Map<String,Object> composeCallAttributes(final boolean inheritAttributesFromInputVC, final VariantContext vc,
                                                        final AlignmentContext rawContext, final Map<String, AlignmentContext> stratifiedContexts, final RefMetaDataTracker tracker, final ReferenceContext refContext, final List<Integer> alleleCountsofMLE, final boolean bestGuessIsRef,
                                                        final AFCalculationResult AFresult, final List<Allele> allAllelesToUse, final GenotypesContext genotypes,
-                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
+                                                       final GenotypeLikelihoodsCalculationModel.Model model, final Map<String, PerReadAlleleLikelihoodMap> perReadAlleleLikelihoodMap,
                                                        final boolean doAlleleSpecificCalcs) {
         final HashMap<String, Object> attributes = new HashMap<>();
 
@@ -728,7 +793,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
             final double normalizedLog10ACeq0Posterior = log10ACeq0Posterior - log10PosteriorNormalizationConstant;
             // This is another condition to return a 0.0 also present in AFCalculator code as well.
-            if (normalizedLog10ACeq0Posterior >= QualityUtils.qualToErrorProbLog10(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING))
+            if (normalizedLog10ACeq0Posterior >= QualityUtils.qualToErrorProbLog10(configuration.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING))
                 return 0.0;
 
             return 1.0 - Math.pow(10.0, normalizedLog10ACeq0Posterior);

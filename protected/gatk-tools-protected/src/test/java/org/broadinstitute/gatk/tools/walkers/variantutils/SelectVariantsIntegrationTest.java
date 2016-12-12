@@ -67,8 +67,8 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
 
     private static final String SAMPLE_EXCLUSION_MD5 = "2e52f21e7dcc67151a51630807a4eef2";
     private static final String INVERT_SELECTION_MD5 = "26d192b868746ab14133f145ae812e7c";
-    private static final String MAX_FILTERED_GT_SELECTION_MD5 = "f83ac0deb7a8b022d6d40a85627a71ec";
-    private static final String MIN_FILTERED_GT_SELECTION_MD5 = "346620b7a5d66dabf89d3f42d6e27db7";
+    private static final String MAX_FILTERED_GT_SELECTION_MD5 = "66d92fac72b339195b393c9915643a14";
+    private static final String MIN_FILTERED_GT_SELECTION_MD5 = "965c0cf7daa03a1731b371bb20b582d4";
     private static final String NO_CALL_FILTERING_KEEP_ONE = "6e2401190c5ada6a3bed2640c068f43b";
     private static final String NO_CALL_FILTERING_KEEP_TWO =  "6bced1ab6a3d58f1fd905b7f601987a3";
 
@@ -86,6 +86,18 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
 
         executeTest("testDiscordanceNoSampleSpecified--" + testFile, spec);
+    }
+
+    @Test
+    public void testExcludeIntervalsPadding(){
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + hg19Reference + " -L 1:1715011-1734970 -XL 1:1725305 -ip 200 --variant "
+                        + b37hapmapGenotypes + " -o %s --no_cmdline_in_header",
+                1,
+                Arrays.asList("2e31c0be0d639d7110e639a11c03f4ca")
+        );
+
+        executeTest("testExcludeIntervalsPadding--", spec);
     }
 
     @Test
@@ -304,7 +316,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b36KGReference + " -selectType INDEL --variant " + testFile + " -o %s --no_cmdline_in_header --minIndelSize 2",
                 1,
-                Arrays.asList("ed9dc00d0551630a2eed9e81a2a357d3")
+                Arrays.asList("ad0965edb1dbd30060afd21ba9f11bf7")
         );
 
         executeTest("testMinIndelLengthSelection--" + testFile, spec);
@@ -395,7 +407,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("c78a65b41edbdd386211042e8f65220b")
+                Arrays.asList("1fc77d7f47e75a24222a358c69de7f3d")
         );
 
         executeTest("testNoGTs--" + testFile, spec);
@@ -606,7 +618,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -IDs " + idFile + " --variant " + testFile),
                 1,
-                Arrays.asList("c6632b63617162455f02670174a2322a")
+                Arrays.asList("da1117cba380345c622a6d8e52c2270b")
         );
         spec.disableShadowBCF();
         executeTest("testKeepSelectionID--" + testFile, spec);
@@ -641,7 +653,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b36KGReference + " -xlSelectType SNP --variant " + testFile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("ed9dc00d0551630a2eed9e81a2a357d3")
+                Arrays.asList("ad0965edb1dbd30060afd21ba9f11bf7")
         );
 
         executeTest("testExcludeSelectionType--" + testFile, spec);
@@ -732,7 +744,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants --setFilteredGtToNocall -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("410c6b7bb62fc43bb41eee627670f757")
+                Arrays.asList("cb5ef9233503bebc81593e436a6de943")
         );
 
         spec.disableShadowBCF();
@@ -747,7 +759,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
                 "-T SelectVariants --setFilteredGtToNocall --removeUnusedAlternates --excludeNonVariants -R " + b37KGReference + " --variant " +
                         testfile + " -o %s --no_cmdline_in_header",
                 1,
-                Arrays.asList("349136d92f915f8c7ba8a2f92e51d6b7"));
+                Arrays.asList("f5b2592361d8ab0d47e5047e63f78e4c"));
         executeTest("testSetFilteredGtoNocallUpdateInfo", spec);
     }
 
@@ -782,7 +794,7 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12891 -trimAlternates",
                 1,
-                ReviewedGATKException.class);
+                Arrays.asList("7880f8a1dfae1804998b6a994574e734"));
         spec.disableShadowBCF();
         executeTest("testSACNonDiploid", spec);
     }
@@ -837,5 +849,44 @@ public class SelectVariantsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
 
         executeTest("testMaxNoCall0_5", spec);
+    }
+
+    @Test
+    public void testHaploid() {
+        final String testfile = privateTestDir + "haploid-multisample.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn HG00610 -select 'DP > 7'",
+                1,
+                Arrays.asList("bc6caa81836f4c94a1216babd0c1ac72"));
+        spec.disableShadowBCF();
+
+        executeTest("testHaploid", spec);
+    }
+
+    @Test
+    public void testTetraploid()  {
+        final String testfile = privateTestDir + "tetraploid-multisample.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA18486 -select 'DP > 19'",
+                1,
+                Arrays.asList("4fcfa5e0ba5d39ca9f0593aa0c0f7a63"));
+        spec.disableShadowBCF();
+
+        executeTest("testTetraploid", spec);
+    }
+
+    @Test
+    public void testTetraDiploid()  {
+        final String testfile = privateTestDir + "tetra-diploid.vcf";
+
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T SelectVariants -R " + b37KGReference + " --variant " + testfile + " -o %s --no_cmdline_in_header -sn NA12878 -select 'DP > 48' -trimAlternates",
+                1,
+                Arrays.asList("709782f7a07cd500d41370e6a275fcdf"));
+        spec.disableShadowBCF();
+
+        executeTest("testTetraDiploid", spec);
     }
 }

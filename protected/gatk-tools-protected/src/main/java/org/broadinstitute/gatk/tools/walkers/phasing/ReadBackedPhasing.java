@@ -81,7 +81,7 @@ import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.pileup.ReadBackedPileup;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterFactory;
+import htsjdk.variant.variantcontext.writer.SortingVariantContextWriter;
 
 import java.io.*;
 import java.util.*;
@@ -124,7 +124,7 @@ import static org.broadinstitute.gatk.engine.GATKVCFUtils.getVCFHeadersFromRods;
  * reverse order between these two genotypes.</p>
  * <p>In an old notation that RBP used to output in much earlier versions, the genotypes would have been: 0/1 and 1|0,
  * respectively. This was changed because depending on the case it caused ambiguity, incompleteness, and possible
- * inconsistency with trio-based phasing. In contrast, the HP tag is much more explicitl for linking alleles, especially
+ * inconsistency with trio-based phasing. In contrast, the HP tag is much more explicit for linking alleles, especially
  * if the genotypes are non-consecutive.</p>
  *
  * <h3>Usage example</h3>
@@ -257,7 +257,7 @@ public class ReadBackedPhasing extends RodWalker<PhasingStatsAndOutput, PhasingS
            But, NOTE that map() is careful to pass out a list of records to be written that FIRST includes any records discarded due to having reached mostDownstreamLocusReached,
            and only THEN records located at mostDownstreamLocusReached.  The opposite order in map() would violate the startDistance limits imposed when contracting SortingVCFWriter with (2 * cacheWindow).
          */
-        writer = VariantContextWriterFactory.sortOnTheFly(writer, 2 * cacheWindow, writer != origWriter);
+        writer = new SortingVariantContextWriter(writer, 2 * cacheWindow, writer != origWriter);
 
         // setup the header fields:
         Set<VCFHeaderLine> hInfo = new HashSet<VCFHeaderLine>();

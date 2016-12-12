@@ -423,7 +423,7 @@ public class VariantAnnotatorIntegrationTest extends WalkerTest {
 
     @Test
     public void testStrandAlleleCountsBySample() {
-        final String MD5 = "564aeeefad92353d66dbb2a2222d5108";
+        final String MD5 = "994d1d3c53e3878e17d20e1327506d77";
         final WalkerTestSpec spec = new WalkerTestSpec(
                 "-T HaplotypeCaller --disableDithering " +
                 String.format("-R %s -I %s ", REF, CEUTRIO_BAM) +

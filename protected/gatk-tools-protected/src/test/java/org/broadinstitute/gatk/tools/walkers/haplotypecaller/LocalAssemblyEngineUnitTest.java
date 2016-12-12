@@ -51,11 +51,11 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import org.broadinstitute.gatk.utils.BaseTest;
 import org.broadinstitute.gatk.tools.walkers.haplotypecaller.readthreading.ReadThreadingAssembler;
 import org.broadinstitute.gatk.utils.GenomeLoc;
@@ -80,7 +80,7 @@ import java.util.*;
 
 public class LocalAssemblyEngineUnitTest extends BaseTest {
     private GenomeLocParser genomeLocParser;
-    private IndexedFastaSequenceFile seq;
+    private ReferenceSequenceFile seq;
     private SAMFileHeader header;
 
     @BeforeClass

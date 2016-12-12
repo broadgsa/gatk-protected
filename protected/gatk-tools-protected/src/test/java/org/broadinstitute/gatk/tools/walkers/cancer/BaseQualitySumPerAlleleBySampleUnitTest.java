@@ -76,5 +76,4 @@ public class BaseQualitySumPerAlleleBySampleUnitTest {
         Assert.assertFalse(a.isUsableRead(read));
 
     }
-    
 }

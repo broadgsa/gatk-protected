@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.variant.vcf.VCFConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Level;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
@@ -62,10 +63,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
 
@@ -84,12 +89,12 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         //TODO this might need to be addressed at some point.
         //TODO the following test is commented out for the record
         //tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "7f09c261950bf86e435edfa69ed2ec71"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "8d30370465d74fd549d76dd31adc4c0c"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "b7a5f4e40d5ebaf5f6c46a3d4355c817"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "0f5e6f2584649a1b7386d94e3dc60f91"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "c64e8f169b40dfcdac5bea71156753b5"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "2cc9f789100e138ffc0c383b12a1322a"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "44cc8f78e28d905efc30c218d821cc7c"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "2e81881e92061ad4eb29025ffdc129c7"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "2c67bdc08c8784f2114c2039270b9766"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "63fa5841a21e2c13f1e1a8e2d4ea3380"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "39b2ad53ffdfcbaa4af3454c321daaa7"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "861fa31b135d200f765914126b422cf4"});
 
         return tests.toArray(new Object[][]{});
     }
@@ -103,13 +108,13 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "3ae2c7e570855f6d6ca58ddd1089a970"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "22e03f01e91177011ac028d2347751ba"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "cb3f16bc10e1cc75f2093bec92145d18"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "f2807ff921854059746da2954dc44a7b"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "d146c8dc4fc0605b3776ab5fec837d53"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "c317193f0d1c9a8168f2625c8bf1dd2b"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "63ff771eed3e62340c8938b4963d0add"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "1122a0b3849f42d1c4a654f93b660e1b"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "c6c19ff9dc229f6af6080a175267344c"});
 
-        final String NA12878bandedResolutionMD5 = "8d4a51af32cd13ba4b3e33dd00c58398";
+        final String NA12878bandedResolutionMD5 = "7240907ec3dc2ed49b55c9956546ba13";
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
         tests.add(new Object[]{NA12878_WEx + " -I " + privateTestDir + "NA20313.highCoverageRegion.bam -sn NA12878",
                 ReferenceConfidenceMode.GVCF, WExIntervals, NA12878bandedResolutionMD5});
@@ -126,12 +131,12 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "8bf132d73cf6b0851ae73c6799f19ba9"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "90b25f3050435c9e67aa0ee325c24167"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "5f329540dc5c4556ab029d0e2cfcabcb"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "126527c225d24a2a0bb329ad9b3f682a"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "6c727b804084a2324ecd1c98b72734b9"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "190cef14684c95ba290d7a5fa13fdc07"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "6ad7855dbf6dda2060aa93a3ee010b3e"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "a0be095ed902a8acdb80fb56ca4e8fb4"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "8123d8b68b6fa77ef084f292e191622a"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "21c87a3edafee3cb080169963e1e2623"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "e48bbcf453e63a6ea5eeda05f6865f94"});
 
         return tests.toArray(new Object[][]{});
     }
@@ -144,16 +149,15 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String WExIntervals = "-L 20:10,000,000-10,100,000 -isr INTERSECTION -L " + hg19Chr20Intervals;
 
         // this functionality can be adapted to provide input data for whatever you might want in your data
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "6662cfc41393257dfd6c39f1af1e3843"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "70ee4e60d9f86b63aaab09075a71ddd3"});
-        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "700d79df3b0b481444e81471204e242e"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.NONE, PCRFreeIntervals, "8e17f26d07fbba596d3cfd2e344c4cd2"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.BP_RESOLUTION, PCRFreeIntervals, "48521b89cecceb9846e4dfc0dd415874"});
+        tests.add(new Object[]{NA12878_PCRFREE, ReferenceConfidenceMode.GVCF, PCRFreeIntervals, "eaacbeaff99a37ffa07e1f11e7f1deb2"});
         tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.NONE, WExIntervals, "af0fe243e3b96e59097187cd16ba1597"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "228e1d2ec2e729a5f79c37f3f2557708"});
-        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "2fc7020457dde4439b4133c098d9ab9b"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.BP_RESOLUTION, WExIntervals, "868a097a8a108f5159dbbabbfdb2e38b"});
+        tests.add(new Object[]{NA12878_WEx, ReferenceConfidenceMode.GVCF, WExIntervals, "685025831ac783784d7838e568e35f46"});
 
         return tests.toArray(new Object[][]{});
     }
-
 
     /**
      * Test HaplotypeCaller, using MyDataProvider
@@ -234,15 +238,19 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     }
 
     /**
-     * Test HaplotypeCaller to ensure it does not throw an exception when a .g.vcf.gz output file is specified and the indexing arguments are omitted
+     * Test HaplotypeCaller to ensure it does not throw an exception when a .g.vcf.gz output file is specified and the indexing arguments are omitted.
+     * Verify that the output file is using the GZIP file format.
      */
     @Test()
-    public void testGVCFGzIndexNoThrow() {
+    public void testGVCFGzIndexNoThrow() throws IOException {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "noCallRefModel.bam", "20:17000000-17000100");
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine  + " -o %s", Arrays.asList(GATKVCFUtils.GVCF_GZ_EXT), Arrays.asList(""));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine, Arrays.asList(""));
+        final File outputFile = createTempFile("testGVCFGzIndexNoThrow", "." + GATKVCFUtils.GVCF_GZ_EXT);
+        spec.setOutputFileLocation(outputFile);
         spec.disableShadowBCF();
-        executeTest("testGVCFIndexNoThrow", spec);
+        executeTest("testGVCFGzIndexNoThrow", spec);
+        final GZIPInputStream gzipOutputFileStream = new GZIPInputStream(new FileInputStream(outputFile));
     }
 
     @Test()
@@ -275,7 +283,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testWrongGVCFNonVariantRecordOrderBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, WRONG_GVCF_RECORD_ORDER_BUGFIX_BAM, WRONG_GVCF_RECORD_ORDER_BUGFIX_INTERVALS, GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("6facd3d2cf9f52877182d627cef1c872"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("f70b7052dfeb065ee8c7d796f1a1f84a"));
         spec.disableShadowBCF();
         executeTest("testMissingGVCFIndexingStrategyException", spec);
     }
@@ -292,7 +300,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testNoCallGVCFMissingPLsBugFix() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, NOCALL_GVCF_BUGFIX_BAM, NOCALL_GVCF_BUGFIX_INTERVALS, GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("d55ccf214fd5095e6d586c1547cb1a7a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("883fdc6c10fd7cbc1de375ed26ce5734"));
         spec.disableShadowBCF();
         executeTest("testNoCallGVCFMissingPLsBugFix", spec);
     }
@@ -325,7 +333,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G Standard -G AS_Standard --disableDithering",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("6f6b2fa85cd1bae7f8f72e144fe56c96"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("5877ccbc99bbaffbcd5fe3aaa3d7e7f7"));
         spec.disableShadowBCF();
         executeTest(" testAlleleSpecificAnnotations", spec);
     }
@@ -334,7 +342,16 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testASMQMateRankSumAnnotation() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -A AS_MQMateRankSumTest --disableDithering",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("9613ec1ec93547cfb0651673e914bee4"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("0381fec3b0d21508b28fa62c2a61ccfc"));
+        spec.disableShadowBCF();
+        executeTest(" testASMQMateRankSumAnnotation", spec);
+    }
+
+    @Test
+    public void testBetaTestingAnnotationGroup() {
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G BetaTesting --disableDithering",
+                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("f248a6c4a7645dc5cc9f5ec9f81d9ad5"));
         spec.disableShadowBCF();
         executeTest(" testASMQMateRankSumAnnotation", spec);
     }
@@ -343,7 +360,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testASInsertSizeRankSum() {
         final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -G Standard -G AS_Standard --disableDithering -A AS_InsertSizeRankSum",
                 HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", "20:10433000-10437000", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("a8765c11b9130c815aae4e06c1f90e45"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("4599a591427c188c117f09ac40cc866f"));
         spec.disableShadowBCF();
         executeTest(" testASInsertSizeRankSum", spec);
     }
@@ -352,7 +369,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMultiAllelicNonRef() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -A StrandAlleleCountsBySample",
                 b37KGReference, privateTestDir + "multiallelic-nonref.bam", "2:47641259-47641859", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("1d9e75bd09a6fc5a1d9156fe8a7d43ce"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("7c707c66f77482e3f6b2b014b152bbf4"));
         spec.disableShadowBCF();
         executeTest(" testHaplotypeCallerMultiAllelicNonRef", spec);
     }
@@ -361,7 +378,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerMaxNumPLValues() {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 70",
                 b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("a4b5c40b1993573c5efd992f3f0db8a9"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Collections.singletonList("dd0bfade4f0a9f23a500fd23c3a24a29"));
         spec.disableShadowBCF();
         executeTest("testHaplotypeCallerMaxNumPLValues", spec);
     }
@@ -378,7 +395,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 30 -log %s",
                 b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals",
                 GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER, logFileName);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("19f5398e4013c06b52c0085fe0b3469e"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("5ea45f32c09e9f7a4132f98d642f260b"));
         spec.disableShadowBCF();
         executeTest("testHaplotypeCallerMaxNumPLValuesExceededWithWarnLogLevel", spec);
         // Make sure the "Maximum allowed number of PLs exceeded" messages are in the log
@@ -403,7 +420,7 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d -ploidy 4 -maxNumPLValues 30 -log %s",
                 b37KGReference, privateTestDir + "NA12878.HiSeq.b37.chr20.10_11mb.bam", validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals",
                 GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER, logFileName);
-        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("19f5398e4013c06b52c0085fe0b3469e"));
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("5ea45f32c09e9f7a4132f98d642f260b"));
         spec.disableShadowBCF();
         executeTest("testHaplotypeCallerMaxNumPLValuesExceededWithDebugLogLevel", spec);
         // Make sure the "Maximum allowed number of PLs exceeded" messages are in the log
@@ -412,5 +429,43 @@ public class HaplotypeCallerGVCFIntegrationTest extends WalkerTest {
         Assert.assertTrue(FileUtils.readFileToString(logFile).contains("Maximum allowed number of PLs (30) was exceeded 2 time(s); the largest number of PLs found was 70."));
         // Set the log level back
         logger.setLevel(level);
+    }
+
+    //Regression test for https://github.com/broadinstitute/gsa-unstable/issues/1345
+    @Test
+    public void testHaplotypeCallerGVCFBlocks() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L 1:1-1000000 -ERC GVCF --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
+                b37KGReference, privateTestDir + "gvcf_blocks_test.bam", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("0cdf4d6d0a45def15fb11ea30c78e470"));
+        spec.disableShadowBCF();
+        executeTest("testHaplotypeCallerGVCFBlocks", spec);
+    }
+
+    @DataProvider(name = "dataBadGQBValues")
+    public Object[][] dataBadGQBValues() {
+        return new Object[][]{
+                {Arrays.asList(-1, 10, 20)},
+                {Arrays.asList(10, 20, 1)},
+                {Arrays.asList(10, 10, 20)},
+                {Arrays.asList(10, 20, VCFConstants.MAX_GENOTYPE_QUAL + 2)}
+        };
+    }
+    @Test(dataProvider = "dataBadGQBValues")
+    public void testBadGQBValues(final List<Integer> inputGQBValues) {
+        final String inputGQBValuesString = inputGQBValues.stream().map(gqb -> "-GQB " + gqb).collect(Collectors.joining(" "));
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L 1:1-1000000 -ERC GVCF %s --no_cmdline_in_header -variant_index_type %s -variant_index_parameter %d",
+                b37KGReference, privateTestDir + "gvcf_blocks_test.bam", inputGQBValuesString, GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", 1, UserException.BadArgumentValue.class);
+        spec.disableShadowBCF();
+        executeTest("testBadGQBValues", spec);
+    }
+
+    @Test
+    public void testHaplotypeCallerGVCSpanDel() {
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L 1:26357667 -ERC GVCF --no_cmdline_in_header -A AS_ReadPosRankSumTest -A ReadPosRankSumTest -variant_index_type %s -variant_index_parameter %d",
+                b37KGReference, privateTestDir + "NexPond-377866-1:26357600-26357700.bam", GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
+        final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("bb12cf2dfa6f1fa0692395e295792584"));
+        spec.disableShadowBCF();
+        executeTest("testHaplotypeCallerGVCSpanDel", spec);
     }
 }

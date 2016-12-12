@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import com.google.java.contract.Ensures;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
@@ -210,7 +211,6 @@ import java.util.*;
  *     -I sample1.bam [-I sample2.bam ...] \
  *     [--dbsnp dbSNP.vcf] \
  *     [-stand_call_conf 30] \
- *     [-stand_emit_conf 10] \
  *     [-L targets.interval_list] \
  *     -o output.raw.snps.indels.vcf
  * </pre>
@@ -223,7 +223,6 @@ import java.util.*;
  *     -I sample1.bam \
  *     [--dbsnp dbSNP.vcf] \
  *     -stand_call_conf 20 \
- *     -stand_emit_conf 20 \
  *     -o output.raw.snps.indels.vcf
  * </pre>
  *
@@ -365,12 +364,17 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      * sites are compressed into bands of similar genotype quality (GQ) that are emitted as a single VCF record. See
      * the FAQ documentation for more details about the GVCF format.
      *
-     * This argument allows you to set the GQ boundaries. HC expects a list of multiple GQ threshold values. To pass
-     * multiple values, you provide them one by one with the argument, as in `-GQB 10 -GQB 20 -GQB 30` and so on. Note
-     * that GQ values are capped at 99 in the GATK.
+     * This argument allows you to set the GQ bands. HC expects a list of strictly increasing GQ values
+     * that will act as exclusive upper bounds for the GQ bands. To pass multiple values,
+     * you provide them one by one with the argument, as in `-GQB 10 -GQB 20 -GQB 30` and so on
+     * (this would set the GQ bands to be `[0, 10), [10, 20), [20, 30)` and so on, for example).
+     * Note that GQ values are capped at 99 in the GATK, so values must be integers in [1, 100].
+     * If the last value is strictly less than 100, the last GQ band will start at that value (inclusive)
+     * and end at 100 (exclusive).
      */
     @Advanced
-    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="GQ thresholds for reference confidence bands", required = false)
+    @Argument(fullName="GVCFGQBands", shortName="GQB", doc="Exclusive upper bounds for reference confidence GQ bands " +
+            "(must be in [1, 100] and specified in increasing order)", required = false)
     protected List<Integer> GVCFGQBands = new ArrayList<Integer>(70) {{
         for (int i=1; i<=60; ++i) add(i);
         add(70); add(80); add(90); add(99);
@@ -487,7 +491,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private HaplotypeCallerGenotypingEngine genotypingEngine = null;
 
     // fasta reference reader to supplement the edges of the reference sequence
-    protected CachingIndexedFastaSequenceFile referenceReader;
+    protected ReferenceSequenceFile referenceReader;
 
     // reference base padding size
     private static final int REFERENCE_PADDING = 500;
@@ -584,7 +588,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
             if (HCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES)
                 throw new UserException.BadArgumentValue("ERC/gt_mode","you cannot request reference confidence output and GENOTYPE_GIVEN_ALLELES at the same time");
 
-            HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = -0.0;
             HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = -0.0;
 
             // also, we don't need to output several of the annotations
@@ -626,7 +629,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
         simpleUAC.outputMode = OutputMode.EMIT_VARIANTS_ONLY;
         simpleUAC.genotypingOutputMode = GenotypingOutputMode.DISCOVERY;
         simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_CALLING ); // low values used for isActive determination only, default/user-specified values used for actual calling
-        simpleUAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING = Math.min(MAXMIN_CONFIDENCE_FOR_CONSIDERING_A_SITE_AS_POSSIBLE_VARIANT_IN_ACTIVE_REGION_DISCOVERY, HCAC.genotypeArgs.STANDARD_CONFIDENCE_FOR_EMITTING ); // low values used for isActive determination only, default/user-specified values used for actual calling
         simpleUAC.CONTAMINATION_FRACTION = 0.0;
         simpleUAC.CONTAMINATION_FRACTION_FILE = null;
         simpleUAC.exactCallsLog = null;
@@ -683,12 +685,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         vcfWriter.writeHeader(new VCFHeader(headerInfo, sampleSet));
 
-        try {
-            // fasta reference reader to supplement the edges of the reference sequence
-            referenceReader = new CachingIndexedFastaSequenceFile(getToolkit().getArguments().referenceFile);
-        } catch( FileNotFoundException e ) {
-            throw new UserException.CouldNotReadInputFile(getToolkit().getArguments().referenceFile, e);
-        }
+        // fasta reference reader to supplement the edges of the reference sequence
+        referenceReader = CachingIndexedFastaSequenceFile.checkAndCreate(getToolkit().getArguments().referenceFile);
 
         // create and setup the assembler
         assemblyEngine = new ReadThreadingAssembler(RTAC.maxNumHaplotypesInPopulation, RTAC.kmerSizes, RTAC.dontIncreaseKmerSizesForCycles, RTAC.allowNonUniqueKmersInRef, RTAC.numPruningSamples);
@@ -754,8 +752,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
                 try {
                     vcfWriter = new GVCFWriter(vcfWriter, GVCFGQBands, HCAC.genotypeArgs.samplePloidy);
-                } catch ( IllegalArgumentException e ) {
-                    throw new UserException.BadArgumentValue("GQBands", "are malformed: " + e.getMessage());
+                } catch ( final IllegalArgumentException e ) {
+                    throw new UserException.BadArgumentValue("GVCFGQBands", e.getMessage());
                 }
             }
         }

@@ -63,7 +63,6 @@ import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.Utils;
 import org.broadinstitute.gatk.utils.collections.Pair;
-import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
@@ -135,7 +134,7 @@ public class ReferenceConfidenceVariantContextMerger {
             // record whether it's also a spanning deletion/event (we know this because the VariantContext type is no
             // longer "symbolic" but "mixed" because there are real alleles mixed in with the symbolic non-ref allele)
             sawSpanningDeletion |= ( isSpanningEvent && vc.isMixed() ) || vc.getAlternateAlleles().contains(Allele.SPAN_DEL) ||
-                    vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED );
+                    vc.getAlternateAlleles().contains(GATKVCFConstants.SPANNING_DELETION_SYMBOLIC_ALLELE_DEPRECATED);
             sawNonSpanningEvent |= ( !isSpanningEvent && vc.isMixed() );
 
             vcAndNewAllelePairs.add(new Pair<>(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele, finalAlleleSet)));
@@ -147,11 +146,22 @@ public class ReferenceConfidenceVariantContextMerger {
 
         final List<Allele> allelesList = new ArrayList<>(finalAlleleSet);
 
+        //TODO quick fix patch to address memory issue described in https://github.com/broadinstitute/gsa-unstable/issues/1419
+        //TODO The reason to impose this limit here is that in practice the tool that is affected by the mem issue, GenotypeGVCFs will
+        //TODO skip the site when the number of alleles is bigger than that limit so this change does not change the outputs.
+        //TODO However we need to change this with a more permanent solution.
+        //TODO For example we could impose maxAltAlleles or maxGenotypes in the output at every step including CombineGVCFs and GenotypeGVCFs
+        //TODO in order to avoid to add yet another limit   .
+        final boolean shouldComputePLs = allelesList.size() <= GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
+        if (!shouldComputePLs) {
+            logger.debug(String.format("location %s:%d has too many alleles (%d) to compute PLs (maximum allowed %d). PL genotype annotations won't be produced at this site", loc.getContig(), loc.getStart(), allelesList.size(), GenotypeLikelihoods.MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED));
+        }
+
         for ( final Pair<VariantContext,List<Allele>> pair : vcAndNewAllelePairs ) {
             final VariantContext vc = pair.getFirst();
             final List<Allele> remappedAlleles = pair.getSecond();
 
-            mergeRefConfidenceGenotypes(genotypes, vc, remappedAlleles, allelesList, samplesAreUniquified);
+            mergeRefConfidenceGenotypes(genotypes, vc, remappedAlleles, allelesList, samplesAreUniquified, shouldComputePLs);
 
             // special case DP (add it up) for all events
             if ( vc.hasAttribute(VCFConstants.DEPTH_KEY) ) {
@@ -186,7 +196,7 @@ public class ReferenceConfidenceVariantContextMerger {
 
         //annotatorEngine.combineAnnotations removed the successfully combined annotations, so now parse those that are left
         //here we're assuming that things that are left are scalars per sample
-        Map<String, List<Comparable>> parsedAnnotationMap = parseRemainingAnnotations(annotationMap);
+        final Map<String, List<Comparable>> parsedAnnotationMap = parseRemainingAnnotations(annotationMap);
 
         // when combining remaining annotations use the median value from all input VCs which had annotations provided
         for ( final Map.Entry<String, List<Comparable>> p : parsedAnnotationMap.entrySet() ) {
@@ -413,18 +423,20 @@ public class ReferenceConfidenceVariantContextMerger {
      * @param remappedAlleles       the list of remapped alleles for the sample
      * @param targetAlleles         the list of target alleles
      * @param samplesAreUniquified  true if sample names have been uniquified
+     * @param shouldComputePLs      true if the PL can be computed in this merge.
      */
     private static void mergeRefConfidenceGenotypes(final GenotypesContext mergedGenotypes,
                                                     final VariantContext vc,
                                                     final List<Allele> remappedAlleles,
                                                     final List<Allele> targetAlleles,
-                                                    final boolean samplesAreUniquified) {
+                                                    final boolean samplesAreUniquified,
+                                                    final boolean shouldComputePLs) {
         final int maximumPloidy = vc.getMaxPloidy(GATKVariantContextUtils.DEFAULT_PLOIDY);
         // the map is different depending on the ploidy, so in order to keep this method flexible (mixed ploidies)
         // we need to get a map done (lazily inside the loop) for each ploidy, up to the maximum possible.
         final int[][] genotypeIndexMapsByPloidy = new int[maximumPloidy + 1][];
         final int maximumAlleleCount = Math.max(remappedAlleles.size(),targetAlleles.size());
-        int[] perSampleIndexesOfRelevantAlleles;
+
 
         for (final Genotype g : vc.getGenotypes()) {
             final String name;
@@ -433,23 +445,28 @@ public class ReferenceConfidenceVariantContextMerger {
             else
                 name = g.getSampleName();
             final int ploidy = g.getPloidy();
-            final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()));
+            final GenotypeBuilder genotypeBuilder = new GenotypeBuilder(g).alleles(GATKVariantContextUtils.noCallAlleles(g.getPloidy()))
+                    .noPL();
             genotypeBuilder.name(name);
-            final boolean hasPL = g.hasPL();
+
+            final boolean doPLs = shouldComputePLs && g.hasPL();
+            final boolean hasAD = g.hasAD();
             final boolean hasSAC = g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY);
-            if (hasPL || hasSAC) {
-                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), g);
-                if (g.hasPL()) {
+            if (doPLs || hasSAC || hasAD) {
+                final int[] perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), g);
+                if (doPLs) {
                     // lazy initialization of the genotype index map by ploidy.
 
                     final int[] genotypeIndexMapByPloidy = genotypeIndexMapsByPloidy[ploidy] == null
                             ? GenotypeLikelihoodCalculators.getInstance(ploidy, maximumAlleleCount).genotypeIndexMap(perSampleIndexesOfRelevantAlleles)
                             : genotypeIndexMapsByPloidy[ploidy];
                     final int[] PLs = generatePL(g, genotypeIndexMapByPloidy);
-                    final int[] AD = g.hasAD() ? generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles) : null;
-                    genotypeBuilder.PL(PLs).AD(AD);
+                    genotypeBuilder.PL(PLs);
                 }
-                if (g.hasExtendedAttribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY)) {
+                if (hasAD) {
+                    genotypeBuilder.AD(generateAD(g.getAD(), perSampleIndexesOfRelevantAlleles));
+                }
+                if (hasSAC) {
                     final List<Integer> sacIndexesToUse = adaptToSACIndexes(perSampleIndexesOfRelevantAlleles);
                     final int[] SACs = GATKVariantContextUtils.makeNewSACs(g, sacIndexesToUse);
                     genotypeBuilder.attribute(GATKVCFConstants.STRAND_COUNT_BY_SAMPLE_KEY, SACs);
@@ -469,11 +486,11 @@ public class ReferenceConfidenceVariantContextMerger {
         if (perSampleIndexesOfRelevantAlleles == null)
             throw new IllegalArgumentException("The per sample index of relevant alleles must not be null");
 
-        final List<Integer> sacIndexesToUse = new ArrayList(2 * perSampleIndexesOfRelevantAlleles.length);
+        final List<Integer> sacIndexesToUse = new ArrayList<>(2 * perSampleIndexesOfRelevantAlleles.length);
 
         for (int item : perSampleIndexesOfRelevantAlleles) {
-            sacIndexesToUse.add(new Integer(2 * item));
-            sacIndexesToUse.add(new Integer(2 * item + 1));
+            sacIndexesToUse.add(2 * item);
+            sacIndexesToUse.add(2 * item + 1);
         }
 
         return sacIndexesToUse;
