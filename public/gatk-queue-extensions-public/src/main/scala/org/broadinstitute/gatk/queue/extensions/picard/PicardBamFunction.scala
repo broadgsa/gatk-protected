@@ -51,7 +51,7 @@ trait PicardBamFunction extends JavaCommandLineFunction {
 
   abstract override def commandLine = super.commandLine +
     repeat("INPUT=", inputBams, spaceSeparated=false) +
-    required("TMP_DIR=" + jobTempDir) +
+    required("TMP_DIR=" + jobLocalDir) +
     optional("OUTPUT=", outputBam, spaceSeparated=false) +
     optional("COMPRESSION_LEVEL=", compressionLevel, spaceSeparated=false) +
     optional("VALIDATION_STRINGENCY=", validationStringency, spaceSeparated=false) +
