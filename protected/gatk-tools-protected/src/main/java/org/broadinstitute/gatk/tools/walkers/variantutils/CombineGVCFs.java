@@ -194,6 +194,24 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Argument(fullName="breakBandsAtMultiplesOf", shortName="breakBandsAtMultiplesOf", doc = "If > 0, reference bands will be broken up at genomic positions that are multiples of this number", required=false)
     protected int multipleAtWhichToBreakBands = 0;
 
+    /**
+     * To reduce file sizes our gVCFs group similar reference positions into bands.  However, there are cases when users will want to know that no bands
+     * span across a given genomic position (e.g. when scatter-gathering jobs across a compute farm).  The option below enables users to break bands at
+     * specific pre-defined positions.  These are specified as a chromosome and position separated by ':' (e.g. `--breakBandsAt chr1:10000`).  The break 
+     * will occur just before the specified base (i.e. the specified base will be the first base of the new band and the previous base will be the last 
+     * base of the previous band).
+     *
+     * This argument can be specified multiple times (e.g. `-bba chr1:10000 -bba chr1:15000 -bba chr2:10000`).
+     *
+     * This can be used in conjunction with `-L` arguments to specify the breakpoints of intervals that are not regularly spaced.  For example, if a 
+     * single interval was given as `-L chr2:3456-7890`, to avoid losing bands that overlap the ends, corresponding `--breakBandsAt` arguments could be 
+     * given specifying the first base of the interval as well as one base past the last base of the interval. 
+     *
+     * A complete example for a single interval could be: `-L chr2:3456-7890 --breakBandsAt chr2:3456 --breakBandsAt chr2:7891`. 
+     */
+    @Argument(fullName="breakBandsAt", shortName="bba", doc="Reference bands will be broken up at this specific genomic position", required=false)
+    protected Set<String> breakBandsAt = Collections.emptySet();
+
     private GenomeLocParser genomeLocParser;
 
     public void initialize() {
@@ -221,6 +239,18 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
         // optimization to prevent mods when we always just want to break bands
         if ( multipleAtWhichToBreakBands == 1 )
             USE_BP_RESOLUTION = true;
+
+        // log at which positions we will break bands
+        if ( USE_BP_RESOLUTION ) {
+            logger.info("Will break bands: at every position.");
+        } else {
+            if ( multipleAtWhichToBreakBands > 0 ) {
+                logger.info("Will break bands: on every chromosome at all multiples of " + String.format("%d", multipleAtWhichToBreakBands));
+            }
+            for ( String position : breakBandsAt ) {
+                logger.info("Will break bands: at " + position);
+            }
+        }
     }
 
     public PositionalState map(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
@@ -265,7 +295,8 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
      */
     private boolean breakBand(final GenomeLoc loc) {
         return USE_BP_RESOLUTION ||
-                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0);  // add +1 to the loc because we want to break BEFORE this base
+                (loc != null && multipleAtWhichToBreakBands > 0 && (loc.getStart()+1) % multipleAtWhichToBreakBands == 0) || // add +1 to the loc because we want to break BEFORE this base
+                (loc != null && breakBandsAt.contains(loc.getContig()+":"+(loc.getStart()+1)));
     }
 
     /**
@@ -430,7 +461,12 @@ public class CombineGVCFs extends RodWalker<CombineGVCFs.PositionalState, Combin
     @Override
     public void onTraversalDone(final OverallState state) {
         // there shouldn't be any state left unless the user cut in the middle of a gVCF block
-        if ( !state.VCs.isEmpty() )
+        if ( !state.VCs.isEmpty() ) {
             logger.warn("You have asked for an interval that cuts in the middle of one or more gVCF blocks. Please note that this will cause you to lose records that don't end within your interval.");
+            for ( int i = state.VCs.size() - 1; i >= 0; i-- ) {
+                final VariantContext vc = state.VCs.get(i);
+                logger.info("Record lost for variant at: " + vc.getContig() + ":" + vc.getStart() + "-" + vc.getEnd() + " from sample(s): " + vc.getSampleNames());
+            }
+        }
     }
 }
