@@ -112,12 +112,14 @@ public class PossibleDeNovo extends InfoFieldAnnotation implements RodRequiringA
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
 
         if ( !(walker instanceof VariantAnnotator ) ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                if ( walker != null )
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
-                else
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
-                walkerIdentityCheckWarningLogged = true;
+            synchronized (this) {
+                if (!walkerIdentityCheckWarningLogged) {
+                    if (walker != null)
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getSimpleName());
+                    else
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                    walkerIdentityCheckWarningLogged = true;
+                }
             }
             return null;
         }
