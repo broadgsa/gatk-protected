@@ -118,6 +118,11 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testHaplotypeCallerMultiSampleNoBadMateFilter() throws IOException {
+        HCTest(CEUTRIO_BAM, "-drf BadMate", "bb6b14675d62ff5b86430508ed688776");
+    }
+
+    @Test
     public void testHaplotypeCallerSingleSample() throws IOException {
 
         HCTest(NA12878_BAM, "", "9f17ce83e639a1bd9b3f2d9fa33b15b2");
@@ -471,7 +476,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                         1, UserException.CommandLineException.class));
     }
 
-    @Test 
+    @Test
     public void testHaplotypeCallerMergeVariantsViaLDException(){
         executeTest("HaplotypeCallerMergeVariantsViaLDException",
                 new WalkerTest.WalkerTestSpec(
