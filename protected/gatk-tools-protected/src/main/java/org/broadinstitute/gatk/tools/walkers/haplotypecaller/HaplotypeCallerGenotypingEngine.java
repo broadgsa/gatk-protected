@@ -353,7 +353,7 @@ public class HaplotypeCallerGenotypingEngine extends GenotypingEngine<AssemblyBa
      *  @param ploidy        ploidy of the sample
      * @param alleleMapper  original allele to haplotype map
      */
-    private VariantContext removeAltAllelesIfTooManyGenotypes(final int ploidy, final Map<Allele, List<Haplotype>> alleleMapper, final VariantContext mergedVC) {
+    private synchronized VariantContext removeAltAllelesIfTooManyGenotypes(final int ploidy, final Map<Allele, List<Haplotype>> alleleMapper, final VariantContext mergedVC) {
 
         final int originalAlleleCount = alleleMapper.size();
         practicalAlleleCountForPloidy.putIfAbsent(ploidy, GenotypeLikelihoodCalculators.computeMaxAcceptableAlleleCount(ploidy, maxGenotypeCountToEnumerate));
