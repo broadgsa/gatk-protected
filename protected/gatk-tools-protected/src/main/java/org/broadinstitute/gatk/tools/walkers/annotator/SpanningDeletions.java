@@ -95,12 +95,14 @@ public class SpanningDeletions extends InfoFieldAnnotation implements StandardUG
                                         final Map<String, PerReadAlleleLikelihoodMap> stratifiedPerReadAlleleLikelihoodMap) {
         // Can only call from UnifiedGenotyper
         if ( !(walker instanceof UnifiedGenotyper) ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                if ( walker != null )
-                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getName());
-                else
-                    logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
-                walkerIdentityCheckWarningLogged = true;
+            synchronized (this) {
+                if (!walkerIdentityCheckWarningLogged) {
+                    if (walker != null)
+                        logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper, not " + walker.getClass().getSimpleName());
+                    else
+                        logger.warn("Annotation will not be calculated, must be called from UnifiedGenotyper");
+                    walkerIdentityCheckWarningLogged = true;
+                }
             }
             return null;
         }
