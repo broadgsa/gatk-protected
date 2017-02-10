@@ -287,6 +287,10 @@ public class MendelianViolation {
         allCalledOnly = completeTriosOnly;
     }
 
+    interface MendelianValidator {
+        boolean validate(final Genotype gMom, final Genotype gDad, final Genotype gChild);
+    }
+
     /**
      * @param families the families to be checked for Mendelian violations
      * @param vc the variant context to extract the genotypes and alleles for mom, dad and child.
@@ -294,6 +298,9 @@ public class MendelianViolation {
      */
     public int countViolations(Map<String, Set<Sample>> families, VariantContext vc){
 
+        boolean isChrX;
+        MendelianValidator validator;
+
         //Reset counts
         nocall = 0;
         lowQual = 0;
@@ -302,14 +309,21 @@ public class MendelianViolation {
         violations_total=0;
         violationFamilies.clear();
         clearInheritanceMap();
+        isChrX = vc.getContig().equals("X") || vc.getContig().equals("chrX");
 
         for(Set<Sample> family : families.values()){
             Iterator<Sample> sampleIterator = family.iterator();
             Sample sample;
             while(sampleIterator.hasNext()){
                 sample = sampleIterator.next();
-                if(sample.getParents().size() > 0)
-                    updateViolations(sample.getFamilyID(),sample.getMaternalID(), sample.getPaternalID(), sample.getID() ,vc);
+                if(sample.getParents().size() > 0) {
+                    if (!isChrX || sample.getGender().equals(Gender.FEMALE)) {
+                        validator = (m, f, c) -> isViolation(m, f, c);
+                    } else {
+                        validator = (m, f, c) -> isViolationChrX(m, f, c);
+                    }
+                    updateViolations(sample.getFamilyID(), sample.getMaternalID(), sample.getPaternalID(), sample.getID(), vc, validator);
+                }
             }
         }
         return violations_total;
@@ -317,6 +331,8 @@ public class MendelianViolation {
 
     public boolean isViolation(Sample mother, Sample father, Sample child, VariantContext vc){
 
+        MendelianValidator validator;
+
         //Reset counts
         nocall = 0;
         lowQual = 0;
@@ -325,12 +341,17 @@ public class MendelianViolation {
         violations_total=0;
         violationFamilies.clear();
         clearInheritanceMap();
-        updateViolations(mother.getFamilyID(),mother.getID(),father.getID(),child.getID(),vc);
+        if (!(vc.getContig().equals("X") || vc.getContig().equals("chrX")) || child.getGender().equals(Gender.FEMALE)) {
+            validator = (m, f, c) -> isViolation(m, f, c);
+        } else {
+            validator = (m, f, c) -> isViolationChrX(m, f, c);
+        }
+        updateViolations(mother.getFamilyID(),mother.getID(),father.getID(),child.getID(),vc,validator);
         return violations_total>0;
     }
 
 
-    private void updateViolations(String familyId, String motherId, String fatherId, String childId, VariantContext vc){
+    private void updateViolations(String familyId, String motherId, String fatherId, String childId, VariantContext vc, MendelianValidator validator){
 
             int count;
             Genotype gMom = vc.getGenotype(motherId);
@@ -363,7 +384,7 @@ public class MendelianViolation {
                 if(!(gMom.isHomRef() && gDad.isHomRef() && gChild.isHomRef()))
                 {
                     varFamilyCalled++;
-                    if(isViolation(gMom, gDad, gChild)){
+                    if(validator.validate(gMom, gDad, gChild)){
                         violationFamilies.add(familyId);
                         violations_total++;
                     }
@@ -393,6 +414,26 @@ public class MendelianViolation {
         //Both parents have genotype information
         return !(gMom.getAlleles().contains(gChild.getAlleles().get(0)) && gDad.getAlleles().contains(gChild.getAlleles().get(1)) ||
             gMom.getAlleles().contains(gChild.getAlleles().get(1)) && gDad.getAlleles().contains(gChild.getAlleles().get(0)));
+    }
+
+    /**
+     * Evaluate the genotypes of mom, dad, and child to detect Mendelian violations
+     * Special case for chromosome X and child == Male
+     *
+     * @param gMom
+     * @param gDad
+     * @param gChild
+     * @return true if the three genotypes represent a Mendelian violation; false otherwise
+     */
+    public static boolean isViolationChrX(final Genotype gMom, final Genotype gDad, final Genotype gChild) {
+        if (gChild.getPloidy() == 2) {
+            return isViolation(gMom, gDad, gChild);
+        } else {
+            if(!gMom.isCalled()){
+                return true;
+            }
+            return !gMom.getAlleles().contains(gChild.getAllele(0));
+        }
     }
 
     private void createInheritanceMap(){
