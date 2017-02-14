@@ -175,4 +175,22 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
                 Arrays.asList("67657ee509665fd0d7a2c9024981ba92"));
         executeTest("test left alignment of multiple alleles with genoptypes, keep original AC", spec);
     }
+
+    @Test
+    public void testSplitLeftAlignmentWithMultiallelicNoCallGenotypes() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " --variant:vcf " + privateTestDir + "multiallelic-nocall.vcf -L chr12:104350950-104350960 --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("c7ce4310117f993593ce35f586451c53"));
+        executeTest("test splitting left alignment of multiple alleles with no-call genoptypes", spec);
+    }
+
+    @Test
+    public void testSplitLeftAlignmentWithMultiallelicBadAD() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " --variant:vcf " + privateTestDir + "multiallelic-nocall-badAD.vcf -L chr12:104350950-104350960 --no_cmdline_in_header -split",
+                1,
+                 IllegalStateException.class);
+        executeTest("test splitting left alignment of multiple alleles with bad AD", spec);
+    }
 }
