@@ -68,42 +68,6 @@ import java.util.ArrayList;
 public class VariantsToVCFIntegrationTest extends WalkerTest {
 
     @Test
-    public void testVariantsToVCFUsingGeliInput() {
-        List<String> md5 = new ArrayList<String>();
-        md5.add("c73bcc3658b4a4d8bd9d794069d41dbd");
-
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-R " + b36KGReference +
-                        " --variant:GeliText " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.lod5.variants.geli.calls" +
-                        " -T VariantsToVCF" +
-                        " -L 1:10,000,000-11,000,000" +
-                        " -sample NA123AB" +
-                        " -o %s" +
-                        " --no_cmdline_in_header",
-                1, // just one output file
-                md5);
-        executeTest("testVariantsToVCFUsingGeliInput - calls", spec).getFirst();
-    }
-
-    @Test
-    public void testGenotypesToVCFUsingGeliInput() {
-        List<String> md5 = new ArrayList<String>();
-        md5.add("a1771924b58dd633620114ef0f462acb");
-
-        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-R " + b36KGReference +
-                        " --variant:GeliText " + validationDataLocation + "NA12878.1kg.p2.chr1_10mb_11_mb.SLX.lod5.genotypes.geli.calls" +
-                        " -T VariantsToVCF" +
-                        " -L 1:10,100,000-10,200,000" +
-                        " -sample NA123AB" +
-                        " -o %s" +
-                        " --no_cmdline_in_header",
-                1, // just one output file
-                md5);
-        executeTest("testVariantsToVCFUsingGeliInput - genotypes", spec).getFirst();
-    }
-
-    @Test
     public void testGenotypesToVCFUsingHapMapInput() {
         List<String> md5 = new ArrayList<String>();
         md5.add("970157c9e15c53a6e50faaad41227487");
