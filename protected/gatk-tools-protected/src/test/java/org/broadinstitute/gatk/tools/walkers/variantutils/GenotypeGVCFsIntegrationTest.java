@@ -700,4 +700,14 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         spec.disableShadowBCF();
         executeTest("testHomRefHighMQ", spec);
     }
+
+    @Test
+    public void testInputPrior() {
+        final WalkerTestSpec spec = new WalkerTestSpec(
+                baseTestString(" -V " + privateTestDir + "gvcfExample1.vcf -V " + privateTestDir + "gvcfExample2.vcf " +
+                        "-L 1:69485-69791 -inputPrior 0.2 -inputPrior 0.2 -inputPrior 0.2 -inputPrior 0.2", b37KGReference),
+                Collections.singletonList("860d133262160bbc75ce5849e5fa491f"));
+        spec.disableShadowBCF();
+        executeTest("testInputPrior", spec);
+    }
 }
