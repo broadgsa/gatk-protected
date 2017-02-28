@@ -108,10 +108,13 @@ public class DepthPerAlleleBySample extends GenotypeAnnotation implements Standa
         if ( g == null || !g.isCalled() || ( stratifiedContext == null && alleleLikelihoodMap == null) )
             return;
 
-        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty())
+        if (alleleLikelihoodMap != null && !alleleLikelihoodMap.isEmpty()) {
             annotateWithLikelihoods(alleleLikelihoodMap, vc, gb);
-        else if ( stratifiedContext != null && (vc.isSNP()))
+        } else if ( stratifiedContext != null && (vc.isSNP())) {
             annotateWithPileup(stratifiedContext, vc, gb);
+        } else {
+            gb.AD(new int[vc.getNAlleles()]);
+        }
     }
 
     private void annotateWithPileup(final AlignmentContext stratifiedContext, final VariantContext vc, final GenotypeBuilder gb) {
