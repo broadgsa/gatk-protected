@@ -1,44 +1,44 @@
 /*
 * By downloading the PROGRAM you agree to the following terms of use:
-* 
+*
 * BROAD INSTITUTE
 * SOFTWARE LICENSE AGREEMENT
 * FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
-* 
+*
 * This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 ("BROAD") and the LICENSEE and is effective at the date the downloading is completed ("EFFECTIVE DATE").
-* 
+*
 * WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
 * WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
 * NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
-* 
+*
 * 1. DEFINITIONS
 * 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
-* 
+*
 * 2. LICENSE
 * 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
 * The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
 * 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
 * 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
-* 
+*
 * 3. PHONE-HOME FEATURE
 * LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system ("PHONE-HOME") which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE'S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
-* 
+*
 * 4. OWNERSHIP OF INTELLECTUAL PROPERTY
 * LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
 * Copyright 2012-2016 Broad Institute, Inc.
 * Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
 * LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
-* 
+*
 * 5. INDEMNIFICATION
 * LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
-* 
+*
 * 6. NO REPRESENTATIONS OR WARRANTIES
 * THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
 * IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
-* 
+*
 * 7. ASSIGNMENT
 * This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
-* 
+*
 * 8. MISCELLANEOUS
 * 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
 * 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
@@ -51,110 +51,56 @@
 
 package org.broadinstitute.gatk.tools.walkers.diagnostics;
 
-import org.broadinstitute.gatk.utils.commandline.Argument;
-import org.broadinstitute.gatk.utils.commandline.Output;
-import org.broadinstitute.gatk.engine.CommandLineGATK;
-import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
-import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
-import org.broadinstitute.gatk.engine.walkers.ActiveRegionTraversalParameters;
-import org.broadinstitute.gatk.engine.walkers.ActiveRegionWalker;
-import org.broadinstitute.gatk.engine.walkers.PartitionBy;
-import org.broadinstitute.gatk.engine.walkers.PartitionType;
-import org.broadinstitute.gatk.utils.GenomeLoc;
-import org.broadinstitute.gatk.utils.activeregion.ActivityProfileState;
-import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
-import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.io.PrintStream;
+import java.util.Arrays;
 
-/**
- * Outputs a list of intervals that are covered to or above a given threshold
- *
- * <p>The output list can be used as an interval list for other tools. The logic can be inverted using the -uncovered argument argument to instead output intervals that fail the coverage threshold.
- * </p>
- *
- * <h4>Application example: find and diagnose low-coverage regions</h4>
- * <p>Run this toool first with the -uncovered argument to identify regions that have low coverage. Then run DiagnoseTargets on the output intervals to diagnose why they are poorly covered.</p>
- *
- * <h3>Input</h3>
- * <p>
- * One or more BAM files.
- * </p>
- *
- * <h3>Output</h3>
- * <p>
- * List of covered (or uncovered) intervals.
- * </p>
- *
- * <h3>Example</h3>
- * <pre>
- * java -jar GenomeAnalysisTK.jar \
- *   -T FindCoveredIntervals \
- *   -R reference.fasta \
- *   -I my_file.bam \
- *   [-cov 10 \]
- *   [-minBQ 20 \]
- *   [-minMQ 20 \]
- *   [-uncovered \]
- *   -o output.list
- * </pre>
- *
- */
-@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
-@PartitionBy(value = PartitionType.CONTIG)
-@ActiveRegionTraversalParameters(extension = 0, maxRegion = 50000)
-public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
-    @Output
-    private PrintStream out;
+public class FindCoveredIntervalsIntegrationTest extends WalkerTest {
 
-    @Argument(fullName = "uncovered", shortName = "u", required = false, doc = "output intervals that fail the coverage threshold instead")
-    private boolean outputUncovered = false;
+    private static String EMPTY_FILE_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
+    private static String FULL_INTERVAL_MD5 = "68ac56c935428cce1e4bd621ea8b2f36"; // depends upon interval used
 
-    @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
-    private int coverageThreshold = 0;
-
-    @Argument(fullName = "minBaseQuality", shortName = "minBQ", doc = "The minimum allowable base quality score to be counted for coverage",required = false)
-    private int minBaseQuality = 0;
-
-    @Argument(fullName = "minMappingQuality", shortName = "minMQ", doc = "The minimum allowable mapping quality score to be counted for coverage",required = false)
-    private int minMappingQuality = 0;
-
-    @Override
-    // Look to see if the region has sufficient coverage
-    public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
-        final int filteredByQualityDepth = (minBaseQuality == 0 && minMappingQuality == 0) ? context.getBasePileup().depthOfCoverage() :
-                context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality,minMappingQuality).depthOfCoverage();
-        // The region is active if passes the base quality, mapping quality and coverage threshold. 
-        final double isActiveProb = filteredByQualityDepth == 0 ? 0.0 : filteredByQualityDepth >= coverageThreshold ? 1.0 : 0.0;
-
-        return new ActivityProfileState(ref.getLocus(), isActiveProb);
+    @DataProvider(name = "ThresholdOptions")
+    public Object[][] createThresholdOptionsData() {
+        return new Object[][]{
+                {0, 0, 0, FULL_INTERVAL_MD5},
+                {1, 0, 0, FULL_INTERVAL_MD5},
+                {2, 0, 0, "8bd0537367921ff1addcf4e59c49c2b8"},
+                {3, 0, 0, "39dc6acd174d5abeedbea118b78776bf"},
+                {4, 0, 0, "c6de100a90070e44cc6edc08c8410888"},
+                {5, 0, 0, "4ba47914151f1445a8756a85e0a0473f"},
+                {10, 0, 0, "0d1bce17890a30b0f8bdf46566a21f0f"},
+                {20, 0, 0, EMPTY_FILE_MD5},
+                {1, 30, 0, FULL_INTERVAL_MD5},
+                {1, 35, 0, "bdfb78fe674c7ce8fbd2e36ea36bbcc6"},
+                {1, 40, 0, EMPTY_FILE_MD5},
+                {1, 0, 10, FULL_INTERVAL_MD5},
+                {1, 0, 20, FULL_INTERVAL_MD5},
+                {1, 0, 30, "4cb41c110d62c35c92b50a9bff799fa6"},
+                {1, 0, 40, "175597ce332c561e9d1bfba77d661520"},
+                {1, 0, 50, "175597ce332c561e9d1bfba77d661520"},
+                {1, 0, 60, "175597ce332c561e9d1bfba77d661520"},
+                {1, 0, 70, EMPTY_FILE_MD5},
+                {3, 30, 40, "3c3eebcd72c2254169b984379cbf0b0c"},
+                {3, 35, 40, "899f6e97a6c25f09d806ea5551e14142"},
+                {3, 35, 50, "899f6e97a6c25f09d806ea5551e14142"}
+        };
     }
 
-    @Override
-    public GenomeLoc map(final org.broadinstitute.gatk.utils.activeregion.ActiveRegion activeRegion, final RefMetaDataTracker tracker) {
-        if ((!outputUncovered && activeRegion.isActive()) || (outputUncovered && !activeRegion.isActive()))
-            return activeRegion.getLocation();
-
-        return null;
-    }
-
-    @Override
-    public Long reduceInit() {
-        return 0L;
-    }
-
-    @Override
-    public Long reduce(final GenomeLoc value, Long reduce) {
-        if (value != null) {
-            out.println(value.toString());
-            reduce++;
-        }
-        return reduce;
-    }
-
-    @Override
-    public void onTraversalDone(Long reduce) {
-        logger.info(String.format("Found %d intervals", reduce));
+    @Test(dataProvider = "ThresholdOptions")
+    public void testFindCoveredIntervals(final int coverageThreshold, final int minBaseQuality, final int minMappingQuality, final String md5) {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T FindCoveredIntervals" +
+                        " -R " + hg18Reference +
+                        " -I " + privateTestDir + "HiSeq.1mb.1RG.bam" +
+                        " -L chr1:10,000,000-10,010,000" +
+                        " -cov " + coverageThreshold +
+                        " -minBQ " + minBaseQuality +
+                        " -minMQ " + minMappingQuality +
+                        " -o %s",
+                Arrays.asList(md5));
+        executeTest("testFindCoveredIntervals", spec);
     }
 }
