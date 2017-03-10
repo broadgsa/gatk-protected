@@ -144,18 +144,18 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
 
     @Test public void combineTrioCalls() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", "", "9bdda937754e1407183406808f560723"); } // official project VCF files in tabix format
     @Test public void combineTrioCallsMin() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", " -minimalVCF", "6344953a82a422115bd647ec1d696b94"); } // official project VCF files in tabix format
-    @Test public void combine2Indels() { combine2("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "51cf4543e46c8434e32c426f59507d1e"); }
+    @Test public void combine2Indels() { combine2("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "9a62e340fe17c8659786f56cc992975a"); }
 
     @Test public void combineSNPsAndIndels() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "f9d1d7e6246f0ce9e493357d5b320323"); }
 
     @Test public void uniqueSNPs() {
         // parallelism must be disabled because the input VCF is malformed (DB=0) and parallelism actually fixes this which breaks the md5s
         //both of these files have the YRI trio and merging of duplicate samples without priority must be specified with UNSORTED merge type
-        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", " -genotypeMergeOptions UNSORTED", "5aece78046bfb7d6ee8dc4d551542e3a", true);
+        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", " -genotypeMergeOptions UNSORTED", "698f591bdc8dca1c9a3473ebc447c787", true);
     }
 
-    @Test public void omniHM3Union() { combineSites(" -filteredRecordsMergeType KEEP_IF_ANY_UNFILTERED", "0897efcc0046bd94760315838d4d0fa5"); }
-    @Test public void omniHM3Intersect() { combineSites(" -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED", "8b12b09a6ec4e3fde2352bbf82637f1e"); }
+    @Test public void omniHM3Union() { combineSites(" -filteredRecordsMergeType KEEP_IF_ANY_UNFILTERED", "7750b77316b8f02df5c9a60cc64c156d"); }
+    @Test public void omniHM3Intersect() { combineSites(" -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED", "3af8a310fca5a4ace3172528d0bc1d38"); }
 
     @Test public void threeWayWithRefs() {
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -169,7 +169,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                         " -priority NA19240_BGI,NA19240_ILLUMINA,NA19240_WUGSC,denovoInfo" +
                         " -genotypeMergeOptions UNIQUIFY -L 1"),
                 1,
-                Arrays.asList("8b75e835ed19c06c358a2185cd0e14db"));
+                Arrays.asList("085258a3c507e30860ec87b6b65f5f11"));
         cvExecuteTest("threeWayWithRefs", spec, true);
     }
 
@@ -250,5 +250,18 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                 0,
                 Arrays.asList(""));
         executeTest("combineSpanningDels: ", spec);
+    }
+
+    @Test
+    public void combineDifferentTypes() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineVariants --no_cmdline_in_header -o %s "
+                        + " -R " + b37KGReference
+                        + " -V " + privateTestDir + "same.variant.indel.vcf"
+                        + " -V " + privateTestDir + "same.variant.mixed.vcf"
+                        + " -multipleAllelesMergeType MIX_TYPES",
+                1,
+                Arrays.asList("629bb763e9af8edbec0a77cc91eea617"));
+        executeTest("combineDifferentTypes: ", spec);
     }
 }
