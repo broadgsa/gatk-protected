@@ -74,26 +74,18 @@ public class LikelihoodEngineArgumentCollection {
     public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
 
     /**
-     * This argument is intended for use in the test suite only. It gives developers the ability to select of the
-     * hardware dependent vectorized implementation of the vectorized PairHMM library (pairHMM=VECTOR_LOGLESS_CACHING).
-     * For normal usage, you should rely on the architecture auto-detection.
+     * The maximum number of threads to use for the Vector Logless PairHMM implementation.
      */
     @Hidden
-    @Advanced
-    @Argument(fullName = "pair_hmm_sub_implementation", shortName = "pairHMMSub", doc = "The PairHMM machine-dependent sub-implementation to use for genotype likelihood calculations", required = false)
-    public PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub = PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL;
+    @Argument(fullName = "pair_hmm_max_num_threads", shortName = "maxNumThreadsHMM", doc = "The maximum number of threads to use for PairHMM for genotype likelihood calculations", required = false)
+    public int maxNumThreadsHMM = 4;
 
     /**
-     * This argument is intended for use in the test suite only. It gives developers the ability to load different
-     * hardware dependent sub-implementations (-pairHMMSub) of the vectorized PairHMM library (-pairHMM=VECTOR_LOGLESS_CACHING)
-     * for each test. Without this option, the library is only loaded once (for the first test executed in the suite) even if
-     * subsequent tests specify a different implementation.
-     * Each test will output the corresponding library loading messages.
+     * Enable the use of double precision for the Vector Logless PairHMM implementation.
      */
     @Hidden
-    @Advanced
-    @Argument(fullName = "always_load_vector_logless_PairHMM_lib", shortName = "alwaysloadVectorHMM", doc = "Load the vector logless PairHMM library each time a GATK run is initiated in the test suite", required = false)
-    public boolean alwaysLoadVectorLoglessPairHMMLib = false;
+    @Argument(fullName = "pair_hmm_use_double_precision", shortName = "useDoublePrecisionHMM", doc = "Enable use of double precision for PairHMM for genotype likelihood calculations", required = false)
+    public boolean useDoublePrecisionHMM = false;
 
     /**
      * The phredScaledGlobalReadMismappingRate reflects the average global mismapping rate of all reads, regardless of their

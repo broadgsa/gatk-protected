@@ -59,6 +59,7 @@ import org.broadinstitute.gatk.utils.genotyper.PerReadAlleleLikelihoodMap;
 import org.broadinstitute.gatk.utils.genotyper.ReadLikelihoods;
 import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -92,11 +93,11 @@ public class DebugJNILoglessPairHMM extends LoglessPairHMM {
     protected HashMap<String, BufferedWriter> filenameToWriter = new HashMap<String, BufferedWriter>();
 
     private JNILoglessPairHMM jniPairHMM = null;
-    public DebugJNILoglessPairHMM(final PairHMM.HMM_IMPLEMENTATION hmmType, PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub, final boolean alwaysLoadVectorLoglessPairHMMLib) {
+    public DebugJNILoglessPairHMM(final PairHMM.HMM_IMPLEMENTATION hmmType, PairHMMNativeArguments pairHmmNativeArgs) {
         super();
         switch(hmmType) {
             case VECTOR_LOGLESS_CACHING:
-                jniPairHMM = new VectorLoglessPairHMM(pairHMMSub, alwaysLoadVectorLoglessPairHMMLib);
+                jniPairHMM = new VectorLoglessPairHMM(pairHmmNativeArgs);
                 break;
             default:
                 throw new UserException.BadArgumentValue("pairHMM","Specified JNIPairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are VECTOR_LOGLESS_CACHING");

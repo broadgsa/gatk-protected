@@ -61,8 +61,8 @@ import java.util.List;
 
 public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
 
-    final static String HMM_SUB_IMPLEMENTATION = "UNVECTORIZED";
-    final static String ALWAYS_LOAD_VECTOR_HMM = "-alwaysloadVectorHMM";
+    //final static String HMM_SUB_IMPLEMENTATION = "UNVECTORIZED";
+    //final static String ALWAYS_LOAD_VECTOR_HMM = "-alwaysloadVectorHMM";
 
     @DataProvider(name = "NCTDataProvider")
     public Object[][] makeNCTDataProvider() {
@@ -78,7 +78,8 @@ public class HaplotypeCallerParallelIntegrationTest extends WalkerTest {
     @Test(dataProvider = "NCTDataProvider")
     public void testHCNCT(final int nct, final String md5) {
         WalkerTestSpec spec = new WalkerTestSpec(
-                "-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub " + HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I "
+                //"-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub " + HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I "
+                "-T HaplotypeCaller --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I "
                         + privateTestDir + "PCRFree.2x250.Illumina.20_10_11.bam -o %s " +
                         " -L 20:10,000,000-10,100,000 -G none -A none -contamination 0.0 -nct " + nct, 1,
                 Arrays.asList(md5));

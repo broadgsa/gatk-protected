@@ -68,33 +68,6 @@ public abstract class PairHMM {
         ARRAY_LOGLESS
     }
 
-    /* Instruction sets for computing VectorLoglessHMM */
-    public enum HMM_SUB_IMPLEMENTATION {
-        /* standard un-vectorized instructions */
-        UNVECTORIZED(0x0L, false),
-        /* Streaming SIMD Extensions (SSE), version 4.1 */
-        SSE41(0x1L, true),
-        /* Streaming SIMD Extensions (SSE), version 4.2 */
-        SSE42(0x2L, true),
-        /* Advanced Vector Extensions (AVX) */
-        AVX(0x4L, true),
-        /* For testing only, set bit beyond hardware capabilities */
-        TEST_BEYOND_CAPABILITIES(0x400L, true),
-        /* Enable all implementations */
-        ENABLE_ALL(0xFFFFFFFFFFFFFFFFl, false);
-
-        /* Masks for machine capabilities */
-        private final long mask;
-        /* Is a specific hardware instruction set requested? */
-        private final boolean isSpecificHardwareRequest;
-        HMM_SUB_IMPLEMENTATION(long mask, boolean isSpecificHardwareRequest) {
-            this.mask = mask;
-            this.isSpecificHardwareRequest = isSpecificHardwareRequest;
-        }
-        long getMask() { return mask; }
-        boolean getIsSpecificHardwareRequest() { return isSpecificHardwareRequest; }
-    }
-
     protected int maxHaplotypeLength, maxReadLength;
     protected int paddedMaxReadLength, paddedMaxHaplotypeLength;
     protected int paddedReadLength, paddedHaplotypeLength;
