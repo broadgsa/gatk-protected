@@ -1,3 +1,3 @@
-The Genome Analysis Toolkit
+The Genome Analysis Toolkit + Intel GKL
 ============
-See http://www.broadinstitute.org/gatk/
+This is a fork of [GATK](https://github.com/broadgsa/gatk-protected) that uses Intel GKL's implementation of the Vector Logless Pair HMM algorithm.
