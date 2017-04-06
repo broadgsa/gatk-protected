@@ -71,7 +71,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     final static String DREAM3_FP_INTERVALS_FILE = privateTestDir + "m2_dream3.fp.intervals";
 
     final String commandLine =
-            "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
+            "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -I:normal %s -L %s";
 
     private void M2Test(String tumorBam, String normalBam, String intervals, String args, String md5) {
                 final String base = String.format(
@@ -90,7 +90,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
 
     private void m2TumorOnlyTest(String tumorBam, String intervals, String args, String md5) {
         final String base = String.format(
-                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -alwaysloadVectorHMM -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
+                "-T MuTect2 --no_cmdline_in_header -dt NONE --disableDithering -pairHMM LOGLESS_CACHING -ip 50 -R %s --dbsnp %s --cosmic %s --normal_panel %s -I:tumor %s -L %s",
                 hg19Reference, DBSNP, COSMIC, PON, tumorBam, intervals) +
                 " -o %s ";
 

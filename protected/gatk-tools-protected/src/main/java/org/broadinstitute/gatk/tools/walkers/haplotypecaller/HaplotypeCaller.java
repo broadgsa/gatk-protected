@@ -114,6 +114,8 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -773,7 +775,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte) LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMSub, LEAC.alwaysLoadVectorLoglessPairHMMLib, log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte) LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMNativeArgs.getPairHMMArgs(), log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
             case GraphBased:
                 return new GraphBasedLikelihoodCalculationEngine( (byte) LEAC.gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution, HCAC.DEBUG, RTAC.debugGraphTransformations);
             case Random:

@@ -101,6 +101,8 @@ import org.broadinstitute.gatk.utils.sam.*;
 import org.broadinstitute.gatk.utils.variant.GATKVCFConstants;
 import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
+
 import java.io.FileNotFoundException;
 import java.util.*;
 
@@ -874,7 +876,7 @@ public class MuTect2 extends ActiveRegionWalker<List<VariantContext>, Integer> i
      * @return never {@code null}.
      */
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
-        return new PairHMMLikelihoodCalculationEngine( (byte)LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMSub, LEAC.alwaysLoadVectorLoglessPairHMMLib, log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
+        return new PairHMMLikelihoodCalculationEngine( (byte)LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMNativeArgs.getPairHMMArgs(), log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
     }
 
     /**

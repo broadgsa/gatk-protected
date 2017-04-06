@@ -51,67 +51,29 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
-import org.broadinstitute.gatk.engine.walkers.WalkerTest;
-import org.testng.annotations.Test;
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
+import org.broadinstitute.gatk.utils.commandline.Argument;
+import org.broadinstitute.gatk.utils.commandline.Hidden;
 
-import java.util.Arrays;
+/**
+ * Arguments for native PairHMM implementations
+ */
+public class PairHMMNativeArgumentCollection {
 
-import static org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.NA12878_CHR20_BAM;
-import static org.broadinstitute.gatk.tools.walkers.haplotypecaller.HaplotypeCallerIntegrationTest.REF;
+    @Hidden
+    @Argument(fullName = "nativePairHmmThreads", shortName = "threads", doc="How many threads should a native pairHMM implementation use", required = false)
+    private int pairHmmNativeThreads = 1;
 
-public class HaplotypeCallerComplexAndSymbolicVariantsIntegrationTest extends WalkerTest {
+    @Hidden
+    @Argument(fullName = "useDoublePrecision", shortName = "useDoublePrecision", doc="use double precision in the native pairHmm. " +
+            "This is slower but matches the java implementation better", required = false)
+    private boolean useDoublePrecision = false;
 
-    private void HCTestComplexVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " -L 20:10028767-10028967 -L 20:10431524-10431924 -L 20:10723661-10724061 -L 20:10903555-10903955 --no_cmdline_in_header -o %s -minPruning 4";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexVariants: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleComplex1() {
-        HCTestComplexVariants(privateTestDir + "AFR.complex.variants.bam", "", "93f89c04b4c74463f75da798cdcf5064");
-    }
-
-    private void HCTestSymbolicVariants(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " -L 20:5947969-5948369 -L 20:61091236-61091636 --no_cmdline_in_header -o %s -minPruning 1";
-        final WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerSymbolicVariants: args=" + args, spec);
-    }
-
-    // TODO -- need a better symbolic allele test
-    @Test
-    public void testHaplotypeCallerSingleSampleSymbolic() {
-        HCTestSymbolicVariants(NA12878_CHR20_BAM, "", "e158212aba1d7d229563db11b08b7974");
-    }
-
-    private void HCTestComplexGGA(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -minPruning 3 -gt_mode GENOTYPE_GIVEN_ALLELES -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexGGA: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538",
-                "558820f3b67f4434a41e0cb96b6469c7");
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleGGAMultiAllelic() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:133041-133161 -L 20:300207-300337",
-                "d50cf0d1efd94227e930565a6d31de91");
-    }
-
-    private void HCTestComplexConsensusMode(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " --no_cmdline_in_header -o %s -consensus -alleles " + validationDataLocation + "combined.phase1.chr20.raw.indels.sites.vcf -alleles " + validationDataLocation + "phase1.projectConsensus.chr20.raw.snps.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
-        executeTest("testHaplotypeCallerComplexConsensusMode: args=" + args, spec);
-    }
-
-    @Test
-    public void testHaplotypeCallerMultiSampleConsensusModeComplex() {
-        HCTestComplexGGA(NA12878_CHR20_BAM, "-L 20:119673-119823 -L 20:121408-121538 -L 20:133041-133161 -L 20:300207-300337",
-                "390236e17de3465c8ba778041f1670ad");
+    public PairHMMNativeArguments getPairHMMArgs(){
+        final PairHMMNativeArguments args = new PairHMMNativeArguments();
+        args.maxNumberOfThreads = pairHmmNativeThreads;
+        args.useDoublePrecision = useDoublePrecision;
+        return args;
     }
 
 }

@@ -92,11 +92,9 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     final static String CEUTRIO_MT_TEST_BAM = privateTestDir + "CEUTrio.HiSeq.b37.MT.1_50.bam";
     final static String INTERVALS_FILE = validationDataLocation + "NA12878.HiSeq.b37.chr20.10_11mb.test.intervals";
     final static String GGA_INTERVALS_FILE = privateTestDir + "haplotype-caller-reduced-test-interval.list";
-    final static String HMM_SUB_IMPLEMENTATION = "UNVECTORIZED";
-    final static String ALWAYS_LOAD_VECTOR_HMM = "-alwaysloadVectorHMM";
 
     private void HCTest(String bam, String args, String md5) throws IOException {
-        final String base = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE --maxReadsInRegionPerSample 1000 --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 -pairHMMSub %s %s -R %s -I %s -L %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, bam, INTERVALS_FILE) + " --no_cmdline_in_header -o %s -minPruning 3";
+        final String base = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE --maxReadsInRegionPerSample 1000 --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 -R %s -I %s -L %s", REF, bam, INTERVALS_FILE) + " --no_cmdline_in_header -o %s -minPruning 3";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         final File outputVCF =  executeTest("testHaplotypeCaller: args=" + args, spec).getFirst().get(0);
         Assert.assertFalse(FileUtils.readFileToString(outputVCF).contains(VCFConstants.MAPPING_QUALITY_ZERO_KEY));
@@ -229,7 +227,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     }
 
     private void HCTestIndelQualityScores(String bam, String args, String md5) {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, bam) + " -L 20:10,005,000-10,025,000 --no_cmdline_in_header -o %s -minPruning 2";
+        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " -L 20:10,005,000-10,025,000 --no_cmdline_in_header -o %s -minPruning 2";
         final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
         executeTest("testHaplotypeCallerIndelQualityScores: args=" + args, spec);
     }
@@ -244,7 +242,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
             final ReferenceSequenceFile fasta = new IndexedFastaSequenceFile(new File(b37KGReference));
             final GenomeLocParser parser = new GenomeLocParser(fasta.getSequenceDictionary());
 
-            final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, bam) + " -L 20:10,001,603-10,001,642 -L 20:10,001,653-10,001,742 --no_cmdline_in_header -o %s";
+            final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, bam) + " -L 20:10,001,603-10,001,642 -L 20:10,001,653-10,001,742 --no_cmdline_in_header -o %s";
             final WalkerTestSpec spec = new WalkerTestSpec(base + " " + args, Arrays.asList(md5));
             for( final File vcf : executeTest("testHaplotypeCallerNearbySmallIntervals: args=" + args, spec).getFirst() ) {
                 if( containsDuplicateRecord(vcf, parser) ) {
@@ -282,14 +280,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     // any of the calls in that region because it is so messy.
     @Test
     public void HCTestProblematicReadsModifiedInActiveRegions() {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
+        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, privateTestDir + "haplotype-problem-4.bam") + " --no_cmdline_in_header -o %s -minPruning 3 -L 4:49139026-49139965";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("eb79b4c0bf9142c955f0a4501e9e6d8f"));
         executeTest("HCTestProblematicReadsModifiedInActiveRegions: ", spec);
     }
 
     @Test
     public void HCTestStructuralIndels() {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
+        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, privateTestDir + "AFR.structural.indels.bam") + " --no_cmdline_in_header -o %s -minPruning 6 -L 20:8187565-8187800 -L 20:18670537-18670730";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList("8bddb7f343302ed20bc549df4b82825a"));
         executeTest("HCTestStructuralIndels: ", spec);
     }
@@ -298,14 +296,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void HCTestDoesNotFailOnBadRefBase() {
         // don't care about the output - just want to make sure it doesn't fail
         final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
-        final String base = String.format("-T HaplotypeCaller --disableDithering -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o " + outputVCF + " -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2";
+        final String base = String.format("-T HaplotypeCaller --disableDithering -R %s -I %s", REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o " + outputVCF + " -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
         executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
     }
 
     @Test
     public void HCTestDanglingTailMergingForDeletions() throws IOException {
-        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, NA12878_BAM) + " --no_cmdline_in_header -o %s -L 20:10130740-10130800 --allowNonUniqueKmersInRef";
+        final String base = String.format("-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R %s -I %s", REF, NA12878_BAM) + " --no_cmdline_in_header -o %s -L 20:10130740-10130800 --allowNonUniqueKmersInRef";
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(""));
         final File outputVCF = executeTest("HCTestDanglingTailMergingForDeletions", spec).getFirst().get(0);
 
@@ -331,7 +329,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testLeftAlignmentBamOutBugFix() throws FileNotFoundException {
         final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
         final String md5BAMOut = "27e729df3b166c81792a62a5b57ef7b3";
-        final String base = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
+        final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
                 + " --no_cmdline_in_header -bamout %s -o " + outputVCF  + " -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(md5BAMOut));
         executeTest("LeftAlignmentBamOutBugFix", spec);
@@ -347,7 +345,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDBSNPAnnotationWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub " +  HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
+                "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
                 Arrays.asList("fc71471b01f93bc531e3cf19cdf78b1f"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
@@ -355,7 +353,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDBSNPAnnotationWEx() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -pairHMMSub " +  HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,100,000-11,000,000 -D " + b37dbSNP132
+                "-T HaplotypeCaller --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,100,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
                 Arrays.asList("bf8bb5d13b01facdf90ec24bfbf82faa"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
@@ -364,7 +362,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDBSNPAnnotationWGSGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -pairHMMSub " +  HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,090,000-10,100,000 -D " + b37dbSNP132, 1,
                 Arrays.asList("dbae51c7903e088b2e62cbada6ea2d50"));
         executeTest("HC calling with dbSNP ID annotation on WGS intervals", spec);
     }
@@ -372,7 +370,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDBSNPAnnotationWExGraphBased() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -pairHMMSub " +  HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_PCRFREE + " -o %s -L 20:10,000,000-11,000,000 -D " + b37dbSNP132
                         + " -L " + hg19Intervals + " -isr INTERSECTION", 1,
                 Arrays.asList("2ffaf2e9ef293a6d5ce7c00be40edba7"));
         executeTest("HC calling with dbSNP ID annotation on WEx intervals", spec);
@@ -381,7 +379,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestGraphBasedPCRFreePositiveLogLkFix() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -pairHMMSub " +  HMM_SUB_IMPLEMENTATION + " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + hg19Reference + " --no_cmdline_in_header -I " + NA12878_PCRFREE250_ADAPTER_TRIMMED + " -o %s -L 20:10,024,000-10,024,500 "
+                "-T HaplotypeCaller -likelihoodEngine GraphBased --disableDithering --pcr_indel_model NONE -R " + hg19Reference + " --no_cmdline_in_header -I " + NA12878_PCRFREE250_ADAPTER_TRIMMED + " -o %s -L 20:10,024,000-10,024,500 "
                         , 1,
                 Arrays.asList(""));
         executeTest("HCTestGraphBasedPCRFreePositiveLogLkFix", spec);
@@ -396,24 +394,24 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestAggressivePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -pairHMMSub " + HMM_SUB_IMPLEMENTATION +  " " + ALWAYS_LOAD_VECTOR_HMM + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("8c3ae4dc3d8af2aa8c71deaadb26cc14"));
+                "-T HaplotypeCaller --disableDithering --pcr_indel_model AGGRESSIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
+                Arrays.asList("7bd5bdfeb587a4c73f4c1cd8b850524f"));
         executeTest("HC calling with aggressive indel error modeling on WGS intervals", spec);
     }
 
     @Test
     public void HCTestConservativePcrIndelModelWGS() {
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -pairHMMSub " + HMM_SUB_IMPLEMENTATION +  " " + ALWAYS_LOAD_VECTOR_HMM  + " -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
-                Arrays.asList("61aef3fe9d18eec1df526e99a8456115"));
+                "-T HaplotypeCaller --disableDithering --pcr_indel_model CONSERVATIVE -R " + b37KGReference + " --no_cmdline_in_header -I " + NA12878_BAM + " -o %s -L 20:10,270,000-10,300,000", 1,
+                Arrays.asList("5c1b487b0e7e1353a9a549a50c91d96f"));
         executeTest("HC calling with conservative indel error modeling on WGS intervals", spec);
     }
 
     @Test
     public void testNoSuchEdgeBugFix() {
-        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -pairHMMSub %s %s -R %s -I %s -L %s -dontTrimActiveRegions -ERC GVCF " +
+        final String commandLine = String.format("-T HaplotypeCaller --pcr_indel_model NONE -R %s -I %s -L %s -dontTrimActiveRegions -ERC GVCF " +
                 "-likelihoodEngine GraphBased -variant_index_type %s -variant_index_parameter %d",
-                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReferenceWithDecoy, privateTestDir + "graphbased_no_such_edge_bug.bam", privateTestDir + "graphbased_no_such_edge_bug.intervals.bed",
+                b37KGReferenceWithDecoy, privateTestDir + "graphbased_no_such_edge_bug.bam", privateTestDir + "graphbased_no_such_edge_bug.intervals.bed",
                 GATKVCFUtils.DEFAULT_GVCF_INDEX_TYPE, GATKVCFUtils.DEFAULT_GVCF_INDEX_PARAMETER);
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList(""));
         spec.disableShadowBCF();
@@ -432,8 +430,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     // This test takes longer than 15 secs ... ~ 25-35 ,
     @Test
     public void testLackSensitivityDueToBadHaplotypeSelectionFix() {
-        final String commandLine = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s -L %s --no_cmdline_in_header --maxNumHaplotypesInPopulation 16",
-                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list");
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header --maxNumHaplotypesInPopulation 16",
+                b37KGReferenceWithDecoy, privateTestDir + "hc-lack-sensitivity.bam", privateTestDir + "hc-lack-sensitivity.interval_list");
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("5087a8855b3ee9ea1091367674783462"));
         spec.disableShadowBCF();
         executeTest("testLackSensitivityDueToBadHaplotypeSelectionFix", spec);
@@ -441,8 +439,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testMissingKeyAlternativeHaplotypesBugFix() {
-        final String commandLine = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s -L %s --no_cmdline_in_header ",
-                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, b37KGReferenceWithDecoy, privateTestDir + "lost-alt-key-hap.bam", privateTestDir + "lost-alt-key-hap.interval_list");
+        final String commandLine = String.format("-T HaplotypeCaller -R %s -I %s -L %s --no_cmdline_in_header ",
+                b37KGReferenceWithDecoy, privateTestDir + "lost-alt-key-hap.bam", privateTestDir + "lost-alt-key-hap.interval_list");
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine + " -o %s", Arrays.asList("e6d8c32585906122a6407cb40261d00d"));
         spec.disableShadowBCF();
         executeTest("testMissingKeyAlternativeHaplotypesBugFix", spec);
@@ -455,9 +453,9 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String TEST_BAM = privateTestDir + "sw_epsilon_test.bam";
         final String REFERENCE = b37KGReference;
         final String DBSNP = b37dbSNP138;
-        final String commandLineWithoutInterval = String.format("-T HaplotypeCaller -pairHMMSub %s %s -I %s -R %s -D %s "
+        final String commandLineWithoutInterval = String.format("-T HaplotypeCaller -I %s -R %s -D %s "
                 + "-variant_index_type  LINEAR -variant_index_parameter 128000 --no_cmdline_in_header "
-                + "-stand_call_conf 10.0", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, TEST_BAM, REFERENCE, DBSNP);
+                + "-stand_call_conf 10.0", TEST_BAM, REFERENCE, DBSNP);
 
         final String commandLineShortInterval = commandLineWithoutInterval + " -L " + SHORT_INTERVAL;
         final String commandLineLongInterval = commandLineWithoutInterval + " -L " + LONG_INTERVAL;
@@ -480,8 +478,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                         " -T HaplotypeCaller" +
                                 " --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE --maxReadsInRegionPerSample 1000 " +
                                 " --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 " +
-                                " --no_cmdline_in_header -minPruning 3 -pairHMM VECTOR_LOGLESS_CACHING -pairHMMSub TEST_BEYOND_CAPABILITIES " +
-                                ALWAYS_LOAD_VECTOR_HMM +
+                                " --no_cmdline_in_header -minPruning 3 -pairHMM VECTOR_LOGLESS_CACHING " +
                                 " -R " + REF +
                                 " -I " + NA12878_BAM +
                                 " -L " + INTERVALS_FILE +
@@ -496,7 +493,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
                         " -T HaplotypeCaller" +
                                 " --contamination_fraction_to_filter 0.05 --disableDithering --pcr_indel_model NONE --maxReadsInRegionPerSample 1000 " +
                                 " --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 " +
-                                " --no_cmdline_in_header -minPruning 3 -pairHMM VECTOR_LOGLESS_CACHING -pairHMMSub " + HMM_SUB_IMPLEMENTATION +
+                                " --no_cmdline_in_header -minPruning 3 -pairHMM VECTOR_LOGLESS_CACHING " +
                                 " -dcov 50" +
                                 " -R " + REF +
                                 " -I " + NA12878_BAM +
@@ -570,8 +567,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final String md5 = "d41d8cd98f00b204e9800998ecf8427e";
         final String commandLine = String.format("-T HaplotypeCaller --contamination_fraction_to_filter 0.05 --disableDithering --maxReadsInRegionPerSample 1000" +
                         " --minReadsPerAlignmentStart 5 --maxProbPropagationDistance 50 --activeProbabilityThreshold 0.002 --pcr_indel_model NONE" +
-                        " -pairHMMSub %s %s -R %s -I %s -L %s -minPruning 3 --no_cmdline_in_header",
-                HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, NA12878_BAM, "20:10000000-10100000");
+                        " -R %s -I %s -L %s -minPruning 3 --no_cmdline_in_header",
+                REF, NA12878_BAM, "20:10000000-10100000");
         final WalkerTestSpec spec = new WalkerTestSpec(commandLine, Arrays.asList(md5));
         final File outputFile = createTempFile("testBCFInFileNameGivesVCF", ".bcftoolsFile.vcf");
         spec.setOutputFileLocation(outputFile);

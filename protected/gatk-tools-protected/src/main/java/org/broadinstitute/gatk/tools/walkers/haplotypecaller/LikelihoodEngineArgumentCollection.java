@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
+import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Hidden;
 import org.broadinstitute.gatk.utils.pairhmm.PairHMM;
 
@@ -71,29 +72,7 @@ public class LikelihoodEngineArgumentCollection {
      */
     @Hidden
     @Argument(fullName = "pair_hmm_implementation", shortName = "pairHMM", doc = "The PairHMM implementation to use for genotype likelihood calculations", required = false)
-    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING;
-
-    /**
-     * This argument is intended for use in the test suite only. It gives developers the ability to select of the
-     * hardware dependent vectorized implementation of the vectorized PairHMM library (pairHMM=VECTOR_LOGLESS_CACHING).
-     * For normal usage, you should rely on the architecture auto-detection.
-     */
-    @Hidden
-    @Advanced
-    @Argument(fullName = "pair_hmm_sub_implementation", shortName = "pairHMMSub", doc = "The PairHMM machine-dependent sub-implementation to use for genotype likelihood calculations", required = false)
-    public PairHMM.HMM_SUB_IMPLEMENTATION pairHMMSub = PairHMM.HMM_SUB_IMPLEMENTATION.ENABLE_ALL;
-
-    /**
-     * This argument is intended for use in the test suite only. It gives developers the ability to load different
-     * hardware dependent sub-implementations (-pairHMMSub) of the vectorized PairHMM library (-pairHMM=VECTOR_LOGLESS_CACHING)
-     * for each test. Without this option, the library is only loaded once (for the first test executed in the suite) even if
-     * subsequent tests specify a different implementation.
-     * Each test will output the corresponding library loading messages.
-     */
-    @Hidden
-    @Advanced
-    @Argument(fullName = "always_load_vector_logless_PairHMM_lib", shortName = "alwaysloadVectorHMM", doc = "Load the vector logless PairHMM library each time a GATK run is initiated in the test suite", required = false)
-    public boolean alwaysLoadVectorLoglessPairHMMLib = false;
+    public PairHMM.HMM_IMPLEMENTATION pairHMM = PairHMM.HMM_IMPLEMENTATION.FASTEST_AVAILABLE;
 
     /**
      * The phredScaledGlobalReadMismappingRate reflects the average global mismapping rate of all reads, regardless of their
@@ -115,6 +94,6 @@ public class LikelihoodEngineArgumentCollection {
     @Argument(fullName="noFpga", shortName="noFpga", doc="Disable the use of the FPGA HMM implementation", required = false)
     public boolean noFpga = false;
 
-
-
+    @ArgumentCollection
+    public PairHMMNativeArgumentCollection pairHMMNativeArgs = new PairHMMNativeArgumentCollection();
 }
