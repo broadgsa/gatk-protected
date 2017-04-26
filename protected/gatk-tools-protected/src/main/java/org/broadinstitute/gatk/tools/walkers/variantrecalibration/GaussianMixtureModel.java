@@ -195,9 +195,6 @@ public class GaussianMixtureModel {
             final double[] pVarInGaussianNormalized = MathUtils.normalizeFromLog10( pVarInGaussianLog10, false );
             gaussianIndex = 0;
             for( final MultivariateGaussian gaussian : gaussians ) {
-                if (Double.isNaN(pVarInGaussianNormalized[gaussianIndex])){
-                    logger.info(" Got a NaN at gaussian:" + Integer.toString(gaussianIndex) + " datum:" + datum.toString());
-                }
                 gaussian.assignPVarInGaussian( pVarInGaussianNormalized[gaussianIndex++] );
             }
         }

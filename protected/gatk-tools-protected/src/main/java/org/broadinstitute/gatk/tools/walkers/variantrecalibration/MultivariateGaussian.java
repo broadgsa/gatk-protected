@@ -272,13 +272,4 @@ public class MultivariateGaussian {
         resetPVarInGaussian(); // clean up some memory
     }
 
-
-    public void setSumProb( final List<VariantDatum> data ) {
-        sumProb = 0.0;
-
-        for( int datumIndex = 0; datumIndex < data.size(); datumIndex++ ) {
-            final double prob = pVarInGaussian.get(datumIndex);
-            if(!Double.isNaN(prob)) sumProb += prob;
-        }
-    }
 }
