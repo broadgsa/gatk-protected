@@ -320,5 +320,4 @@ public class GaussianMixtureModel {
     protected List<MultivariateGaussian> getModelGaussians() {return Collections.unmodifiableList(gaussians);}
 
     protected int getNumAnnotations() {return empiricalMu.length;}
-
 }
