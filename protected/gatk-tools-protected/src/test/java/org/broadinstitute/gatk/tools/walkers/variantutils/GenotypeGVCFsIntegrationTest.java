@@ -83,7 +83,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf", b37KGReference),
                 1,
-                Collections.singletonList("cdff1a18cd820c9d9c2b5b05ab7ef8a9"));
+                Collections.singletonList("326ec5afa27ade4d0c562aa227997d88"));
         executeTest("testUpdatePGT", spec);
     }
 
@@ -93,7 +93,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(
                 baseTestString(" -V " + privateTestDir + "testUpdatePGT.vcf -A StrandAlleleCountsBySample -log " + logFileName, b37KGReference),
                 1,
-                Collections.singletonList("7a459c5ff606239620e5f7b089186dfb"));
+                Collections.singletonList("b995bf820c3edff5b721338ea9cf44aa"));
         executeTest("testUpdatePGTStrandAlleleCountsBySample", spec);
 
         final File file = new File(logFileName);
