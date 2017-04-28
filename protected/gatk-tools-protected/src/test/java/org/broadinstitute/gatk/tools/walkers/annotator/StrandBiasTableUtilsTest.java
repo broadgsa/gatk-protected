@@ -79,6 +79,8 @@ public class StrandBiasTableUtilsTest {
         tests.add(new Object[]{9,13,12,10,                     0.5466948});
         tests.add(new Object[]{12,10,9,13,                     0.5466948});
         tests.add(new Object[]{9,12,11,9,                      0.5377362});
+        tests.add(new Object[]{12,4,26,7,                      1.0});           //tests rounding the probabilities from the Hypergeometric
+        tests.add(new Object[]{12,26,4,7,                      1.0});           //tests rounding the probabilities from the Hypergeometric
 
         tests.add(new Object[]{0, 0, 0, 0,                     1.0});
         tests.add(new Object[]{100000, 100000, 100000, 100000, 1.0}  );
