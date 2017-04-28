@@ -593,7 +593,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                         MultivariateGaussian mg = new MultivariateGaussian(numAnnotations);
                         gaussianList.add(mg);
                     }
-                    gaussianList.get(row).mu[curAnnotation] = Double.parseDouble((String)muTable.get(row, reportColumn.getColumnName()));
+                    gaussianList.get(row).mu[curAnnotation] = reportObjectToDouble(muTable.get(row, reportColumn.getColumnName()));
                 }
                 curAnnotation++;
             }
@@ -602,7 +602,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         for (GATKReportColumn reportColumn : pmixTable.getColumnInfo() ) {
             if (reportColumn.getColumnName().equals("pMixLog10")) {
                 for (int row = 0; row < pmixTable.getNumRows(); row++) {
-                    gaussianList.get(row).pMixtureLog10 = Double.parseDouble((String)pmixTable.get(row, reportColumn.getColumnName()));
+                    gaussianList.get(row).pMixtureLog10 = reportObjectToDouble(pmixTable.get(row, reportColumn.getColumnName()));
                 }
             }
         }
@@ -615,7 +615,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             for (int row = 0; row < sigmaTable.getNumRows(); row++) {
                 int curGaussian = row / numAnnotations;
                 int curI = row % numAnnotations;
-                double curVal =  Double.parseDouble((String)sigmaTable.get(row, reportColumn.getColumnName()));
+                double curVal =  reportObjectToDouble(sigmaTable.get(row, reportColumn.getColumnName()));
                 gaussianList.get(curGaussian).sigma.set(curI, curJ, curVal);
 
             }
@@ -627,6 +627,14 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     }
 
+    private double reportObjectToDouble(Object obj){
+        if (obj instanceof String){
+            return Double.parseDouble((String)obj);
+        } else {
+            return (Double) obj;
+        }
+    }
+
     private double[] getStandardDeviationsFromTable(GATKReportTable astdTable){
         double[] stdVector = {};
 
@@ -634,7 +642,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             if (reportColumn.getColumnName().equals("Standarddeviation")) {
                 stdVector = new double[astdTable.getNumRows()];
                 for (int row = 0; row < astdTable.getNumRows(); row++) {
-                    stdVector[row] =  Double.parseDouble((String) astdTable.get(row, reportColumn.getColumnName()));
+                    stdVector[row] =  reportObjectToDouble(astdTable.get(row, reportColumn.getColumnName()));
                 }
             }
         }
@@ -649,7 +657,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             if (reportColumn.getColumnName().equals("Mean")) {
                 meanVector = new double[amTable.getNumRows()];
                 for (int row = 0; row < amTable.getNumRows(); row++) {
-                    meanVector[row] =  Double.parseDouble((String) amTable.get(row, reportColumn.getColumnName()));
+                    meanVector[row] =  reportObjectToDouble(amTable.get(row, reportColumn.getColumnName()));
                 }
             }
         }
