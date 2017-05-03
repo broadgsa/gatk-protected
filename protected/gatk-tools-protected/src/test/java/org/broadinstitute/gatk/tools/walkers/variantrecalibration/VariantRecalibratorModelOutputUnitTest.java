@@ -170,7 +170,19 @@ public class VariantRecalibratorModelOutputUnitTest {
                 Assert.assertEquals(badGaussian1.sigma.get(i,j), (Double)badSigma.get(i,annotationList.get(j)), epsilon);
             }
         }
+
+        // Now test model report reading
+        // Read the gaussian weighting tables
+        final GATKReportTable nPMixTable = report.getTable("BadGaussianPMix");
+        final GATKReportTable pPMixTable = report.getTable("GoodGaussianPMix");
+
+        GaussianMixtureModel goodModelFromFile = vqsr.GMMFromTables(goodMus, goodSigma, pPMixTable, annotationList.size());
+        GaussianMixtureModel badModelFromFile = vqsr.GMMFromTables(badMus, badSigma, nPMixTable, annotationList.size());
+
+        testGMMsForEquality(goodModel, goodModelFromFile, epsilon);
+        testGMMsForEquality(badModel, badModelFromFile, epsilon);
     }
+
 
     @Test
     //This is tested separately to avoid setting up a VariantDataManager and populating it with fake data
@@ -209,6 +221,25 @@ public class VariantRecalibratorModelOutputUnitTest {
                 returnString += ",";
         }
         return returnString;
+    }
+
+    private void testGMMsForEquality(GaussianMixtureModel gmm1, GaussianMixtureModel gmm2, double epsilon){
+        Assert.assertEquals(gmm1.getModelGaussians().size(), gmm2.getModelGaussians().size(), 0);
+
+        for(int k = 0; k < gmm1.getModelGaussians().size(); k++) {
+            final MultivariateGaussian g = gmm1.getModelGaussians().get(k);
+            final MultivariateGaussian gFile = gmm2.getModelGaussians().get(k);
+
+            for(int i = 0; i < g.mu.length; i++){
+                Assert.assertEquals(g.mu[i], gFile.mu[i], epsilon);
+            }
+
+            for(int i = 0; i < g.sigma.getRowDimension(); i++) {
+                for (int j = 0; j < g.sigma.getColumnDimension(); j++) {
+                    Assert.assertEquals(g.sigma.get(i, j), gFile.sigma.get(i, j), epsilon);
+                }
+            }
+        }
     }
 
 }

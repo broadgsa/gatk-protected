@@ -376,10 +376,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             badModel = GMMFromTables(nmmTable, nmcTable, nPMixTable, numAnnotations);
         }
 
-
-
-
-            final Set<VCFHeaderLine> hInfo = new HashSet<>();
+        final Set<VCFHeaderLine> hInfo = new HashSet<>();
         ApplyRecalibration.addVQSRStandardHeaderLines(hInfo);
         recalWriter.writeHeader( new VCFHeader(hInfo) );
 
@@ -513,12 +510,11 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                 dataManager.setData(reduceSum);
                 dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
 
-                //final GaussianMixtureModel goodModel, badModel;
                 final List<VariantDatum> positiveTrainingData = dataManager.getTrainingData();
                 final List<VariantDatum> negativeTrainingData;
 
                 if (goodModel != null && badModel != null){ // GMMs were loaded from a file
-                    // Keeping this to maintain reproducibility between runs with and without serialized GMMs
+                    logger.info("Using serialized GMMs from file...");
                     engine.evaluateData(dataManager.getData(), goodModel, false);
                     negativeTrainingData = dataManager.selectWorstVariants();
                 } else { // Generate the GMMs from scratch
@@ -527,12 +523,12 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                     engine.evaluateData(dataManager.getData(), goodModel, false);
                     // Generate the negative model using the worst performing data and evaluate each variant contrastively
                     negativeTrainingData = dataManager.selectWorstVariants();
-
                     badModel = engine.generateModel(negativeTrainingData, Math.min(VRAC.MAX_GAUSSIANS_FOR_NEGATIVE_MODEL, VRAC.MAX_GAUSSIANS));
 
                     if (badModel.failedToConverge || goodModel.failedToConverge) {
                         throw new UserException("NaN LOD value assigned. Clustering with this few variants and these annotations is unsafe. Please consider " + (badModel.failedToConverge ? "raising the number of variants used to train the negative model (via --minNumBadVariants 5000, for example)." : "lowering the maximum number of Gaussians allowed for use in the model (via --maxGaussians 4, for example)."));
                     }
+
                 }
 
                 dataManager.dropAggregateData(); // Don't need the aggregate data anymore so let's free up the memory
@@ -589,7 +585,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      * @param numAnnotations    Number of annotations, i.e. Dimension of the annotation space in which the Gaussians live
      * @return  a GaussianMixtureModel whose state reflects the state recorded in the tables.
      */
-    private GaussianMixtureModel GMMFromTables(final GATKReportTable muTable, final GATKReportTable sigmaTable, final GATKReportTable pmixTable, final int numAnnotations){
+    protected GaussianMixtureModel GMMFromTables(final GATKReportTable muTable, final GATKReportTable sigmaTable, final GATKReportTable pmixTable, final int numAnnotations){
         List<MultivariateGaussian> gaussianList = new ArrayList<>();
 
         int curAnnotation = 0;
@@ -665,7 +661,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     }
 
     protected GATKReport writeModelReport(final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, List<String> annotationList) {
-        final String formatString = "%.8f";
+        final String formatString = "%.8E";
         final GATKReport report = new GATKReport();
 
         if (dataManager != null) {  //for unit test
