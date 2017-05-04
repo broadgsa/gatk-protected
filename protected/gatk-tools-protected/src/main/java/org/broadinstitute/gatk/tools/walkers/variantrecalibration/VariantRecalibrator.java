@@ -279,11 +279,11 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      *  model Gaussians can be subset by the value in the "Gaussian" column if desired.
      */
     @Argument(fullName="output_model", shortName = "outputModel", doc="If specified, the variant recalibrator will output the VQSR model fit to the file specified by -modelFile or to stdout", required=false)
-    private boolean outputModel = false;
+    private String outputModel = null;
     @Argument(fullName="input_model", shortName = "inputModel", doc="If specified, the variant recalibrator will read the VQSR model from this file path.", required=false)
     private String inputModel = "";
-    @Output(fullName="model_file", shortName = "modelFile", doc="A GATKReport containing the positive and negative model fits", required=false)
-    protected PrintStream modelReport = null;
+    //@Output(fullName="model_file", shortName = "modelFile", doc="A GATKReport containing the positive and negative model fits", required=false)
+    //protected PrintStream modelReport = null;
 
     @Hidden
     @Argument(fullName="replicate", shortName="replicate", doc="Used to debug the random number generation inside the VQSR. Do not use.", required=false)
@@ -370,7 +370,11 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             final GATKReportTable pmcTable = reportIn.getTable("PositiveModelCovariances");
             final GATKReportTable pmmTable = reportIn.getTable("PositiveModelMeans");
             final GATKReportTable pPMixTable = reportIn.getTable("GoodGaussianPMix");
-            final int numAnnotations = dataManager.getMeanVector().length;
+            final int numAnnotations = dataManager.annotationKeys.size();
+
+            if( numAnnotations != pmmTable.getNumColumns()-1 || numAnnotations != nmmTable.getNumColumns()-1 ) { // -1 because the first column is the gaussian number.
+                throw new UserException.CommandLineException( "Annotations specified on the command line do not match annotations in the model report." );
+            }
 
             goodModel = GMMFromTables(pmmTable, pmcTable, pPMixTable, numAnnotations);
             badModel = GMMFromTables(nmmTable, nmcTable, nPMixTable, numAnnotations);
@@ -534,9 +538,13 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
                 dataManager.dropAggregateData(); // Don't need the aggregate data anymore so let's free up the memory
                 engine.evaluateData(dataManager.getData(), badModel, true);
 
-                if (outputModel) {
-                    GATKReport report = writeModelReport(goodModel, badModel, USE_ANNOTATIONS);
-                    report.print(modelReport);
+                if (outputModel != null) {
+                    try (PrintStream modelReporter = new PrintStream(outputModel)) {
+                        GATKReport report = writeModelReport(goodModel, badModel, USE_ANNOTATIONS);
+                        report.print(modelReporter);
+                    } catch (FileNotFoundException e){
+                        throw new UserException("Could not open output model file:" + outputModel);
+                    }
                 }
 
                 engine.calculateWorstPerformingAnnotation(dataManager.getData(), goodModel, badModel);

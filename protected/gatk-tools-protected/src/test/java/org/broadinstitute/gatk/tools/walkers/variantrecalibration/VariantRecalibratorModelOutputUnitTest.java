@@ -68,17 +68,14 @@ import java.util.Random;
 public class VariantRecalibratorModelOutputUnitTest {
     protected final static Logger logger = Logger.getLogger(VariantRecalibratorModelOutputUnitTest.class);
     private final boolean printTables = true;
+    private final int numAnnotations = 6;
+    private final double shrinkage = 1.0;
+    private final double dirichlet = 0.001;
+    private final double priorCounts = 20.0;
+    private final double epsilon = 1e-6;
 
     @Test
     public void testVQSRModelOutput() {
-        final int numAnnotations = 6;
-        final double shrinkage = 1.0;
-        final double dirichlet = 0.001;
-        final double priorCounts = 20.0;
-        final int numGoodGaussians = 2;
-        final int numBadGaussians = 1;
-        final double epsilon = 1e-6;
-
         Random rand = new Random(12878);
         MultivariateGaussian goodGaussian1 = new MultivariateGaussian(numAnnotations);
         goodGaussian1.initializeRandomMu(rand);
@@ -170,10 +167,53 @@ public class VariantRecalibratorModelOutputUnitTest {
                 Assert.assertEquals(badGaussian1.sigma.get(i,j), (Double)badSigma.get(i,annotationList.get(j)), epsilon);
             }
         }
+    }
+
+
+    @Test
+    public void testVQSRModelInput(){
+        Random rand = new Random(12878);
+        MultivariateGaussian goodGaussian1 = new MultivariateGaussian(numAnnotations);
+        goodGaussian1.initializeRandomMu(rand);
+        goodGaussian1.initializeRandomSigma(rand);
+
+        MultivariateGaussian goodGaussian2 = new MultivariateGaussian(numAnnotations);
+        goodGaussian2.initializeRandomMu(rand);
+        goodGaussian2.initializeRandomSigma(rand);
+
+        MultivariateGaussian badGaussian1 = new MultivariateGaussian(numAnnotations);
+        badGaussian1.initializeRandomMu(rand);
+        badGaussian1.initializeRandomSigma(rand);
+
+        List<MultivariateGaussian> goodGaussianList = new ArrayList<>();
+        goodGaussianList.add(goodGaussian1);
+        goodGaussianList.add(goodGaussian2);
+
+        List<MultivariateGaussian> badGaussianList = new ArrayList<>();
+        badGaussianList.add(badGaussian1);
+
+        GaussianMixtureModel goodModel = new GaussianMixtureModel(goodGaussianList, shrinkage, dirichlet, priorCounts);
+        GaussianMixtureModel badModel = new GaussianMixtureModel(badGaussianList, shrinkage, dirichlet, priorCounts);
+
+        VariantRecalibrator vqsr = new VariantRecalibrator();
+        List<String> annotationList = new ArrayList<>();
+        annotationList.add("QD");
+        annotationList.add("MQ");
+        annotationList.add("FS");
+        annotationList.add("SOR");
+        annotationList.add("ReadPosRankSum");
+        annotationList.add("MQRankSum");
+
+        GATKReport report = vqsr.writeModelReport(goodModel, badModel, annotationList);
 
         // Now test model report reading
-        // Read the gaussian weighting tables
+        // Read all the tables
+        final GATKReportTable badMus = report.getTable("NegativeModelMeans");
+        final GATKReportTable badSigma = report.getTable("NegativeModelCovariances");
         final GATKReportTable nPMixTable = report.getTable("BadGaussianPMix");
+
+        final GATKReportTable goodMus = report.getTable("PositiveModelMeans");
+        final GATKReportTable goodSigma = report.getTable("PositiveModelCovariances");
         final GATKReportTable pPMixTable = report.getTable("GoodGaussianPMix");
 
         GaussianMixtureModel goodModelFromFile = vqsr.GMMFromTables(goodMus, goodSigma, pPMixTable, annotationList.size());
@@ -182,7 +222,6 @@ public class VariantRecalibratorModelOutputUnitTest {
         testGMMsForEquality(goodModel, goodModelFromFile, epsilon);
         testGMMsForEquality(badModel, badModelFromFile, epsilon);
     }
-
 
     @Test
     //This is tested separately to avoid setting up a VariantDataManager and populating it with fake data
