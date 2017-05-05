@@ -278,7 +278,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
      *  to help describe the normalization. The model fit report can be read in with our R gsalib package. Individual
      *  model Gaussians can be subset by the value in the "Gaussian" column if desired.
      */
-    @Argument(fullName="output_model", shortName = "outputModel", doc="If specified, the variant recalibrator will output the VQSR model fit to the file specified by -modelFile or to stdout", required=false)
+    @Argument(fullName="output_model", shortName = "outputModel", doc="If specified, the variant recalibrator will output the VQSR model to this file path.", required=false)
     private String outputModel = null;
     @Argument(fullName="input_model", shortName = "inputModel", doc="If specified, the variant recalibrator will read the VQSR model from this file path.", required=false)
     private String inputModel = "";
