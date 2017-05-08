@@ -86,6 +86,11 @@ public class GaussianMixtureModel {
         gaussians = new ArrayList<>( numGaussians );
         for( int iii = 0; iii < numGaussians; iii++ ) {
             final MultivariateGaussian gaussian = new MultivariateGaussian( numAnnotations );
+            gaussian.pMixtureLog10 = Math.log10( 1.0 / ((double)numGaussians) );
+            gaussian.sumProb = 1.0 / ((double) numGaussians);
+            gaussian.hyperParameter_a = priorCounts;
+            gaussian.hyperParameter_b = shrinkage;
+            gaussian.hyperParameter_lambda = dirichletParameter;
             gaussians.add( gaussian );
         }
         this.shrinkage = shrinkage;
@@ -105,6 +110,11 @@ public class GaussianMixtureModel {
         this.shrinkage = shrinkage;
         this.dirichletParameter = dirichletParameter;
         this.priorCounts = priorCounts;
+        for( final MultivariateGaussian gaussian : gaussians ) {
+            gaussian.hyperParameter_a = priorCounts;
+            gaussian.hyperParameter_b = shrinkage;
+            gaussian.hyperParameter_lambda = dirichletParameter;
+        }
         empiricalMu = new double[numAnnotations];
         empiricalSigma = new Matrix(numAnnotations, numAnnotations);
         isModelReadyForEvaluation = false;

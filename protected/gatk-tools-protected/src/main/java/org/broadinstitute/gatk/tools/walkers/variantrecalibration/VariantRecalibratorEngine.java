@@ -98,6 +98,7 @@ public class VariantRecalibratorEngine {
             try {
                 model.precomputeDenominatorForEvaluation();
             } catch( Exception e ) {
+                logger.warn("Model could not pre-compute denominators.");
                 model.failedToConverge = true;
                 return;
             }
@@ -107,6 +108,7 @@ public class VariantRecalibratorEngine {
         for( final VariantDatum datum : data ) {
             final double thisLod = evaluateDatum( datum, model );
             if( Double.isNaN(thisLod) ) {
+                logger.warn("Evaluate datum returned a NaN.");
                 model.failedToConverge = true;
                 return;
             }
@@ -142,7 +144,7 @@ public class VariantRecalibratorEngine {
     // Private Methods used for generating a GaussianMixtureModel
     /////////////////////////////
 
-    private void variationalBayesExpectationMaximization( final GaussianMixtureModel model, final List<VariantDatum> data ) {
+    protected void variationalBayesExpectationMaximization(final GaussianMixtureModel model, final List<VariantDatum> data) {
 
         model.initializeRandomModel( data, VRAC.NUM_KMEANS_ITERATIONS );
 
