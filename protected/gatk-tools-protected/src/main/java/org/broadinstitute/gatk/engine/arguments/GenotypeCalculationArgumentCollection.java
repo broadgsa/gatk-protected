@@ -174,7 +174,7 @@ public class GenotypeCalculationArgumentCollection implements Cloneable{
      * However, there are instances where using this prior might not be desirable, e.g. for population studies where prior
      * might not be appropriate, as for example when the ancestral status of the reference allele is not known.
      *
-     * This argument allows you to manually specify a list of probabilities for each AC>1 to be used as
+     * This argument allows you to manually specify a list of probabilities for each AC>0 to be used as
      * priors for genotyping, with the following restrictions: only diploid calls are supported; you must specify 2 *
      * N values where N is the number of samples; probability values must be positive and specified in Double format,
      * in linear space (not log10 space nor Phred-scale); and all values must sume to 1.
