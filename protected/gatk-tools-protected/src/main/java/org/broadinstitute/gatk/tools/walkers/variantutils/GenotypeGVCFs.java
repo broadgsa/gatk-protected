@@ -122,10 +122,11 @@ import java.util.*;
  *   -o output.vcf
  * </pre>
  *
- * <h3>Caveat</h3>
+ * <h3>Caveats</h3>
  * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
  * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
  * for every position) that GenotypeGVCFs requires for its operation.</p>
+ * <p>If the gVCF files contain allele specific annotations, add -G Standard -G AS_Standard to the command line.</p>
  *
  * <h3>Special note on ploidy</h3>
  * <p>This tool is able to handle any ploidy (or mix of ploidies) intelligently; there is no need to specify ploidy

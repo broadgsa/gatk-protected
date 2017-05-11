@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
+import org.apache.commons.io.FileUtils;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -58,6 +59,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -280,6 +282,18 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("f053aaa50427ea3fa9a43240e56eefc1"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
+    }
+
+    @Test
+    public void testMissingAlleleSpecificAnnotationGroup() throws IOException {
+        final File logFile = createTempFile("testMissingAlleleSpecificAnnotationGroup.log", ".tmp");
+        final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.chr20snippet.g.vcf -log " +
+                logFile.getAbsolutePath();
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList(""));
+        spec.disableShadowBCF();
+        executeTest("testMissingAlleleSpecificAnnotationGroup", spec);
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains(ReferenceConfidenceVariantContextMerger.ADD_AS_STANDARD_MSG));
     }
 
     @Test

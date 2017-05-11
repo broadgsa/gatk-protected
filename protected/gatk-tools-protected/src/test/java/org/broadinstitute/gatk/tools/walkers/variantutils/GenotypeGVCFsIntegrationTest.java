@@ -605,6 +605,16 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
     }
 
     @Test
+    public void testMissingAlleleSpecificAnnotationGroup() throws IOException {
+        final File logFile = createTempFile("testMissingAlleleSpecificAnnotationGroup.log", ".tmp");
+        final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header --disableDithering -V "
+                + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.chr20snippet.g.vcf -log " + logFile.getAbsolutePath();
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList(""));
+        spec.disableShadowBCF();
+        executeTest("testMissingAlleleSpecificAnnotationGroup", spec);
+    }
+
+    @Test
     public void testASMateRankSumAnnotation() {
         final String cmd = "-T GenotypeGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest --disableDithering -V "
                 + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.MateRankSum.chr20snippet.g.vcf";
