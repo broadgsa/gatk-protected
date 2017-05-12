@@ -612,6 +612,7 @@ public class GenotypeGVCFsIntegrationTest extends WalkerTest {
         final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Collections.singletonList(""));
         spec.disableShadowBCF();
         executeTest("testMissingAlleleSpecificAnnotationGroup", spec);
+        Assert.assertTrue(FileUtils.readFileToString(logFile).contains(ReferenceConfidenceVariantContextMerger.ADD_AS_STANDARD_MSG));
     }
 
     @Test
