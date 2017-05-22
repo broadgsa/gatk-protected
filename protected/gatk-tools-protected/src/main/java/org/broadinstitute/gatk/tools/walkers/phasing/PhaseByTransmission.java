@@ -1,14 +1,67 @@
+/*
+* By downloading the PROGRAM you agree to the following terms of use:
+* 
+* BROAD INSTITUTE
+* SOFTWARE LICENSE AGREEMENT
+* FOR ACADEMIC NON-COMMERCIAL RESEARCH PURPOSES ONLY
+* 
+* This Agreement is made between the Broad Institute, Inc. with a principal address at 415 Main Street, Cambridge, MA 02142 (“BROAD”) and the LICENSEE and is effective at the date the downloading is completed (“EFFECTIVE DATE”).
+* 
+* WHEREAS, LICENSEE desires to license the PROGRAM, as defined hereinafter, and BROAD wishes to have this PROGRAM utilized in the public interest, subject only to the royalty-free, nonexclusive, nontransferable license rights of the United States Government pursuant to 48 CFR 52.227-14; and
+* WHEREAS, LICENSEE desires to license the PROGRAM and BROAD desires to grant a license on the following terms and conditions.
+* NOW, THEREFORE, in consideration of the promises and covenants made herein, the parties hereto agree as follows:
+* 
+* 1. DEFINITIONS
+* 1.1 PROGRAM shall mean copyright in the object code and source code known as GATK3 and related documentation, if any, as they exist on the EFFECTIVE DATE and can be downloaded from http://www.broadinstitute.org/gatk on the EFFECTIVE DATE.
+* 
+* 2. LICENSE
+* 2.1 Grant. Subject to the terms of this Agreement, BROAD hereby grants to LICENSEE, solely for academic non-commercial research purposes, a non-exclusive, non-transferable license to: (a) download, execute and display the PROGRAM and (b) create bug fixes and modify the PROGRAM. LICENSEE hereby automatically grants to BROAD a non-exclusive, royalty-free, irrevocable license to any LICENSEE bug fixes or modifications to the PROGRAM with unlimited rights to sublicense and/or distribute.  LICENSEE agrees to provide any such modifications and bug fixes to BROAD promptly upon their creation.
+* The LICENSEE may apply the PROGRAM in a pipeline to data owned by users other than the LICENSEE and provide these users the results of the PROGRAM provided LICENSEE does so for academic non-commercial purposes only. For clarification purposes, academic sponsored research is not a commercial use under the terms of this Agreement.
+* 2.2 No Sublicensing or Additional Rights. LICENSEE shall not sublicense or distribute the PROGRAM, in whole or in part, without prior written permission from BROAD. LICENSEE shall ensure that all of its users agree to the terms of this Agreement. LICENSEE further agrees that it shall not put the PROGRAM on a network, server, or other similar technology that may be accessed by anyone other than the LICENSEE and its employees and users who have agreed to the terms of this agreement.
+* 2.3 License Limitations. Nothing in this Agreement shall be construed to confer any rights upon LICENSEE by implication, estoppel, or otherwise to any computer software, trademark, intellectual property, or patent rights of BROAD, or of any other entity, except as expressly granted herein. LICENSEE agrees that the PROGRAM, in whole or part, shall not be used for any commercial purpose, including without limitation, as the basis of a commercial software or hardware product or to provide services. LICENSEE further agrees that the PROGRAM shall not be copied or otherwise adapted in order to circumvent the need for obtaining a license for use of the PROGRAM.
+* 
+* 3. PHONE-HOME FEATURE
+* LICENSEE expressly acknowledges that the PROGRAM contains an embedded automatic reporting system (“PHONE-HOME”) which is enabled by default upon download. Unless LICENSEE requests disablement of PHONE-HOME, LICENSEE agrees that BROAD may collect limited information transmitted by PHONE-HOME regarding LICENSEE and its use of the PROGRAM.  Such information shall include LICENSEE’S user identification, version number of the PROGRAM and tools being run, mode of analysis employed, and any error reports generated during run-time.  Collection of such information is used by BROAD solely to monitor usage rates, fulfill reporting requirements to BROAD funding agencies, drive improvements to the PROGRAM, and facilitate adjustments to PROGRAM-related documentation.
+* 
+* 4. OWNERSHIP OF INTELLECTUAL PROPERTY
+* LICENSEE acknowledges that title to the PROGRAM shall remain with BROAD. The PROGRAM is marked with the following BROAD copyright notice and notice of attribution to contributors. LICENSEE shall retain such notice on all copies. LICENSEE agrees to include appropriate attribution if any results obtained from use of the PROGRAM are included in any publication.
+* Copyright 2012-2015 Broad Institute, Inc.
+* Notice of attribution: The GATK3 program was made available through the generosity of Medical and Population Genetics program at the Broad Institute, Inc.
+* LICENSEE shall not use any trademark or trade name of BROAD, or any variation, adaptation, or abbreviation, of such marks or trade names, or any names of officers, faculty, students, employees, or agents of BROAD except as states above for attribution purposes.
+* 
+* 5. INDEMNIFICATION
+* LICENSEE shall indemnify, defend, and hold harmless BROAD, and their respective officers, faculty, students, employees, associated investigators and agents, and their respective successors, heirs and assigns, (Indemnitees), against any liability, damage, loss, or expense (including reasonable attorneys fees and expenses) incurred by or imposed upon any of the Indemnitees in connection with any claims, suits, actions, demands or judgments arising out of any theory of liability (including, without limitation, actions in the form of tort, warranty, or strict liability and regardless of whether such action has any factual basis) pursuant to any right or license granted under this Agreement.
+* 
+* 6. NO REPRESENTATIONS OR WARRANTIES
+* THE PROGRAM IS DELIVERED AS IS. BROAD MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE PROGRAM OR THE COPYRIGHT, EXPRESS OR IMPLIED, INCLUDING, WITHOUT LIMITATION, WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NONINFRINGEMENT, OR THE ABSENCE OF LATENT OR OTHER DEFECTS, WHETHER OR NOT DISCOVERABLE. BROAD EXTENDS NO WARRANTIES OF ANY KIND AS TO PROGRAM CONFORMITY WITH WHATEVER USER MANUALS OR OTHER LITERATURE MAY BE ISSUED FROM TIME TO TIME.
+* IN NO EVENT SHALL BROAD OR ITS RESPECTIVE DIRECTORS, OFFICERS, EMPLOYEES, AFFILIATED INVESTIGATORS AND AFFILIATES BE LIABLE FOR INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND, INCLUDING, WITHOUT LIMITATION, ECONOMIC DAMAGES OR INJURY TO PROPERTY AND LOST PROFITS, REGARDLESS OF WHETHER BROAD SHALL BE ADVISED, SHALL HAVE OTHER REASON TO KNOW, OR IN FACT SHALL KNOW OF THE POSSIBILITY OF THE FOREGOING.
+* 
+* 7. ASSIGNMENT
+* This Agreement is personal to LICENSEE and any rights or obligations assigned by LICENSEE without the prior written consent of BROAD shall be null and void.
+* 
+* 8. MISCELLANEOUS
+* 8.1 Export Control. LICENSEE gives assurance that it will comply with all United States export control laws and regulations controlling the export of the PROGRAM, including, without limitation, all Export Administration Regulations of the United States Department of Commerce. Among other things, these laws and regulations prohibit, or require a license for, the export of certain types of software to specified countries.
+* 8.2 Termination. LICENSEE shall have the right to terminate this Agreement for any reason upon prior written notice to BROAD. If LICENSEE breaches any provision hereunder, and fails to cure such breach within thirty (30) days, BROAD may terminate this Agreement immediately. Upon termination, LICENSEE shall provide BROAD with written assurance that the original and all copies of the PROGRAM have been destroyed, except that, upon prior written authorization from BROAD, LICENSEE may retain a copy for archive purposes.
+* 8.3 Survival. The following provisions shall survive the expiration or termination of this Agreement: Articles 1, 3, 4, 5 and Sections 2.2, 2.3, 7.3, and 7.4.
+* 8.4 Notice. Any notices under this Agreement shall be in writing, shall specifically refer to this Agreement, and shall be sent by hand, recognized national overnight courier, confirmed facsimile transmission, confirmed electronic mail, or registered or certified mail, postage prepaid, return receipt requested. All notices under this Agreement shall be deemed effective upon receipt.
+* 8.5 Amendment and Waiver; Entire Agreement. This Agreement may be amended, supplemented, or otherwise modified only by means of a written instrument signed by all parties. Any waiver of any rights or failure to act in a specific instance shall relate only to such instance and shall not be construed as an agreement to waive any rights or fail to act in any other instance, whether or not similar. This Agreement constitutes the entire agreement among the parties with respect to its subject matter and supersedes prior agreements or understandings between the parties relating to its subject matter.
+* 8.6 Binding Effect; Headings. This Agreement shall be binding upon and inure to the benefit of the parties and their respective permitted successors and assigns. All headings are for convenience only and shall not affect the meaning of any provision of this Agreement.
+* 8.7 Governing Law. This Agreement shall be construed, governed, interpreted and applied in accordance with the internal laws of the Commonwealth of Massachusetts, U.S.A., without regard to conflict of laws principles.
+*/
+
 package org.broadinstitute.gatk.tools.walkers.phasing;
 
-import org.broadinstitute.gatk.engine.refdata.*;
-import org.broadinstitute.gatk.engine.contexts.*;
+import org.broadinstitute.gatk.utils.help.HelpConstants;
+import org.broadinstitute.gatk.utils.pairhmm.PairHMMReadyHaplotypes.Iterator;
+import org.broadinstitute.gatk.utils.refdata.*;
+import org.broadinstitute.gatk.utils.contexts.*;
 import org.broadinstitute.gatk.engine.samples.Sample;
 import org.broadinstitute.gatk.engine.samples.Gender;
 
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
-//import org.broadinstitute.sting.gatk.walkers.*;
 import org.broadinstitute.gatk.engine.walkers.RodWalker;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
+import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
@@ -28,29 +81,28 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import org.broadinstitute.gatk.utils.MathUtils;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
-import org.broadinstitute.gatk.utils.SampleUtils;
-import org.broadinstitute.gatk.utils.variant.GATKVCFUtils;
+import org.broadinstitute.gatk.engine.SampleUtils;
+import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
-//import org.broadinstitute.sting.utils.variantcontext.GenotypeType;
+
+// import org.broadinstitute.gatk.tools.walkers.phasing.HaploidWriter;
+
+import cern.colt.Arrays;
+
 import org.broadinstitute.gatk.utils.GenomeLoc;
 
-//import org.broadinstitute.variant.variantcontext
+
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFConstants;
-//import htsjdk.variant.vcf.
+
+
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-//import org.broadinstitute.gatk.utils.variant.*;
 
 
-
-
-//import org.broadinstitute.sting.utils.help.HelpConstants;
-//import org.broadinstitute.sting.utils.help.DocumentedGATKFeature;
-
-
+// import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.lang.String;
@@ -67,16 +119,14 @@ import java.math.RoundingMode;
 
 import java.io.PrintStream;
 
-
-
 /**
  * Computes the most likely genotype configuration and phases trios and parent/child pairs
  *
  * <p>
- * PhaseByTransmission can be summarized by performing two functions:
+ * PhaseByTransmission can be summarized as performing two functions:
  * <ul>
  *     <li> computes the most likely genotype configuration and phases trios and parent/child pairs given their genotype likelihoods, a mutation prior and, optionally, population statistics such as allele frequency </li>
- *     <li> phases all sites were parent/child transmission can be inferred unambiguously. It reports the genotype configuration (and hence phasing) phred scaled posterior probability. </li>
+ *     <li> phases all sites were parent/child transmission can be inferred unambiguously. It reports the genotype configuration (and hence phasing) along with a phred scaled posterior probability. </li>
  * </ul>
  * Ambiguous (i.e.: not phase-able by PBT) sites are:
  * <ul>
@@ -99,7 +149,7 @@ import java.io.PrintStream;
  *         configuration will be reported there. Information reported: chromosome, position, filter, allele count in VCF, family, transmission probability,
  *         and each individual genotype, depth, allelic depth and likelihoods. </li>
  *         <li> DeNovoPrior: Mutation prior; default is 1e-8 </li>
- *         <li> UseAlleleFrequency: specify whether or not to use an additional, individual genotype prior for the founders, determined dynamically, from the allele frequency of the respective founder genotype's alleles.
+ *         <li> UseAlleleFrequency: specify whether or not to use an additional, individual genotype prior for the founders, determined dynamically, from the allele frequency of all the founder genotypes' alleles.
  *         We find that using such additional population information greatly improves performance (i.e.: specificity of results), especially in low coverage (i.e.: <15x).
  *         If a population of ancestry-compact trios is used for de novo mutations calling, we recommend estimating this prior using the "GT" method (i.e.: from best guess genotypes of the founders).
  *         Alternatively, allele frequencies can be supplied from an external source (i.e.: using the "EXTERNAL" option), as an allele frequency annotation, in the INFO field of a vcf file.
@@ -109,7 +159,7 @@ import java.io.PrintStream;
  *
  * <h2>Output</h2>
  * <p>
- * An VCF with genotypes recalibrated as most likely under the familial constraint and phased by descent where non ambiguous..
+ * A VCF with genotypes recalibrated as most likely under the familial constraints and phased by descent where non ambiguous..
  * </p>
  *
  * <h2>Examples</h2>
@@ -140,85 +190,81 @@ import java.io.PrintStream;
  *
  */
 
-//@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
-public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap<Byte,Double>> 
-{
+@DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
+public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap<Byte,Double>> {
 
-	@ArgumentCollection
+    @ArgumentCollection
     protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
     @Argument(shortName = "mvf",required = false,fullName = "MendelianViolationsFile", doc="File to output the mendelian violation details.")
     private PrintStream mvFile = null;
 
-    @Argument(shortName = "prior",required = false,fullName = "DeNovoPrior", doc="Prior for de novo mutations. Default: 1e-8")
+    @Argument(shortName = "prior",required = false,fullName = "DeNovoPrior", doc="Per basepair prior probability of one de novo mutations. Default: 1e-8")
     private double deNovoPrior=1e-8;
-   
-    //@Argument(shortName = "Xchr",required = false,fullName = "X-chromozome", doc="indicate whether the input variants are from the X chromozome")
-    //private boolean Xchr = false;
 
-    @Argument(shortName = "useAF",required = false,fullName = "UseAlleleFrequency", doc="Use of an AF-based prior for the founder genotypes. Accepted values: NO | AFDOS | GT | EXTERNAL. AFDOS - computes the AF prior from the allele dosages of all the founder samples in the input; GT - computes the AF prior from the best-guess genotypes of all founders found in input; default: NO - no allele frequency prior used; EXTERNAL - allele frequencies needed for computing the priors are read from the INFO field of a vcf file, \"alleleFrequencyFile\" argument is needed and \"alleleFrequencyTag\" is recommended in this case")
+    @Argument(shortName = "useAF",required = false,fullName = "UseAlleleFrequency", doc="Use of an AF-based prior on the founders. Accepted values: NO | AFDOS | GT | EXTERNAL. \n\tAFDOS - allele frequency dosage - computes the AF prior from the allele dosages of all the founder samples in the input; \n\tGT computes the AF prior from the best-guess genotypes of all founders found in input; \n\t EXTERNAL - supply another VCF file which contains per site allele frequencies in the INFO field; \n\tDefault: NO - no allele frequency prior used")
     private String useAF = "NO";
 
-    @Argument(shortName = "afFile", required = false, fullName = "alleleFrequencyFile", doc = "A vcf file containing the minor allele frequency in its INFO field, sites that do not overlap the input vcf are treated as monomorphic sites")
+    @Argument(shortName = "afFile", required = false, fullName = "alleleFrequencyFile", doc = "A vcf file containing the minor allele frequency in its INFO field. The sites that are unique to this alelle frequency VCF are ignored. Sites that are unique to the data VCF default to MAF = 0 and further to MAF = alleleFrequencyCap")
     private RodBinding<VariantContext> afRod = null;// = new RodBinding<VariantContext>(VariantContext.class, "afRod", "afFile", "vcf", new Tags());
     
-    @Argument(shortName = "afTag",required = false,fullName = "alleleFrequencyTag", doc="name of the allele frequency tag to be searched for in the externally supplied allele vcf file")
+    @Argument(shortName = "afTag",required = false,fullName = "alleleFrequencyTag", doc="name of the allele frequency tag to be searched for in the externally supplied allele frequency VCF file")
     private String af_tag = VCFConstants.ALLELE_FREQUENCY_KEY;
-
-    @Argument(shortName = "af_cap",required = false,fullName = "alleleFrequencyCap", doc="Prevents the allele frequency prior from taking extreme values when the minor allele frequency is very low and/or few samples are supplied (i.e.: when true allele frequency is very low ); Very high AF prior can introduce false positive DNM calls. By default, the minor allele frequency is thus capped at 10^-3 i.e.: heterozigosity level. Any value can be speciffied in the (0,1) interval; if other values are speciffied the AF cap option is disabled")
+    
+    @Argument(shortName = "af_cap",required = false,fullName = "alleleFrequencyCap", doc="Prevents the allele frequency prior from taking extreme values when the minor allele frequency is low and few samples are supplied; Very high AF prior can introduce false positive DNM calls. By default, the minor allele frequency is thus capped at 10^-4 i.e.: close to the genome wide heterozigosity level. Any value can be speciffied in the (0,1) interval; if other values are speciffied the AF cap option is disabled")
     private double af_cap = 0.0001;
     
-    @Argument (shortName = "assignPO", required = false, fullName = "assignParentalOrigin", doc="attempt to assign parental origin to detected mutations; PBT cannot phase de novos or HET/HET/HET genotype combinations so this argument is  only aplicable if the supplied input VCF has been run through ReadBackedPhasing (or other phasing tools that encode an HP tag), which fills in this gap; We can therefore combine trio-aware phasing with NGS data-driven phasing to identify the parental haplotype on which the de novo mutation occured")
+    @Argument (shortName = "assignPO", required = false, fullName = "assignParentalOrigin", doc="attempt to assign parental origin to detected mutations; PBT cannot phase de novos or HET/HET/HET genotype combinations so this argument is  only aplicable if the supplied input VCF has been run through ReadBackedPhasing, which fills in this gap; We can therefore combine trio-aware phasing with NGS data-driven phasing to identify the parental haplotype on which the de novo mutation occured")
     private int assignPO = 0;
     
-    @Argument (shortName = "POET", required = false, fullName = "ParentalOriginEvidenceThreshold", doc = "This parameter sets the desired strictness when assigning a muation to one of the parental haplotypes; it represents the proportion of the total adjacent phasing sites that is to indicate for one of the parental haplotypes; default value is currently 1, i.e.: all adjacent phasing sites must be consistent with one of the parental haplotypes")
+    @Argument (shortName = "POET", required = false, fullName = "ParentalOriginEvidenceThreshold", doc = "This parameter sets the desired strictness when assigning a muation to one of the parental haplotypes; it represents the proportion of the total adjacent phasing sites that is to indicate for one of the parental haplotypes in order for a call to be made. Default value is currently 1, i.e.: all adjacent phasing sites must be consistent with the same  parental haplotype")
     private double POEvidenceThreshold = 1.0;
+    
+    @Argument(shortName = "requirePL",required = false,fullName = "requirePhredScaledGenotypeLikelihoods", doc="default:FALSE. Treat genotypes that do not have phred-scaled likelihoods computed as missing genotypes. If false, dummy, uniform probabilities are generated for all possibe genotypes, for any individual in the VCF that has does not have a PL field specified ")
+    private boolean requirePLs = false;
     
     //@Argument(shortName = "contrast",required = false,fullName = "UseContrastiveModel", doc="When set, EM is used to compute P(AF=0) and P(AF=X) and these 2 hypotheses are contrasted.")
     //private boolean contrast = false;
 
-    @Hidden
-    @Argument(shortName = "updatePLs",required = false,fullName = "UpdatePLs", doc="Updates the PLs to take the trio information (and AC information if useAF option is used) into account.")
+    // @Hidden
+    @Argument(shortName = "updatePLs",required = false,fullName = "UpdatePLs", doc="Updates the pred-scaled likelihood (PL) field to take the trio information (and allele count - AC - information if useAF option is used).")
     private boolean updatePLs = false;
 
     @Hidden
     @Argument(shortName = "gt",required = false,fullName = "GenotypeAssignment", doc="Selects how the genotypes are assigned/updated. TRIOCONF => Most likely trio configuration; INDIV => Most likely individual genotype from trio-adjusted PLs. Can only be used in combination with updatePLs")
     private String gtAssignment = "TRIOCONF";
     
-
-    @Argument(shortName = "multipleOffspring",required = false,fullName = "multipleOffspringAsTrios", doc=" if a family has multiple offspring, build an independent trio for each one? default is no - in case a family has multiple offspring, we may evaluate the joint probability of parents' genotypes and each individual offspring, as opposed to the joint probability of all family genotypes. This argument implements the former option. The PBT model is consistent and correct in evaluating the probability of a DNM in each parents-offspring trios, but, as a result of the same parents' genotypes being evaluated under different trio combinations (for the different offspring), the parents' genotypes in the output vcf will be the most likely genotypes from the last trio configuration evaluated (i.e.: not the most likely genotypes given all the available information - all offspring). In these unlikely cases, the DNMs are correctly represented in the mvFile, but may not be in the outputted vcf")
+    // @Hidden
+    @Argument(shortName = "multipleOffspring",required = false,fullName = "multipleOffspringAsTrios", doc=" if a family has multiple offspring, build an independent trio for each one? - in case a family has multiple offspring, we may evaluate the joint probability of parents' genotypes and each individual offspring, as opposed to the joint probability of all family genotypes. This argument implements the former option. The PBT model is consistent and correct in evaluating the probability of a DNM in each parents-offspring trios, but, as a result of the same parents' genotypes being evaluated under different trio combinations (for the different offspring), the parents' genotypes in the output vcf will be the most likely genotypes from the last trio configuration evaluated (i.e.: not the most likely genotypes given all the available information - all offspring). In these unlikely cases, the DNMs are correctly represented in the mvFile, but may not be in the outputted vcf")
     private boolean multiple_offspring = false;
-
-    //@Argument(shortName = "EMtest",required = false,fullName = "EMtest", doc="TRUE => AF=0 AND AF=x cases are considered in case of an MV; FALSE => Only AF=0 is considered.")
-    //private boolean emTest = false;
 
     @Argument(shortName = "fatherAlleleFirst",required = false,fullName = "FatherAlleleFirst", doc="Ouputs the father allele as the first allele in phased child genotype. i.e. father|mother rather than mother|father.")
     private boolean fatherAlleleFirst=false;
     
-    @Argument(shortName="hapIntervals", required=false, fullName="haploidMaleIntervals", doc="Haploid regions of the genome in males. Male diploid genotypes and likelihoods in these regions will be converted to haploid values.")
+    @Argument(shortName="hapIntervals", required=false, fullName="haploidMaleIntervals", doc="Haploid regions of the genome in males. Male diploid genotypes and likelihoods in these regions will be converted to haploid values. Overrides the site_male_ploidy argument")
 	private String x_file = null; // locations to be considerred haploid for males
     
-    @Argument(shortName="fh", required=false, fullName="fake_hets", doc="output dummy, very big PL values for het genotypes as well -- relevant only for X-like inheritance pattern")
+    @Argument(shortName="fh", required=false, fullName="fake_hets", doc="output dummy, very big PL values for het genotypes in haploid regions of the genome, for males -- relevant only for X-like inheritance pattern")
 	private int fake_hets = 0;
     
-    @Hidden
-    @Argument(shortName="allX", required=false, fullName="allInputIsX", doc="consider all input positions to be haploid for males? (i.e.: X-chr)")
+    // @Hidden
+    @Argument(shortName="allX", required=false, fullName="allInputIsX", doc="Consider all input positions to be haploid for males? (i.e.: X-chr)")
 	private boolean allX = false; // locations to be considerred
     
     @Hidden
-    @Argument(shortName="noTP", required=false, fullName="noTransmissionPosterior", doc="do not output the transmission posterior for a the genotyped trio configuration (i.e.: if DNM identification is not the main purpose)")
-	private boolean noTP = false; // locations to be considerred
+    @Argument(shortName="noTP", required=false, fullName="noTransmissionPosterior", doc="Do not output the transmission posterior for the genotyped trio configuration (i.e.: if DNM identification is not the main purpose)")
+	private boolean noTP = false; // add a transmission posterior to the sites
     
     @Hidden
-    @Argument(shortName = "ufad",required = false,fullName = "useFatherAsNeeded", doc="does not use the father in the likelihood computation if not needed; i.e.: for calling X chromozome in families with male children; useful for dnms")
+    @Argument(shortName = "ufad",required = false,fullName = "useFatherAsNeeded", doc="Do not use the father in the likelihood computation if not needed; i.e.: for calling X chromosome in families with male children")
     private boolean ufad=true;
     
-
-    @Argument (shortName = "op", required = false, fullName="onlyPhase", doc = "only phase found trios; i.e.: do not evaluate genotype calls")
+    // @Hidden
+    @Argument (shortName = "op", required = false, fullName="onlyPhase", doc = "Only phase the trios found in the input VCF; i.e.: do not evaluate genotype calls")
     private boolean op = false;
 
-
-	@Argument (shortName = "pep", required = false, fullName="phaseEverythingPossible", doc = "attempt to trio-phase sites that are normally ignored by PBT such as multi-allelic sites")
+	// @Hidden
+	@Argument (shortName = "pep", required = false, fullName="phaseEverythingPossible", doc = "Attempt to trio-phase sites that are normally ignored by PBT such as multi-allelic sites")
 	private boolean phaseEverything = false;
 
     @Output
@@ -258,6 +304,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 	
 	private ArrayList<Sample> trios = new ArrayList<Sample>();
     private HashSet<String> founderIds = new HashSet<String>();
+    private HashSet<String> childIds   = new HashSet<String>();
     
     private ArrayList<GenomeLoc> haploid_intervals = null;
     private ArrayList<String> haploidIndiv = null;
@@ -682,6 +729,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
                         if(family.containsAll(parents))
                         {
                             this.trios.add(familyMember);
+                            this.childIds.add(familyMember.getID());
                             this.founderIds.add(familyMember.getMaternalID());
                             this.founderIds.add(familyMember.getPaternalID());
                             this.rbp_queue.put(familyMember.getID(), null);
@@ -691,12 +739,14 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
                             if (family.contains(familyMember.getFather()))
                             {
                             	this.trios.add(familyMember);
+                            	this.childIds.add(familyMember.getID());
                                 this.founderIds.add(familyMember.getPaternalID());
                             }
                             else 
                             	if (family.contains(familyMember.getMother()))
                                 {
                                 	this.trios.add(familyMember);
+                                	this.childIds.add(familyMember.getID());
                                     this.founderIds.add(familyMember.getMaternalID());
                                 } 
                             	else 
@@ -716,7 +766,10 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 	{	
     	if (af_cap <= 0.0 || af_cap >= 1)
     		af_cap = -1;
-    	
+    	if (deNovoPrior <= 0.0 || deNovoPrior >= 1.0 )
+	{
+		throw new UserException.BadArgumentValue("deNovoPrior",String.format("Value '%f' is not a valid value for argument deNovoPrior. Value should be between 0 and 1",deNovoPrior));
+	}
         ArrayList<String> rodNames = new ArrayList<String>();
         rodNames.add(variantCollection.variants.getName());
         if (afRod != null)
@@ -750,7 +803,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
         Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
         headerLines.addAll(GATKVCFUtils.getHeaderFields(this.getToolkit()));
         if (!noTP)
-        	headerLines.add(new VCFFormatHeaderLine(TRANSMISSION_PROBABILITY_TAG_NAME, 1, VCFHeaderLineType.Integer, "Phred score of the posterior probability of the genotype configuration and phased."));
+        	headerLines.add(new VCFFormatHeaderLine(TRANSMISSION_PROBABILITY_TAG_NAME, '.', VCFHeaderLineType.Integer, "Phred score of the posterior probability of the genotype configuration and phased."));
         headerLines.add(new VCFFormatHeaderLine(RBP_CANCELLED, 1, VCFHeaderLineType.Integer, "Tag signaling whether existing RBP information (in HP tags) has been made inconsistent by applying PBT"));
         headerLines.add(new VCFHeaderLine("source", SOURCE_NAME));
         vcfWriter.writeHeader(new VCFHeader(headerLines, vcfSamples));
@@ -785,23 +838,23 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     {    	
 
         //If the child wasn't called, just return the phased genotypes if homozygous, without using the familial information
-        if(child==null || !child.isCalled() )
+        if(child==null || !child.isCalled() || (child.getLikelihoods() == null && requirePLs) )
 		{
             return new UnrelatedTrioConfiguration(ref,alt,mother,father,child,childSex);
         }
         if (op)
         {
-        	TrioConfiguration op_conf = new TrioConfiguration(mother.getType(), father.getType(), child.getType(), (int)0, (short)0.5, childSex);
+        	TrioConfiguration op_conf = new TrioConfiguration(mother.getType(), father.getType(), child.getType(), (int)0, (short)NO_TRANSMISSION_PROB, childSex);
         	op_conf.populateGenotypes(ref,alt,mother,father,child);
         	return op_conf;
         }
         //Check whether it is  a pair or trio
         FamilyConfigurations configurations;
         //Create the configurations container for either a parent/child pair or a trio
-        if(mother == null || !mother.isCalled())
+        if(mother == null || !mother.isCalled() || (mother.getLikelihoods() == null && requirePLs) )
         {
             //If both parents are not called, phase the child if homozygous without considering the familial information
-            if(father == null || !father.isCalled())
+            if(father == null || !father.isCalled() || (father.getLikelihoods() == null && requirePLs) )
             {
                 return new UnrelatedTrioConfiguration(ref,alt,mother,father,child,childSex);
             }
@@ -957,16 +1010,18 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
             else
             	phasedTrioGenotypes = transmissionMatrix.get(phasedMotherGT).get(phasedFatherGT).get(phasedChildGT).get(2);
             
-        	phasedMother = getPhasedGenotype(ref, alt,motherGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.MOTHER), posterior, motherPLs.getAsPLs(), Gender.FEMALE);
-            phasedFather = getPhasedGenotype(ref,alt,fatherGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.FATHER), posterior, fatherPLs.getAsPLs(), Gender.MALE);
-            phasedChild  = getPhasedGenotype(ref,alt,childGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.CHILD), posterior, childPLs.getAsPLs(), childSex);
+        	phasedMother = getPhasedGenotype(ref, alt,motherGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.MOTHER), posterior, (motherPLs == null) ? null : motherPLs.getAsPLs(), Gender.FEMALE);
+            phasedFather = getPhasedGenotype(ref,alt,fatherGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.FATHER), posterior, (fatherPLs == null) ? null : fatherPLs.getAsPLs(), Gender.MALE);
+            phasedChild  = getPhasedGenotype(ref,alt,childGenotype, phasedTrioGenotypes.getDummyGT(FamilyMember.CHILD), posterior, (childPLs == null) ? null : childPLs.getAsPLs(), childSex);
         }
         
         // build an actual genotype by aggregating the cached phased information, original Genotype and pbt results; update the PLs field value as necessary
 		private Genotype getPhasedGenotype(Allele ref, Allele alt, Genotype genotype, DummyGT phasedGenotype, int transmissionPost, int []pls, Gender sex)
 		{
-			if (genotype == null || !isPhasable(genotype.getType(), sex))
+			if (genotype == null) 
 				return genotype;
+			if ( !isPhasable(genotype.getType(), sex) || (genotype.getLikelihoods() == null && requirePLs && !noTP) )
+				return addNullTransmissionPosteriorTag(genotype);
 			
 			// System.out.printf("**** --> hashed GT: %s %s\t GT: %s %s\t %s\n",phasedGenotype.alleles.get(0).getBaseString(), phasedGenotype.alleles.size() > 1 ? phasedGenotype.alleles.get(1).getBaseString() : "", genotype.getAlleles().get(0).getBaseString(), genotype.getAlleles().size() > 1 ? genotype.getAlleles().get(1).getBaseString() : "", genotype.getSampleName());
 			GenotypeBuilder gb = new GenotypeBuilder();
@@ -1035,7 +1090,10 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 			
 			new_attributes.putAll(initial_attributes);
 			if (!noTP)
-				new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, transmissionPost);
+				if (transmissionPost >= 0)
+					new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, transmissionPost);
+				else
+					new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, NO_TRANSMISSION_PROB);
 			
 			gb.alleles(alleles);
 			gb.phased(phasedGenotype.phased);
@@ -1151,7 +1209,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 			return _ret;					
 		}
 		
-		// just interface/wrapper --- remember to delete
+		// just interface/wrapper --- can delete
 		public void buildFamilyMemberGT(Allele ref, Allele alt, Genotype genotype, DummyGT phasedGT, FamilyMember individual, int transmissionPost, int []pls)
 		{
 			switch (individual)
@@ -1168,7 +1226,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 			}
 		}
 		
-		// just interface/wrapper --- remember to delete
+		// just interface/wrapper --- can delete
 		public void buildFamilyMemberGT(Allele ref, Allele alt, Genotype genotype, DummyGT phasedGT, FamilyMember individual, int transmissionPost)
 		{
 			switch (individual)
@@ -1372,9 +1430,14 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
             Double []dummy1 = new Double [0];
             Double []dummy;
             dummy = rawLikelihoods.toArray(dummy1);
+
+
             double []rawLikelihoods2 =new double[dummy.length];
+            System.out.println(rawLikelihoods2.toString());
             for (int i = 0; i < rawLikelihoods2.length; i++)
             	rawLikelihoods2[i] = dummy[i].doubleValue();
+            
+            // GenotypeLikelihoods temp = GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(rawLikelihoods2,true,true));
             return GenotypeLikelihoods.fromLog10Likelihoods(MathUtils.normalizeFromLog10(rawLikelihoods2,true,true));
         }
         
@@ -1731,17 +1794,9 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 
         VariantContext vc_raw = tracker.getFirstValue(variantCollection.variants, context.getLocation());
         
-        if(vc_raw == null) // || !vc_raw.isBiallelic())
+        if(vc_raw == null || (!vc_raw.isBiallelic() && !phaseEverything ))
             return parseGenotypesAtLocus(null, null, null);
         
-        //if (vc_raw.getGenotype("gonl-124c").hasAnyAttribute(ReadBackedPhasing.HP_KEY))
-        //{
-        //		System.out.printf("TEST: RBP tag for child: %s\n", vc_raw.getGenotype("gonl-124c").getAnyAttribute(ReadBackedPhasing.HP_KEY).toString());
-        //}
-        //else
-        //{
-        //	System.out.println("TEST: no RBP tag");
-        //}
         
         //determine site ploidy and transform GTs to haploid if necessary
         VariantContext vc;
@@ -1972,7 +2027,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
         
         // count MVs
         if (site_male_ploidy == 2 || sex == Gender.FEMALE)
-        	// check if both child alleles can be found, in either parent
+        	// check if both child alleles can be found, each one in a different parent
         	mv_count = Math.min((als_father == null? 0:als_father.indexOf(als_child.get(0)) >= 0? 0:1) + (als_mother == null? 0:als_mother.indexOf(als_child.get(1)) >= 0? 0:1),
         			(als_father == null? 0:als_father.indexOf(als_child.get(1)) >= 0? 0:1) + (als_mother == null? 0:als_mother.indexOf(als_child.get(0)) >= 0? 0:1));
         	
@@ -1987,7 +2042,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 	// retrieve the PL values as a map(i.e.: w.r.t GT type); wrapper function to treat missing GTs and ploidy 1
 	private EnumMap<GenotypeType,Double> getLikelihoodsAsMapSafeNull(Genotype genotype, Gender sex)
     {
-        if(genotype == null || !genotype.isCalled())
+        if(genotype == null || !genotype.isCalled() || genotype.getLikelihoods() == null)
         {
         	if (site_male_ploidy == 1 && sex == Gender.MALE)
         	{
@@ -2308,13 +2363,37 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 
 		HashMap<String,Object> new_attributes = new HashMap<>();
 		new_attributes.putAll(gt.getExtendedAttributes());
-		if (!noTP)
-			new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, new String("."));
+		// if (!noTP)
+		// 	new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, null);
 		gb.attributes(new_attributes);
 
 		return gb.make();
 
 
+	}
+	
+	private Genotype addNullTransmissionPosteriorTag(Genotype gt)
+	{
+		if (gt == null)
+			return null;
+		
+		GenotypeBuilder gb = new GenotypeBuilder();
+		gb.alleles(gt.getAlleles());
+		gb.phased(gt.isPhased());
+		gb.AD(gt.getAD());
+		gb.DP(gt.getDP());
+		gb.GQ(gt.getGQ());
+		gb.PL(gt.getPL());
+		gb.name(gt.getSampleName());
+
+		HashMap<String,Object> new_attributes = new HashMap<>();
+		new_attributes.putAll(gt.getExtendedAttributes());
+		new_attributes.put(TRANSMISSION_PROBABILITY_TAG_NAME, NO_TRANSMISSION_PROB);
+		
+		gb.attributes(new_attributes);
+
+		return gb.make();
+		
 	}
 
 	// update output statistics
@@ -2438,6 +2517,14 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
 		VariantContextBuilder builder = new VariantContextBuilder(vc);
 
         GenotypesContext genotypesContext = GenotypesContext.copy(vc.getGenotypes());
+        
+        
+        List<String> nonProcessedSamples = new ArrayList<>(genotypesContext.getSampleNames()); // save all the samples not involved in any trio to add a null TP tag, for consistency, separately at the end
+        nonProcessedSamples.removeAll(founderIds);
+        nonProcessedSamples.removeAll(childIds);
+        
+        // System.out.printf("After extracting the ped trios, %d samples are left, that will be added a fake TP tag\n", nonProcessedSamples.size());
+        // System.out.println(Arrays.toString(nonProcessedSamples.toArray()));
 		for (Sample sample : trios) 
 		{
 			mvfLine="";
@@ -2457,17 +2544,7 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
             Genotype phasedFather = trioGenotypes.getPhasedFather();
             Genotype phasedChild = trioGenotypes.getPhasedChild();
             
-            
-            /*
-            if (child.hasAnyAttribute(ReadBackedPhasing.HP_KEY))
-            {
-            		System.out.printf("TEST: RBP tag for child: %s\n", child.getAnyAttribute(ReadBackedPhasing.HP_KEY).toString());
-            }
-            else
-            {
-            	System.out.println("TEST: no RBP tag");
-            }
-            */
+
             if ( assignPO == 0 )
             {
             	String parentalAssignment = "unknown";
@@ -2528,9 +2605,6 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
             //    mvFile.println(mvfLine);
             
             //Fill the genotype map with the new genotypes and increment metrics counters
-            //genotypesContext.replace(phasedChild);
-            //System.out.printf("mother DP:%s\tmother AD:%s, %d,%d\n", mother.getAnyAttribute("DP"), mother.getAttributeAsString("AD","mata"), mother.getAD()[0],mother.getAD()[1]);
-            //System.out.printf("mother DP:%s\tmother AD:%s, %d,%d\n\n", phasedMother.getAnyAttribute("DP"), phasedMother.getAttributeAsString("AD", "mata"), phasedMother.getAD()[0], phasedMother.getAD()[1]);
             if(mother != null)
             {
                 genotypesContext.replace(phasedMother);
@@ -2583,7 +2657,13 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
             //Report violation if set so
             //if(mother != null && father != null && mother.isCalled() && father.isCalled() && trioGenotypes.isMV() && mvFile != null)
             //    mvFile.println(mvfLine);
-            }
+		}
+		for (int i=0; i < nonProcessedSamples.size(); i++)
+		{
+			String npSample = nonProcessedSamples.get(i);
+			genotypesContext.replace(addNullTransmissionPosteriorTag(genotypesContext.get(npSample)));
+		}
+		
 		/*
 		if (fake_hets != 0)
 		{
@@ -3165,3 +3245,14 @@ public class PhaseByTransmission extends RodWalker<HashMap<Byte,Double>, HashMap
     		
     }
 }
+
+
+
+
+
+
+
+
+
+
+
