@@ -1,0 +1,427 @@
+<script type="text/javascript">
+    mqc_config = {}
+
+</script>
+
+</head>
+
+<body>
+
+<div class="side-nav-wrapper">
+    <div class="side-nav">
+        <h1>
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target=".mqc-nav, .mqc-toolbox">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a href="#">VariantQC
+                <br class="hidden-xs">
+                <small class="hidden-xs">v0.1</small>
+            </a>
+        </h1>
+
+        <ul class="mqc-nav collapse navbar-collapse">
+
+        </ul>
+    </div>
+    <!-- Nav Width Toggle Button -->
+    <div id="side-nav-handle"><span class="glyphicon glyphicon-triangle-left" aria-hidden="true"></span></div>
+</div>
+
+
+
+<div class="mqc-toolbox collapse">
+
+    <!-- Toolbar show/hide buttons -->
+    <div class="mqc-toolbox-buttons hidden-xs">
+        <a class="mqc-toolbox-label" href="#mqc_cols" title="Open Toolbox">Toolbox</a>
+        <ul>
+            <li><a href="#mqc_cols" title="Highlight" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-pushpin"></span></a></li>
+            <li><a href="#mqc_renamesamples" title="Rename" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-font"></span></a></li>
+            <li><a href="#mqc_hidesamples" title="Hide" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-eye-close"></span></a></li>
+            <li><a href="#mqc_exportplots" title="Export" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-download-alt"></span></a></li>
+            <li><a href="#mqc_saveconfig" title="Save" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-floppy-disk"></span></a></li>
+            <li><a href="#mqc_about" title="About" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-question-sign"></span></a></li>
+        </ul>
+    </div>
+
+
+    <div class="mqc-toolbox-wrapper">
+        <!-- Header - always visible -->
+        <div class="mqc-toolbox-header hidden-xs">
+            <h3>Toolbox</h3>
+        </div>
+
+        <!-- Highlighting -->
+        <div id="mqc_cols" class="mqc_filter_section">
+            <h4>
+                <button id="mqc_cols_apply" class="btn btn-xs btn-default pull-right" disabled>Apply</button>
+                Highlight Samples
+            </h4>
+
+            <form class="form-inline" id="mqc_color_form">
+                <input id="mqc_colour_filter" type="text" placeholder="Custom Pattern" class="form-control input-sm">
+                <input id="mqc_colour_filter_color" type="color" value="#e41a1c" class="form-control input-sm">
+                <button type="submit" id="mqc_colour_filter_update" class="btn btn-default btn-sm">+</button>
+            </form>
+            <p class="mqc_regex_mode_p">
+                <span class="mqc_switch_wrapper mqc_regex_mode">Regex mode <span class="mqc_switch re_mode off">off</span></span>
+                <button class="btn btn-sm btn-link" data-toggle="modal" data-target="#regex_help_modal">help</button>
+                <button class="btn btn-default btn-xs mqc_toolbox_clear"><span class="glyphicon glyphicon-trash"></span> Clear</button>
+            </p>
+            <ul id="mqc_col_filters" class="mqc_filters"></ul>
+        </div>
+
+        <!-- Renaming -->
+        <div id="mqc_renamesamples" class="mqc_filter_section">
+            <h4>
+                <button id="mqc_rename_apply" class="btn btn-xs btn-default pull-right" disabled>Apply</button>
+                Rename Samples
+            </h4>
+
+            <form class="form-inline" id="mqc_renamesamples_form">
+                <input id="mqc_renamesamples_from" type="text" placeholder="From" class="form-control input-sm">
+                <input id="mqc_renamesamples_to" type="text" placeholder="To" class="form-control input-sm">
+                <button type="submit" id="mqc_renamesamples_filter_update" class="btn btn-default btn-sm">+</button>
+            </form>
+            <p><a data-toggle="collapse" href="#mqc_renamesamples_bulk_collapse">Click here for bulk input.</a></p>
+            <div class="collapse" id="mqc_renamesamples_bulk_collapse">
+                <p>Paste two columns of a tab-delimited table here (eg. from Excel).</p>
+                <p>First column should be the old name, second column the new name.</p>
+                <form id="mqc_renamesamples_bulk_form">
+                    <textarea class="form-control" rows="5"></textarea>
+                    <button type="submit" id="mqc_renamesamples_bulk_update" class="btn btn-default btn-sm">Add</button>
+                </form>
+            </div>
+            <p class="mqc_regex_mode_p">
+                <span class="mqc_switch_wrapper mqc_regex_mode">Regex mode <span class="mqc_switch re_mode off">off</span></span>
+                <button class="btn btn-sm btn-link" data-toggle="modal" data-target="#regex_help_modal">help</button>
+                <button class="btn btn-default btn-xs mqc_toolbox_clear"><span class="glyphicon glyphicon-trash"></span> Clear</button>
+            </p>
+            <ul id="mqc_renamesamples_filters" class="mqc_filters"></ul>
+        </div>
+
+        <!-- Hiding -->
+        <div id="mqc_hidesamples" class="mqc_filter_section">
+            <h4>
+                <button id="mqc_hide_apply" class="btn btn-xs btn-default pull-right" disabled>Apply</button>
+                Show / Hide Samples
+            </h4>
+
+            <form id="mqc_hidesamples_form">
+                <div class="radio input-sm">
+                    <label><input type="radio" name="mqc_hidesamples_showhide" class="mqc_hidesamples_showhide" value="hide" checked> Hide matching samples</label>
+                </div>
+                <div class="radio input-sm">
+                    <label><input type="radio" name="mqc_hidesamples_showhide" class="mqc_hidesamples_showhide" value="show"> Show only matching samples</label>
+                </div>
+                <div class="form-inline">
+                    <input id="mqc_hidesamples_filter" type="text" placeholder="Custom Pattern" class="form-control input-sm">
+                    <button type="submit" id="mqc_hidesamples_filter_update" class="btn btn-default btn-sm">+</button>
+                </div>
+            </form>
+
+            <p class="mqc_regex_mode_p">
+                <span class="mqc_switch_wrapper mqc_regex_mode">Regex mode <span class="mqc_switch re_mode off">off</span></span>
+                <button class="btn btn-sm btn-link" data-toggle="modal" data-target="#regex_help_modal">help</button>
+                <button class="btn btn-default btn-xs mqc_toolbox_clear"><span class="glyphicon glyphicon-trash"></span> Clear</button>
+            </p>
+            <ul id="mqc_hidesamples_filters" class="mqc_filters"></ul>
+        </div>
+
+        <!-- Export Plots -->
+        <div id="mqc_exportplots" class="mqc_filter_section">
+            <h4>Export Plots</h4>
+            <form>
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="active"><a href="#mqc_image_download" data-toggle="tab">Images</a></li>
+                    <li><a href="#mqc_data_download" data-toggle="tab">Data</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div role="tabpanel" class="tab-pane fade in active" id="mqc_image_download">
+                        <div class="row">
+                            <div class="form-group col-sm-6">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control input-sm" id="mqc_exp_width" placeholder="Width" value="1200">
+                                    <span class="input-group-addon">px</span>
+                                </div>
+                            </div>
+                            <div class="form-group col-sm-6">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control input-sm" id="mqc_exp_height" placeholder="Height" value="800">
+                                    <span class="input-group-addon">px</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="form-group col-sm-6 checkbox">
+                                <label><input type="checkbox" id="mqc_export_aspratio" checked> Aspect ratio</label>
+                            </div>
+                            <div class="form-group col-sm-6">
+                                <select id="mqc_export_ft" class="form-control input-sm">
+                                    <option value="image/png">PNG</option>
+                                    <option value="image/jpeg">JPEG</option>
+                                    <option value="image/svg+xml">SVG</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-6 checkbox">
+                                <label for="mqc_export_scaling">Plot scaling</label>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="mqc_export_scaling" placeholder="Scale" value="2">
+                                    <span class="input-group-addon">X</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div role="tabpanel" class="tab-pane fade" id="mqc_data_download">
+                        <p>Download the raw data used to create the plots in this report below:</p>
+                        <div class="row">
+                            <div class="form-group col-sm-4 checkbox">
+                                <label>Format:</label>
+                            </div>
+                            <div class="form-group col-sm-8">
+                                <select id="mqc_export_data_ft" class="form-control input-sm">
+                                    <option value="tsv">Tab-separated</option>
+                                    <option value="csv">Comma-separated</option>
+                                    <option value="json">JSON</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <p>Note that additional data was saved in <code>variantqc_data</code> when this report was generated.</p>
+
+                        <div id="mqc_export_data_log"></div>
+                    </div>
+                </div>
+
+                <hr>
+                <h5>Choose Plots</h5>
+                <button class="btn btn-sm btn-default" id="mqc_export_sall"><span class="glyphicon glyphicon-check"></span> All</button>
+                <button class="btn btn-sm btn-default" id="mqc_export_snone"><span class="glyphicon glyphicon-unchecked"></span> None</button>
+                <div id="mqc_export_selectplots"></div>
+
+                <hr>
+                <button type="submit" class="btn btn-block btn-default"><span class="glyphicon glyphicon-download-alt"></span> &nbsp; Download Plot <span id="mqc-dl-plot-txt">Images</span></button>
+                <p><small>This report is based heavily on MultiQC.  If you use plots from VariantQC in a publication or presentation, please cite:</small></p>
+                <blockquote>
+                    <strong>MultiQC: Summarize analysis results for multiple tools and samples in a single report</strong><br>
+                    <em>Philip Ewels, M&aring;ns Magnusson, Sverker Lundin and Max K&auml;ller</em><br>
+                    Bioinformatics (2016)<br>
+                    doi: <a href="http://dx.doi.org/10.1093/bioinformatics/btw354" target="_blank">10.1093/bioinformatics/btw354</a><br>
+                    PMID: <a href="http://www.ncbi.nlm.nih.gov/pubmed/27312411" target="_blank">27312411</a>
+                </blockquote>
+            </form>
+        </div>
+
+        <!-- Save Config -->
+        <div id="mqc_saveconfig" class="mqc_filter_section">
+            <h4>Save Settings</h4>
+            <p>You can save the toolbox settings for this report to the browser.</p>
+            <form class="form-inline" id="mqc_saveconfig_form">
+                <input type="text" class="form-control input-sm" placeholder="Config Name">
+                <button type="submit" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-floppy-disk"></span> Save</button>
+            </form>
+            <hr>
+
+            <h4>Load Settings</h4>
+            <p>Choose a saved report profile from the dropdown box below:</p>
+            <form id="mqc_loadconfig_form">
+                <div class="form-group">
+                    <select class="form-control input-sm">
+                        <option value="">[ select ]</option>
+                    </select>
+                </div>
+                <div class="form-group actions">
+                    <button type="submit" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-floppy-open"></span> Load</button>
+                    <button class="mqc_config_clear btn btn-sm btn-default"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Help / About -->
+        <div id="mqc_about" class="mqc_filter_section">
+            <h4>About MultiQC</h4>
+            <p>This report was generated using MultiQC, version 0.9</p>
+            <p>You can see a YouTube video describing how to use MultiQC reports here:
+                <a href="https://youtu.be/qPbIlO_KWN0?list=PLIA2-lqNuhvFGAsB92N0v7Qi5xCxCNsYM" target="_blank">https://youtu.be/qPbIlO_KWN0</a></p>
+            <p>For more information about MultiQC, including other videos and
+                extensive documentation, please visit <a href="http://multiqc.info/?ref=mqc_report" target="_blank">http://multiqc.info</a></p>
+            <p>You can report bugs, suggest improvements and find the source code for MultiQC on GitHub:
+                <a href="https://github.com/ewels/MultiQC" target="_blank">https://github.com/ewels/MultiQC</a></p>
+            <p>MultiQC is published in Bioinformatics:</p>
+            <blockquote>
+                <strong>MultiQC: Summarize analysis results for multiple tools and samples in a single report</strong><br>
+                <em>Philip Ewels, M&aring;ns Magnusson, Sverker Lundin and Max K&auml;ller</em><br>
+                Bioinformatics (2016)<br>
+                doi: <a href="http://dx.doi.org/10.1093/bioinformatics/btw354" target="_blank">10.1093/bioinformatics/btw354</a><br>
+                PMID: <a href="http://www.ncbi.nlm.nih.gov/pubmed/27312411" target="_blank">27312411</a>
+            </blockquote>
+        </div>
+
+    </div>
+    <a href="#top" class="mqc-toplink hidden-xs" title="Go to top"><span class="glyphicon glyphicon-chevron-up"></span></a>
+</div>
+<script type="text/javascript">var report_id = 'mqc_report_${reportId}'; </script>
+
+
+<div class="mainpage">
+
+
+
+    <h1 id="page_title">
+
+        <a href="${variantQC_URL}" target="_blank">
+            VariantQC
+        </a>
+    </h1>
+
+
+
+    <p class="lead">
+        This report was generated by VariantQC, a prototype tool to generate summary stats from VCFs.
+    </p>
+
+
+
+
+
+
+    <div id="analysis_dirs_wrapper">
+        <p id="dateTime"></p>
+    </div>
+
+
+
+
+
+
+</div>
+
+<div class="footer">
+    <div class="container-fluid">
+        <p>
+            <strong>
+                <a href="#" target="_blank">VariantQC v0.1</a>
+            </strong>
+            - Written by Ben Bimber and Melissa Yan,
+            available on <a href="${variantQC_URL}" target="_blank">GitHub</a>.
+        </p>
+        <p>
+            This report uses
+            <a href="https://github.com/ewels/MultiQC/" target="_blank">MultiQC</a>,
+            <a href="http://www.highcharts.com/" target="_blank">HighCharts</a>,
+            <a href="https://jquery.com/" target="_blank">jQuery</a>,
+            <a href="https://jqueryui.com/" target="_blank">jQuery UI</a>,
+            <a href="http://getbootstrap.com/" target="_blank">Bootstrap</a>,
+            <a href="https://github.com/gka/chroma.js" target="_blank">chroma.js</a>,
+            <a href="https://github.com/eligrey/FileSaver.js" target="_blank">FileSaver.js</a> and
+            <a href="https://clipboardjs.com/" target="_blank">clipboard.js</a>.
+        </p>
+    </div>
+</div>
+
+
+
+
+<!-- Table Scatter Plot Modal -->
+<div class="modal fade" id="tableScatterModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h3 class="modal-title">Plot Table Data</h3>
+            </div>
+            <div class="modal-body">
+                <form id="tableScatterForm">
+                    <input type="hidden" id="tableScatter_tid" name="tableScatter_tid" value="" />
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <select id="tableScatter_col1" name="tableScatter_col1" class="form-control">
+                                <option value="">Select Column</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <select id="tableScatter_col2" name="tableScatter_col2" class="form-control">
+                                <option value="">Select Column</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="hc-plot-wrapper">
+                        <div id="tableScatterPlot" class="hc-plot not_rendered hc-scatter-plot no-handle" style="width:566px; height: 510px;">
+                            <small>Please select two table columns.</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Regex Help Modal -->
+<div class="modal fade" id="regex_help_modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h3 class="modal-title">Regex Help</h3>
+            </div>
+            <div class="modal-body">
+                <p>Toolbox search strings can behave as regular expressions (regexes). Click a button below to see an example of it in action. Try modifying them yourself in the text box.</p>
+                <div class="row">
+                    <div class="col-sm-6 regex_example_buttons">
+                        <button class="btn btn-default" data-example="^samp_1"><code>^</code> (start of string)</button>
+                        <button class="btn btn-default" data-example="samp_1$"><code>$</code> (end of string)</button>
+                        <button class="btn btn-default" data-example="samp_[13]"><code>[]</code> (character choice)</button>
+                        <button class="btn btn-default" data-example="\d$"><code>\d</code> (shorthand for <code>[0-9]</code>)</button>
+                        <button class="btn btn-default" data-example="^\w"><code>\w</code> (shorthand for <code>[0-9a-zA-Z_]</code>)</button>
+                        <button class="btn btn-default" data-example="._samp"><code>.</code> (any character)</button>
+                        <button class="btn btn-default" data-example="\."><code>\.</code> (literal full stop)</button>
+                        <button class="btn btn-default" data-example="(tmp|prepended)_samp"><code>()</code> <code>|</code> (group / separator)</button>
+                        <button class="btn btn-default" data-example="tmpp*_"><code>*</code> (prev char 0 or more)</button>
+                        <button class="btn btn-default" data-example="tmpp+_"><code>+</code> (prev char 1 or more)</button>
+                        <button class="btn btn-default" data-example="tmpp?_"><code>?</code> (prev char 0 or 1)</button>
+                        <button class="btn btn-default" data-example="_1{5}"><code>{}</code> (char num times)</button>
+                        <button class="btn btn-default" data-example="_1{2,5}"><code>{,}</code> (count range)</button>
+                    </div>
+                    <div class="col-sm-6 regex_example_demo">
+                        <input type="text" class="form-control" />
+                        <pre>
+<span>samp_1</span>
+<span>samp_1_edited</span>
+<span>samp_2</span>
+<span>samp_2_edited</span>
+<span>samp_3</span>
+<span>samp_3_edited</span>
+<span>prepended_samp_1</span>
+<span>tmp_samp_1_edited</span>
+<span>tmpp_samp_1_edited</span>
+<span>tmppp_samp_1_edited</span>
+<span>#samp_1_edited.tmp</span>
+<span>samp_11</span>
+<span>samp_11111</span>
+</pre>
+                        <p>See <a href="https://regex101.com/" target="_blank">regex101.com</a> for a more heavy duty testing suite.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
