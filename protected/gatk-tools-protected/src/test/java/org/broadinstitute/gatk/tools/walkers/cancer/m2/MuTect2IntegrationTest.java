@@ -138,7 +138,7 @@ public class MuTect2IntegrationTest extends WalkerTest {
     public void testTruePositivesDream3TrackedDropped() {
         M2TestWithDroppedReads(DREAM3_TUMOR_BAM, DREAM3_NORMAL_BAM, "21:10935369", "",
                 "48a446d47bb10434cb7f0ee726d15721",
-                "b536e76870326b4be01b8d6b83c1cf1c");
+                "6ecaeb74893249dfa5723b2266c957e2");
     }
 
     /**

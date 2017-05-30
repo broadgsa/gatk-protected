@@ -51,6 +51,10 @@
 
 package org.broadinstitute.gatk.tools.walkers.haplotypecaller;
 
+import htsjdk.samtools.SAMProgramRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.tribble.AbstractFeatureReader;
@@ -64,6 +68,7 @@ import org.apache.commons.io.FileUtils;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import org.broadinstitute.gatk.utils.GenomeLoc;
 import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.MD5DB;
 import org.broadinstitute.gatk.utils.collections.Pair;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
 import org.broadinstitute.gatk.utils.exceptions.UserException;
@@ -107,9 +112,30 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         executeTest("testHaplotypeCallerBamout", spec);
     }
 
+    /**
+     * Check that the bamout program records (@PG) contain all of the program records forwarded from the input BAMs
+     */
+    private void validateForwardedProgramRecords(final List<File> bamInFiles, final String bamOutMd5) throws FileNotFoundException {
+        final List<SAMProgramRecord> bamInProgramRecords = new ArrayList<>();
+        for (final File file : bamInFiles) {
+            final SamReader bamInReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(file);
+            bamInProgramRecords.addAll(bamInReader.getFileHeader().getProgramRecords());
+        }
+        final String bamOutFilePath = new MD5DB().getMD5FilePath(bamOutMd5, null);
+        if (bamOutFilePath == null) {
+            throw new FileNotFoundException("Could not find " + bamOutMd5 + " in the MD5 DB");
+        }
+        final SamReader bamOutReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).
+                open(new File(bamOutFilePath));
+        final List<SAMProgramRecord> bamOutProgramRecords = bamOutReader.getFileHeader().getProgramRecords();
+        Assert.assertTrue(bamOutProgramRecords.containsAll(bamInProgramRecords));
+    }
+
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "6588123afd06ff6acc9f10ea25250f54", "9d6bd79cdae3e3222fa93f542fbca153");
+        final String md5BAMOut = "69aae17f8cd384666ec7c3c1f3d3eb57";
+        HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "6588123afd06ff6acc9f10ea25250f54", md5BAMOut);
+        validateForwardedProgramRecords(new ArrayList<>(Arrays.asList(new File(NA12878_BAM))), md5BAMOut);
     }
 
     @Test
@@ -301,13 +327,14 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     private static final String LEFT_ALIGNMENT_BAMOUT_TEST_OUTPUT = privateTestDir + "/bamout-indel-left-align-bugfix-expected-output.bam";
 
     @Test
-    public void testLeftAlignmentBamOutBugFix() {
+    public void testLeftAlignmentBamOutBugFix() throws FileNotFoundException {
+        final String md5BAMOut = "27e729df3b166c81792a62a5b57ef7b3";
         final String base = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
                 + " --no_cmdline_in_header -bamout %s -o /dev/null -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
-        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList("01deba68f7a7d562b0e466f6858d42e3"));
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(md5BAMOut));
         executeTest("LeftAlignmentBamOutBugFix", spec);
+        validateForwardedProgramRecords(new ArrayList<>(Arrays.asList(new File(LEFT_ALIGNMENT_BAMOUT_TEST_INPUT))), md5BAMOut);
     }
-
 
     // --------------------------------------------------------------------------------------------------------------
     //
@@ -513,11 +540,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerReadPosRankSum() throws IOException {
         final File testBAM = new File(privateTestDir + "testReadPos.snippet.bam");
         final String md5Variants = "03b3c464f22a3572f7d66890c18bdda4";
-        final String md5BAMOut = "2e0843f6e8e90c407825e9c47ce4a32d";
+        final String md5BAMOut = "3ef35732e49980093ad445e3ac5731fa";
         final String base = String.format("-T HaplotypeCaller -R %s -I %s -L 1:3753063 -ip 100 ", REF, testBAM) +
                 " --no_cmdline_in_header -o %s -bamout %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5Variants, md5BAMOut));
         executeTest("testHaplotypeCallerReadPosRankSum", spec);
+        validateForwardedProgramRecords(new ArrayList<File>(Arrays.asList(testBAM)), md5BAMOut);
     }
 
     @Test
