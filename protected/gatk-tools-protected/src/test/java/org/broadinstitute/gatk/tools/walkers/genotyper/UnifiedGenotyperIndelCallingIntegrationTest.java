@@ -204,8 +204,10 @@ public class UnifiedGenotyperIndelCallingIntegrationTest extends WalkerTest {
     // No testing of MD5 here, we previously blew up due to a 0 length haplotypes, so we just need to pass
     @Test
     public void testHaplotype0Length() {
+        final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
-                "-T UnifiedGenotyper --disableDithering -I " + privateTestDir + "haplotype0.bam -L 20:47507681 -R " + b37KGReference + " -baq CALCULATE_AS_NECESSARY -glm BOTH -o /dev/null",
+                "-T UnifiedGenotyper --disableDithering -I " + privateTestDir + "haplotype0.bam -L 20:47507681 -R " + b37KGReference +
+                        " -baq CALCULATE_AS_NECESSARY -glm BOTH -o " + outputVCF,
                 0,
                 Collections.<String>emptyList());
         executeTest("testHaplotype0Length", spec);

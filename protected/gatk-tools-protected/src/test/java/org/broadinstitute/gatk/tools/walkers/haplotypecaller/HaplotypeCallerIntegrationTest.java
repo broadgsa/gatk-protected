@@ -297,7 +297,8 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void HCTestDoesNotFailOnBadRefBase() {
         // don't care about the output - just want to make sure it doesn't fail
-        final String base = String.format("-T HaplotypeCaller --disableDithering -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o /dev/null -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2";
+        final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
+        final String base = String.format("-T HaplotypeCaller --disableDithering -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, privateTestDir + "NA12878.readsOverBadBase.chr3.bam") + " --no_cmdline_in_header -o " + outputVCF + " -L 3:60830000-60840000 --minPruning 3 -stand_call_conf 2";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Collections.<String>emptyList());
         executeTest("HCTestDoesNotFailOnBadRefBase: ", spec);
     }
@@ -328,9 +329,10 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testLeftAlignmentBamOutBugFix() throws FileNotFoundException {
+        final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
         final String md5BAMOut = "27e729df3b166c81792a62a5b57ef7b3";
         final String base = String.format("-T HaplotypeCaller -pairHMMSub %s %s -R %s -I %s", HMM_SUB_IMPLEMENTATION, ALWAYS_LOAD_VECTOR_HMM, REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
-                + " --no_cmdline_in_header -bamout %s -o /dev/null -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
+                + " --no_cmdline_in_header -bamout %s -o " + outputVCF  + " -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(md5BAMOut));
         executeTest("LeftAlignmentBamOutBugFix", spec);
         validateForwardedProgramRecords(new ArrayList<>(Arrays.asList(new File(LEFT_ALIGNMENT_BAMOUT_TEST_INPUT))), md5BAMOut);
