@@ -53,6 +53,7 @@ package org.broadinstitute.gatk.utils.pairhmm;
 
 import com.intel.gkl.pairhmm.IntelPairHmm;
 import com.intel.gkl.pairhmm.IntelPairHmmOMP;
+import com.intel.gkl.pairhmm.IntelPairHmmFpga;
 import org.apache.log4j.Logger;
 import org.broadinstitute.gatk.nativebindings.pairhmm.HaplotypeDataHolder;
 import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
@@ -85,7 +86,9 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
         /* Use AVX acceleration */
         AVX,
         /* Use AVX acceleration with mult-threading via OpenMP */
-        OMP
+        OMP,
+        /* Use FPGA acceleration */
+        FPGA
     }
 
     protected final static Logger logger = Logger.getLogger(VectorLoglessPairHMM.class);
@@ -112,6 +115,15 @@ public class VectorLoglessPairHMM extends JNILoglessPairHMM {
                     throw new UserException.HardwareFeatureException("Machine does not support OpenMP AVX PairHMM.");
                 }
                 logger.info("Using OpenMP multi-threaded AVX-accelerated native PairHMM implementation");
+                break;
+
+            case FPGA:
+                pairHmm = new IntelPairHmmFpga();
+                isSupported = pairHmm.load(null);
+                if (!isSupported) {
+                    throw new UserException.HardwareFeatureException("Machine does not support FPGA PairHMM.");
+                }
+                logger.info("Using FPGA-accelerated native PairHMM implementation");
                 break;
 
             default:

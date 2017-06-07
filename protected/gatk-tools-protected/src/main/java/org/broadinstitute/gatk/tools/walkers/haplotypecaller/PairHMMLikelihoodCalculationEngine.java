@@ -101,6 +101,8 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                     return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.AVX, pairHmmNativeArgs);
                 case VECTOR_LOGLESS_CACHING_OMP:
                     return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.OMP, pairHmmNativeArgs);
+                case VECTOR_LOGLESS_CACHING_FPGA_EXPERIMENTAL:
+                    return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.FPGA, pairHmmNativeArgs);
                 case FASTEST_AVAILABLE:
                     try {
                         return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.OMP, pairHmmNativeArgs);
@@ -125,7 +127,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                 default:
                     throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or " +
                         "incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, " +
-                        "VECTOR_LOGLESS_CACHING, VECTOR_LOGLESS_CACHING_OMP, and ARRAY_LOGLESS.");
+                        "VECTOR_LOGLESS_CACHING, VECTOR_LOGLESS_CACHING_OMP, VECTOR_LOGLESS_CACHING_FPGA_EXPERIMENTAL, and ARRAY_LOGLESS.");
             }
         }
     };
