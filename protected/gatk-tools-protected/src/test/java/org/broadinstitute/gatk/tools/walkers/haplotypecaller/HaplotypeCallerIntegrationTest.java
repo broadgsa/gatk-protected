@@ -113,11 +113,12 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     /**
      * Check that the bamout program records (@PG) contain all of the program records forwarded from the input BAMs
      */
-    private void validateForwardedProgramRecords(final List<File> bamInFiles, final String bamOutMd5) throws FileNotFoundException {
+    private void validateForwardedProgramRecords(final List<File> bamInFiles, final String bamOutMd5) throws IOException {
         final List<SAMProgramRecord> bamInProgramRecords = new ArrayList<>();
         for (final File file : bamInFiles) {
             final SamReader bamInReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(file);
             bamInProgramRecords.addAll(bamInReader.getFileHeader().getProgramRecords());
+            bamInReader.close();
         }
         final String bamOutFilePath = new MD5DB().getMD5FilePath(bamOutMd5, null);
         if (bamOutFilePath == null) {
@@ -126,6 +127,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
         final SamReader bamOutReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).
                 open(new File(bamOutFilePath));
         final List<SAMProgramRecord> bamOutProgramRecords = bamOutReader.getFileHeader().getProgramRecords();
+        bamOutReader.close();
         Assert.assertTrue(bamOutProgramRecords.containsAll(bamInProgramRecords));
     }
 
@@ -326,7 +328,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     private static final String LEFT_ALIGNMENT_BAMOUT_TEST_OUTPUT = privateTestDir + "/bamout-indel-left-align-bugfix-expected-output.bam";
 
     @Test
-    public void testLeftAlignmentBamOutBugFix() throws FileNotFoundException {
+    public void testLeftAlignmentBamOutBugFix() throws IOException {
         final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
         final String md5BAMOut = "27e729df3b166c81792a62a5b57ef7b3";
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
