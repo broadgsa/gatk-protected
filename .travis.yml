@@ -5,5 +5,21 @@ git:
   depth: 9999999
 jdk:
   - openjdk8
+install:
+  - mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V -P\!queue
 script:
-  - mvn clean verify
+  - export JARNAME="VariantQC"
+  - mvn -Dgatk.binary-dist.name=$JARNAME clean verify -P\!queue
+
+before_deploy:
+  - echo ${TRAVIS_TAG}
+  - mv target/VariantQC.jar target/VariantQC-${TRAVIS_TAG}.jar
+
+deploy:
+  provider: releases
+  api_key: "${GH_TOKEN}"
+  file:
+    - target/VariantQC-${TRAVIS_TAG}.jar
+  skip_cleanup: true
+  on:
+    tags: true
