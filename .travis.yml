@@ -17,8 +17,7 @@ before_deploy:
 
 deploy:
   provider: releases
-  api_key:
-    secure: ${GH_TOKEN}
+  api_key: ${GH_TOKEN}
   file:
     - target/VariantQC-${TRAVIS_TAG}.jar
   skip_cleanup: true
