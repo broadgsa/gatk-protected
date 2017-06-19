@@ -7,6 +7,7 @@ import org.broadinstitute.gatk.utils.report.GATKReportTable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by bimber on 5/12/2017.
@@ -28,8 +29,8 @@ public class SectionJsonDescriptor {
         this.stratifications = Arrays.asList(stratifications);
     }
 
-    public void addReportDescriptor(ReportDescriptor rd, GATKReportTable table){
-        rd.bindSection(this, table);
+    public void addReportDescriptor(ReportDescriptor rd, GATKReportTable table, Map<String, String> descriptionMap){
+        rd.bindSection(this, table, descriptionMap);
         rds.add(rd);
     }
 

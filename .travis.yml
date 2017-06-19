@@ -1,0 +1,9 @@
+language: java
+sudo: required
+dist: trusty
+git:
+  depth: 9999999
+jdk:
+  - openjdk8
+script:
+  - mvn clean verify

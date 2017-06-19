@@ -5,7 +5,11 @@ import org.broadinstitute.gatk.engine.arguments.DbsnpArgumentCollection;
 import org.broadinstitute.gatk.engine.arguments.StandardVariantContextInputArgumentCollection;
 import org.broadinstitute.gatk.engine.walkers.*;
 import org.broadinstitute.gatk.tools.walkers.varianteval.VariantEval;
+import org.broadinstitute.gatk.tools.walkers.varianteval.evaluators.VariantEvaluator;
+import org.broadinstitute.gatk.tools.walkers.varianteval.util.AnalysisModuleScanner;
+import org.broadinstitute.gatk.tools.walkers.varianteval.util.DataPoint;
 import org.broadinstitute.gatk.utils.classloader.JVMUtils;
+import org.broadinstitute.gatk.utils.classloader.PluginManager;
 import org.broadinstitute.gatk.utils.commandline.ArgumentCollection;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.utils.commandline.RodBinding;
@@ -35,20 +39,54 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
     protected PrintStream out;
 
     protected VariantEvalWrapper[] wrappers = new VariantEvalWrapper[]{
-            //TODO: add MendelianViolationEvaluator, SiteFilterSummary?
+            // TODO: we need to add evaluators that track specific JEXL expressions, such as:
+            // # mendelian violations / site, which we plot as a histogram.  perhaps also AF, as histogram
+            // We should be able to implement this as either:
+            // a) some type of generic VariantEvaluator class accepting a JEXL expression that will return a number.  the problem here is we dont know the states upfront.
+            // b) an alternative could be to skip VariantEval and write a new standalone HistogramWalker class.  We would need to maintain a separate internal set of these; however, I could imagine this tool being generically useful.
+
             new VariantEvalWrapper("Entire VCF", new String[]{"EvalRod"}, new String[]{"CountVariants", "IndelSummary", "TiTvVariantEvaluator", "GenotypeFilterSummary"}, new ReportDescriptor[]{
-                    TableReportDescriptor.getCountVariantsTable(),
+                    TableReportDescriptor.getCountVariantsTable(true),
                     BarPlotReportDescriptor.getVariantTypeBarPlot(),
+                    TableReportDescriptor.getIndelTable(),
+                    new TableReportDescriptor("Ti/Tv Data", "TiTvVariantEvaluator"),
+                    new TableReportDescriptor("Genotype Summary", "GenotypeFilterSummary")
             }),
-            new VariantEvalWrapper("By Contig", new String[]{"Contig"}, new String[]{"CountVariants", "IndelSummary", "TiTvVariantEvaluator", "GenotypeFilterSummary"}, new ReportDescriptor[]{
-                    TableReportDescriptor.getCountVariantsTable(),
-                    BarPlotReportDescriptor.getVariantTypeBarPlot()
+            new VariantEvalWrapper("By Contig", new String[]{"Contig"}, new String[]{"CountVariants", "IndelSummary", "GenotypeFilterSummary"}, new ReportDescriptor[]{
+                    TableReportDescriptor.getCountVariantsTable(true),
+                    BarPlotReportDescriptor.getVariantTypeBarPlot(),
+                    TableReportDescriptor.getIndelTable(),
+                    new TableReportDescriptor("Genotype Summary", "GenotypeFilterSummary", Arrays.asList("all"))
             }),
             new VariantEvalWrapper("By Sample", new String[]{"Sample"}, new String[]{"CountVariants", "IndelSummary", "TiTvVariantEvaluator", "GenotypeFilterSummary"}, new ReportDescriptor[]{
-                    TableReportDescriptor.getCountVariantsTable(),
+                    TableReportDescriptor.getCountVariantsTable(true),
+                    BarPlotReportDescriptor.getVariantTypeBarPlot(),
+                    TableReportDescriptor.getIndelTable(),
+                    new TableReportDescriptor("Ti/Tv Data", "TiTvVariantEvaluator", Arrays.asList("all")),
+                    new TableReportDescriptor("Genotype Summary", "GenotypeFilterSummary", Arrays.asList("all"))
+            }),
+            new VariantEvalWrapper("By Sample", new String[]{"Sample", "FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
+                    new TableReportDescriptor("Sites By Filter", "CountVariants", Arrays.asList("all")),
+                    BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),
+            }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("Sample"), Arrays.asList(
+                    new PivotingTransformer.Pivot("FilterType", "nVariantLoci", null)
+            )))),
+            new VariantEvalWrapper("By Contig", new String[]{"Contig", "FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
+                    new TableReportDescriptor("Sites By Filter", "CountVariants", Arrays.asList("all")),
+                    BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),
+            }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("Contig"), Arrays.asList(
+                    new PivotingTransformer.Pivot("FilterType", "nVariantLoci", null)
+            )))),
+            new VariantEvalWrapper("By Filter Type", new String[]{"FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
+                    TableReportDescriptor.getCountVariantsTable(true),
                     BarPlotReportDescriptor.getVariantTypeBarPlot()
-            })
-            //TODO: FilterType?
+            }),
+            new VariantEvalWrapper("Entire VCF", new String[]{"EvalRod", "FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
+                    new TableReportDescriptor("Variant Summary By Filter", "CountVariants", Arrays.asList("all")),
+                    BarPlotReportDescriptor.getSiteFilterTypeBarPlot()
+            }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("EvalRod"), Arrays.asList(
+                    new PivotingTransformer.Pivot("FilterType", "nCalledLoci", null)
+            ))))
     };
 
     @Override
@@ -86,6 +124,9 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
 
             Field noSTField = VariantEval.class.getDeclaredField("NO_STANDARD_STRATIFICATIONS");
             JVMUtils.setFieldValue(noSTField, wrapper.walker, true);
+
+            Field byFilterIsEnabledField = VariantEval.class.getDeclaredField("byFilterIsEnabled");
+            JVMUtils.setFieldValue(byFilterIsEnabledField, wrapper.walker, true);
 
             //TODO: set unbound?
             Field dbSnpField= VariantEval.class.getDeclaredField("dbsnp");
@@ -134,24 +175,44 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
         }
 
         //make classes like this to translate from the GATKReportTable into the config object we need in our HTML
-        Map<String, SectionJsonDescriptor> translatorMap = new TreeMap<>();
+        Map<String, SectionJsonDescriptor> sectionMap = new LinkedHashMap<>();
+        Map<String, Class> classMap = new HashMap<>();
+        for (Class clazz : new PluginManager<VariantEvaluator>(VariantEvaluator.class).getPlugins()){
+            classMap.put(clazz.getSimpleName(), clazz);
+        }
 
         for (VariantEvalWrapper wrapper : this.wrappers) {
             try (BufferedReader sampleReader = new BufferedReader(new StringReader(new String(wrapper.out.toByteArray())))) {
                 sampleReader.readLine(); //read first GATKReport line
 
                 for (String evalModule : wrapper.evaluationModules){
-                    List<ReportDescriptor> rds = wrapper.getReportsForModule(evalModule);
                     GATKReportTable table = new GATKReportTable(sampleReader, GATKReportVersion.V1_1);
-                    if (!translatorMap.containsKey(wrapper.sectionLabel)){
-                        translatorMap.put(wrapper.sectionLabel, new SectionJsonDescriptor(wrapper.sectionLabel, wrapper.stratifications));
+                    List<ReportDescriptor> rds = wrapper.getReportsForModule(table.getTableName());
+                    Map<String, String> descriptionMap = new HashMap<>();
+                    Class evalClass = classMap.get(table.getTableName());
+                    if (evalClass != null){
+                        AnalysisModuleScanner scanner = new AnalysisModuleScanner(evalClass);
+                        Map<Field, DataPoint> fieldDataPointMap = scanner.getData();
+                        for (Field f : fieldDataPointMap.keySet()){
+                            descriptionMap.put(f.getName(), fieldDataPointMap.get(f).description());
+                        }
+                    }
+                    if (rds.isEmpty()){
+                        throw new GATKException("No report registered for GATK table: " + table.getTableName());
+                    }
+
+                    GATKReportTableTransformer transformer = wrapper.transformerMap.get(table.getTableName());
+                    if (transformer != null){
+                        table = transformer.transform(table);
+                    }
+
+                    if (!sectionMap.containsKey(wrapper.sectionLabel)){
+                        sectionMap.put(wrapper.sectionLabel, new SectionJsonDescriptor(wrapper.sectionLabel, wrapper.stratifications));
                     }
 
                     for (ReportDescriptor rd : rds){
-                        translatorMap.get(wrapper.sectionLabel).addReportDescriptor(rd, table);
+                        sectionMap.get(wrapper.sectionLabel).addReportDescriptor(rd, table, descriptionMap);
                     }
-
-
                 }
             } catch (IOException e) {
                 throw new GATKException(e.getMessage(), e);
@@ -163,8 +224,8 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
 
             //NOTE: if lambdas are used here, the walker will not be picked up by PluginManager
             // http://gatkforums.broadinstitute.org/gatk/discussion/comment/38892#Comment_38892
-            for (String key : translatorMap.keySet()) {
-                sections.add(translatorMap.get(key));
+            for (String key : sectionMap.keySet()) {
+                sections.add(sectionMap.get(key));
             }
 
             HtmlGenerator generator = new HtmlGenerator();
@@ -182,14 +243,24 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
         String[] evaluationModules;
         String sectionLabel;
         ReportDescriptor[] reportDescriptors;
+        Map<String, GATKReportTableTransformer> transformerMap;
 
-        public VariantEvalWrapper(String sectionLabel, String[] stratifications, String[] evaluationModules, ReportDescriptor[] reportDescriptors)
-        {
+        public VariantEvalWrapper(String sectionLabel, String[] stratifications, String[] evaluationModules, ReportDescriptor[] reportDescriptors){
+            this(sectionLabel, stratifications, evaluationModules, reportDescriptors, null);
+        }
+
+        public VariantEvalWrapper(String sectionLabel, String[] stratifications, String[] evaluationModules, ReportDescriptor[] reportDescriptors, List<GATKReportTableTransformer> transformers) {
             this.stratifications = stratifications;
             this.evaluationModules = evaluationModules;
             this.sectionLabel = sectionLabel;
 
             this.reportDescriptors = reportDescriptors;
+            this.transformerMap = new HashMap<>();
+            if (transformers != null){
+                for (GATKReportTableTransformer t : transformers){
+                    this.transformerMap.put(t.getEvalModuleName(), t);
+                }
+            }
         }
 
         public List<ReportDescriptor> getReportsForModule(String evalModule){

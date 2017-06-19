@@ -54,7 +54,7 @@ function updateNavPanel(navConfig){
         if (val.children.length > 1) {
             $.each(val.children, function (idx, child) {
                 newEl.find('ul').append($('<li/>', {
-                    html: '<a href="#' + child.id + '" class="nav-l2">' + child.label + '</a>'
+                    html: '<a href="#' + child.id + '_div" class="nav-l2">' + child.label + '</a>'
                 }))
             });
         }
@@ -99,7 +99,7 @@ function buildReportDiv(parentDiv, config) {
 }
 
 function buildPlotDiv(parentDiv, config, plotType, buttonCfg){
-    var html = '<hr id="' + config.id + '">' +
+    var html = '<hr><h3 id="' + config.id + '_div">' + config.label + '</h3>' +
         '<div class="mqc_hcplot_plotgroup">' +
             '<div class="btn-group hc_switch_group">' + buttonCfg + '</div>' +
             '<div class="hc-plot-wrapper">' +
@@ -122,6 +122,9 @@ var uniqID = {
             prefix = "uniqid";
         }
         var id =  prefix+""+uniqID.counter++;
+        id = id.replace(/ /g, '_');
+        id = id.replace(/\//g, '_');
+
         if($("#"+id).length == 0)
             return id;
         else

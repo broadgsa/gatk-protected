@@ -28,10 +28,7 @@ package org.broadinstitute.gatk.tools.walkers.varianteval.stratifications;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import org.broadinstitute.gatk.engine.GATKVCFUtils;
-import org.broadinstitute.gatk.engine.datasources.rmd.ReferenceOrderedDataSource;
-import org.broadinstitute.gatk.utils.commandline.RodBinding;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 
@@ -46,7 +43,9 @@ public class FilterType extends VariantStratifier {
         Set<String> filterNames = new HashSet<>();
         Map<String, VCFHeader> headers = GATKVCFUtils.getVCFHeadersFromRods(getVariantEvalWalker().getToolkit(), getVariantEvalWalker ().getEvals());
         for (VCFHeader header : headers.values()){
-            header.getFilterLines().forEach(x -> filterNames.add(x.getID()));
+            for (VCFFilterHeaderLine line : header.getFilterLines()) {
+                filterNames.add(line.getID());
+            }
         }
 
         states.addAll(filterNames);
@@ -54,6 +53,10 @@ public class FilterType extends VariantStratifier {
     }
 
     public List<Object> getRelevantStates(ReferenceContext ref, RefMetaDataTracker tracker, VariantContext comp, String compName, VariantContext eval, String evalName, String sampleName, String FamilyName) {
+        if (eval == null){
+            return Collections.emptyList();
+        }
+
         ArrayList<Object> relevantStates = new ArrayList<Object>();
         if (eval.isFiltered()){
             relevantStates.addAll(eval.getFilters());

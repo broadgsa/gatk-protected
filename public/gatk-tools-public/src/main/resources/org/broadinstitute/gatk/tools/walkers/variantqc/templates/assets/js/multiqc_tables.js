@@ -283,71 +283,135 @@ $(function () {
                 }
             });
             $('#tableScatter_tid').val($(this).data('table'));
-            $('#tableScatterPlot').html('<small>Please select two table columns.</small>').addClass('not_rendered');
+            $('#tableScatterPlot').html('<small>Please select one or two table columns.</small>').addClass('not_rendered');
         }
     });
     $('#tableScatterForm select').change(function(e){
         var tid = $('#tableScatter_tid').val();
         var col1 = $('#tableScatter_col1').val().replace('header_', '');
         var col2 = $('#tableScatter_col2').val().replace('header_', '');
-        var col1_name = $('#tableScatter_col1 option:selected').text();
-        var col2_name = $('#tableScatter_col2 option:selected').text();
-        var col1_max = parseFloat($(tid+' thead th#header_'+col1).data('dmax'));
-        var col1_min = parseFloat($(tid+' thead th#header_'+col1).data('dmin'));
-        var col2_max = parseFloat($(tid+' thead th#header_'+col2).data('dmax'));
-        var col2_min = parseFloat($(tid+' thead th#header_'+col2).data('dmin'));
-        if(isNaN(col1_max)){ col1_max = undefined; }
-        if(isNaN(col1_min)){ col1_min = undefined; }
-        if(isNaN(col2_max)){ col2_max = undefined; }
-        if(isNaN(col2_min)){ col2_min = undefined; }
-        if(col1 != '' && col2 != ''){
-            $('#tableScatterPlot').html('<small>loading..</small>');
-            if ($(tid).attr('data-title')) {
-                plot_title = $(tid).attr('data-title');
-            } else {
-                plot_title = tid.replace(/^#/, '').replace(/_/g, ' ');
-            }
-            // Get the data values
-            mqc_plots['tableScatterPlot'] = {
-                'plot_type': 'scatter',
-                'config': {
-                    'id': 'tableScatter_'+tid,
-                    'title': plot_title,
-                    'xlab': col1_name,
-                    'ylab': col2_name,
-                    'xmin': col1_min,
-                    'xmax': col1_max,
-                    'ymin': col2_min,
-                    'ymax': col2_max,
-                },
-                'datasets': [[]]
-            };
-            $(tid+' tbody tr').each(function(e){
-                var s_name = $(this).children('th.rowheader').text();
-                var val_1 = $(this).children('td.'+col1).text().replace(/[^\d\.]/g,'');
-                var val_2 = $(this).children('td.'+col2).text().replace(/[^\d\.]/g,'');
-                if(!isNaN(parseFloat(val_1)) && isFinite(val_1) && !isNaN(parseFloat(val_2)) && isFinite(val_2)){
-                    mqc_plots['tableScatterPlot']['datasets'][0].push({
-                        'name': s_name,
-                        'x': parseFloat(val_1),
-                        'y': parseFloat(val_2)
-                    });
-                }
-            });
-            if(Object.keys(mqc_plots['tableScatterPlot']['datasets'][0]).length > 0){
-                if(plot_scatter_plot('tableScatterPlot') == false){
-                    $('#tableScatterPlot').html('<small>Error: Something went wrong when plotting the scatter plot.</small>');
-                    $('#tableScatterPlot').addClass('not_rendered');
-                } else {
-                    $('#tableScatterPlot').removeClass('not_rendered');
-                }
-            } else {
-                $('#tableScatterPlot').html('<small>Error: No data pairs found for these columns.</small>');
-                $('#tableScatterPlot').addClass('not_rendered');
-            }
-        } else {
+
+        if (!col1 && !col2) {
             $('#tableScatterPlot').html('<small>Please select two table columns.</small>');
             $('#tableScatterPlot').addClass('not_rendered');
+        }
+        else if (col2) {
+            var col1_name = $('#tableScatter_col1 option:selected').text();
+            var col2_name = $('#tableScatter_col2 option:selected').text();
+            var col1_max = parseFloat($(tid + ' thead th#header_' + col1).data('dmax'));
+            var col1_min = parseFloat($(tid + ' thead th#header_' + col1).data('dmin'));
+            var col2_max = parseFloat($(tid + ' thead th#header_' + col2).data('dmax'));
+            var col2_min = parseFloat($(tid + ' thead th#header_' + col2).data('dmin'));
+            if (isNaN(col1_max)) {
+                col1_max = undefined;
+            }
+            if (isNaN(col1_min)) {
+                col1_min = undefined;
+            }
+            if (isNaN(col2_max)) {
+                col2_max = undefined;
+            }
+            if (isNaN(col2_min)) {
+                col2_min = undefined;
+            }
+            if (col1 != '' && col2 != '') {
+                $('#tableScatterPlot').html('<small>loading..</small>');
+                if ($(tid).attr('data-title')) {
+                    plot_title = $(tid).attr('data-title');
+                } else {
+                    plot_title = tid.replace(/^#/, '').replace(/_/g, ' ');
+                }
+                // Get the data values
+                mqc_plots['tableScatterPlot'] = {
+                    'plot_type': 'scatter',
+                    'config': {
+                        'id': 'tableScatter_' + tid,
+                        'title': plot_title,
+                        'xlab': col1_name,
+                        'ylab': col2_name,
+                        'xmin': col1_min,
+                        'xmax': col1_max,
+                        'ymin': col2_min,
+                        'ymax': col2_max,
+                    },
+                    'datasets': [[]]
+                };
+                $(tid + ' tbody tr').each(function (e) {
+                    var s_name = $(this).children('th.rowheader').text();
+                    var val_1 = $(this).children('td.' + col1).text().replace(/[^\d\.]/g, '');
+                    var val_2 = $(this).children('td.' + col2).text().replace(/[^\d\.]/g, '');
+                    if (!isNaN(parseFloat(val_1)) && isFinite(val_1) && !isNaN(parseFloat(val_2)) && isFinite(val_2)) {
+                        mqc_plots['tableScatterPlot']['datasets'][0].push({
+                            'name': s_name,
+                            'x': parseFloat(val_1),
+                            'y': parseFloat(val_2)
+                        });
+                    }
+                });
+                if (Object.keys(mqc_plots['tableScatterPlot']['datasets'][0]).length > 0) {
+                    if (plot_scatter_plot('tableScatterPlot') == false) {
+                        $('#tableScatterPlot').html('<small>Error: Something went wrong when plotting the scatter plot.</small>');
+                        $('#tableScatterPlot').addClass('not_rendered');
+                    } else {
+                        $('#tableScatterPlot').removeClass('not_rendered');
+                    }
+                } else {
+                    $('#tableScatterPlot').html('<small>Error: No data pairs found for these columns.</small>');
+                    $('#tableScatterPlot').addClass('not_rendered');
+                }
+            }
+        }
+        else {
+            var col1_name = $('#tableScatter_col1 option:selected').text();
+            var col1_max = parseFloat($(tid + ' thead th#header_' + col1).data('dmax'));
+            var col1_min = parseFloat($(tid + ' thead th#header_' + col1).data('dmin'));
+            if (isNaN(col1_max)) {
+                col1_max = undefined;
+            }
+            if (isNaN(col1_min)) {
+                col1_min = undefined;
+            }
+            if (col1 != '') {
+                $('#tableScatterPlot').html('<small>loading..</small>');
+                if ($(tid).attr('data-title')) {
+                    plot_title = $(tid).attr('data-title');
+                } else {
+                    plot_title = tid.replace(/^#/, '').replace(/_/g, ' ');
+                }
+                // Get the data values
+                mqc_plots['tableScatterPlot'] = {
+                    'plot_type': 'histogram',
+                    'config': {
+                        'id': 'tableScatter_' + tid,
+                        'title': plot_title,
+                        'xlab': col1_name,
+                        'xmin': col1_min,
+                        'xmax': col1_max
+                    },
+                    'datasets': [[]]
+                };
+                $(tid + ' tbody tr').each(function (e) {
+                    var s_name = $(this).children('th.rowheader').text();
+                    var val_1 = $(this).children('td.' + col1).text().replace(/[^\d\.]/g, '');
+                    if (!isNaN(parseFloat(val_1)) && isFinite(val_1)) {
+                        mqc_plots['tableScatterPlot']['datasets'][0].push({
+                            'name': s_name,
+                            'x': parseFloat(val_1)
+                        });
+                    }
+                });
+                if (Object.keys(mqc_plots['tableScatterPlot']['datasets'][0]).length > 0) {
+                    if (plot_histogram('tableScatterPlot') == false) {
+                        $('#tableScatterPlot').html('<small>Error: Something went wrong when plotting the histogram.</small>');
+                        $('#tableScatterPlot').addClass('not_rendered');
+                    } else {
+                        $('#tableScatterPlot').removeClass('not_rendered');
+                    }
+                } else {
+                    $('#tableScatterPlot').html('<small>Error: No data pairs found for this column.</small>');
+                    $('#tableScatterPlot').addClass('not_rendered');
+                }
+            }
         }
     });
 

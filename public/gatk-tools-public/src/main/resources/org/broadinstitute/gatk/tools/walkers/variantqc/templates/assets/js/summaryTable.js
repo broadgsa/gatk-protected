@@ -3,7 +3,7 @@ function generateTableHtml(config){
     var rowCount = config.data.samples.length;
     var colCount = config.data.columns.length + 1;
 
-    var html = '' +
+    var html = '<h3 id="' + config.id + '_div">' + config.label + '</h3>' +
         '<button type="button" class="mqc_table_copy_btn btn btn-default btn-sm" data-clipboard-target="#' + config.id + '">' +
         '<span class="glyphicon glyphicon-copy"></span> Copy table' +
         '</button>' +
@@ -28,9 +28,10 @@ function generateTableHtml(config){
         column.name = column.name || column.label.toLowerCase().replace(/ /g, '');
         column.colId = 'c' + colIdx;
         column.chroma = column.chroma || '';
+        var showBar = !!column.dmax;
         var chromaScale = brewer_scales && brewer_scales.length > colIdx ? brewer_scales[colIdx] : 'RdYlGn';
 
-        html += '<th id="header_' + column.colId + '_' + column.name + '" class="chroma-col ' + column.colId + '_' + column.name + ' " data-chroma-scale="' + chromaScale + '" data-chroma-max="' + column.dmin + '" data-chroma-min="' + column.dmax + '" data-namespace="' + (column.category || column.colId) + '" ><span data-toggle="tooltip" title="' + (column.category ? column.category + ': ' : '') + (column.description || column.label) + '">' + column.label + '</span></th>';
+        html += '<th id="header_' + column.colId + '_' + column.name + '" class="' + (showBar ? 'chroma-col ' : '') + column.colId + '_' + column.name + ' " ' + (showBar ? 'data-chroma-scale="' + chromaScale + '" data-chroma-max="' + column.dmin + '" data-chroma-min="' + column.dmax + '"' : '') + ' data-namespace="' + (column.category || column.colId) + '" ><span data-toggle="tooltip" title="' + (column.category ? column.category + ': ' : '') + (column.description || column.label) + '">' + column.label + '</span></th>';
     });
 
     html += '</thead><tbody>';
@@ -46,10 +47,17 @@ function generateTableHtml(config){
                 var val = rowData[colIdx];
                 var formattedVal = column.formatString ? numeral(val).format(column.formatString) : val;
                 var percentage = 100.0;
+                var showBar = !!column.dmax;
                 if (column.dmax){
                     percentage = ((parseFloat(val) - (column.dmin || 0)) / (column.dmax - (column.dmin || 0))) * 100;
                 }
-                html += '<td class="data-coloured ' + column.colId + '_' + column.name + ' "><div class="wrapper"><span class="bar" style="width:' + percentage + '%;"></span><span class="val">' + formattedVal + '</span></div></td>';
+
+                if (val < column.flagBelow || val > column.flagAbove){
+                    html += '<td ' + (showBar ? 'class="data-coloured-flagged ' + column.colId + '_' + column.name + ' "' : '') + '><div class="wrapper">' + (showBar ? '<span class="bar" style="width:' + percentage + '%;"></span>' : '') + '<span class="val">' + formattedVal + '</span></div></td>';
+                } else {
+                    html += '<td ' + (showBar ? 'class="data-coloured ' + column.colId + '_' + column.name + ' "' : '') + '><div class="wrapper">' + (showBar ? '<span class="bar" style="width:' + percentage + '%;"></span>' : '') + '<span class="val">' + formattedVal + '</span></div></td>';
+                }
+
             }
             else {
                 html += '<td>ND</td>';

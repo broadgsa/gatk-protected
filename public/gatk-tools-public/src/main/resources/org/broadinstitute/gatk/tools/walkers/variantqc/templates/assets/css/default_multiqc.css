@@ -671,6 +671,9 @@ input.form-control[type=color]{
     vertical-align: middle;
 }
 
+.mqc_table tbody {
+
+}
 
 
 
@@ -698,6 +701,10 @@ tbody .sorthandle {
 }
 .mqc_table .data-coloured {
     padding: 0;
+}
+.mqc_table .data-coloured-flagged {
+    padding: 0;
+    color: #c9302c;
 }
 .mqc_table .wrapper {
     display: inline-block;

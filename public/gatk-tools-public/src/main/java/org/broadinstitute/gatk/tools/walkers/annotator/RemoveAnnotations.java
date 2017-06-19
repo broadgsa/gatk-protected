@@ -103,24 +103,24 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
         allowableInfoKeys = new HashSet<>();
         //NOTE: if lambdas are used here, the walker will not be picked up by PluginManager
         // http://gatkforums.broadinstitute.org/gatk/discussion/comment/38892#Comment_38892
-        for (VCFHeaderLine line : header.getInfoHeaderLines()){
-            allowableInfoKeys.add(line.getKey());
+        for (VCFInfoHeaderLine line : header.getInfoHeaderLines()){
+            allowableInfoKeys.add(line.getID());
         }
 
         allowableFormatKeys = new HashSet<>();
-        for (VCFHeaderLine line : header.getFormatHeaderLines()){
-            allowableFormatKeys.add(line.getKey());
+        for (VCFFormatHeaderLine line : header.getFormatHeaderLines()){
+            allowableFormatKeys.add(line.getID());
         }
 
         vcfWriter.writeHeader(header);
     }
 
-    private int inspectAnnotation(Set<VCFHeaderLine> headerLines, VCFHeaderLine line, List<String> annotationToKeep, List<String> annotationsToExclude){
-        if (annotationToKeep != null && !annotationToKeep.contains(line.getKey())){
+    private int inspectAnnotation(Set<VCFHeaderLine> headerLines, VCFCompoundHeaderLine line, List<String> annotationToKeep, List<String> annotationsToExclude){
+        if (annotationToKeep != null && !annotationToKeep.contains(line.getID())){
             return 1;
         }
 
-        if (annotationsToExclude != null && annotationsToExclude.contains(line.getKey())){
+        if (annotationsToExclude != null && annotationsToExclude.contains(line.getID())){
             return 1;
         }
 

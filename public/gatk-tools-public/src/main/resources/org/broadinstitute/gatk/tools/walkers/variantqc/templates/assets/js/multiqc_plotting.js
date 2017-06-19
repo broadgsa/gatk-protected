@@ -250,6 +250,17 @@ function plot_graph(target, ds, max_num){
         $('#'+target).addClass('not_rendered').html('<button class="btn btn-default btn-lg render_plot">Show plot</button>');
       }
     }
+
+    // Bar graphs
+    else if(mqc_plots[target]['plot_type'] == 'histogram'){
+      if(max_num === undefined || mqc_plots[target]['samples'][0].length < max_num){
+        plot_histogram(target, ds);
+        $('#'+target).removeClass('not_rendered');
+      } else {
+        $('#'+target).addClass('not_rendered').html('<button class="btn btn-default btn-lg render_plot">Show plot</button>');
+      }
+    }
+
     // Not recognised
     else { console.log('Did not recognise plot type: '+mqc_plots[target]['plot_type']); }
   }
@@ -592,6 +603,258 @@ function plot_stacked_bar_graph(target, ds){
   });
 }
 
+//histogram
+function plot_histogram(target, ds) {
+  if(mqc_plots[target] === undefined || mqc_plots[target]['plot_type'] !== 'histogram'){
+    return false;
+  }
+  var config = mqc_plots[target]['config'];
+  var data = mqc_plots[target]['datasets'];
+  if(ds === undefined){ ds = 0; }
+
+  if(config['marker_colour'] === undefined){ config['marker_colour'] = 'rgba(124, 181, 236, .5)'; }
+  if(config['marker_size'] === undefined){ config['marker_size'] = 5; }
+  if(config['marker_line_colour'] === undefined){ config['marker_line_colour'] = '#999'; }
+  if(config['marker_line_width'] === undefined){ config['marker_line_width'] = 1; }
+  if(config['tt_label'] === undefined){ config['tt_label'] = 'X: <strong>{point.x:.2f}</strong><br/>Y: <strong>{point.y:.2f}</strong>'; }
+  if(config['click_func'] === undefined){ config['click_func'] = function(){ }; }
+  else {
+    config['click_func'] = eval("("+config['click_func']+")");
+    if(config['cursor'] === undefined){ config['cursor'] = 'pointer'; }
+  }
+  if (config['xDecimals'] === undefined){ config['xDecimals'] = true; }
+  if (config['pointFormat'] === undefined){
+    config['pointFormat'] = '<div style="background-color:{point.color}; display:inline-block; height: 10px; width: 10px; border:1px solid #333;"></div> <span style="text-decoration:underline; font-weight:bold;">{point.name}</span><br>'+config['tt_label'];
+  }
+
+  // Make a clone of the data, so that we can mess with it,
+  // while keeping the original data in tact
+  var data = JSON.parse(JSON.stringify(mqc_plots[target]['datasets'][ds]));
+
+  // Rename samples
+  if(window.mqc_rename_f_texts.length > 0){
+    $.each(data, function(j, s){
+      $.each(window.mqc_rename_f_texts, function(idx, f_text){
+        if(window.mqc_rename_regex_mode){
+          var re = new RegExp(f_text,"g");
+          data[j]['name'] = data[j]['name'].replace(re, window.mqc_rename_t_texts[idx]);
+        } else {
+          data[j]['name'] = data[j]['name'].replace(f_text, window.mqc_rename_t_texts[idx]);
+        }
+      });
+    });
+  }
+
+  // Highlight samples
+  if(window.mqc_highlight_f_texts.length > 0){
+    $.each(data, function(j, s){
+      if ('marker' in data[j]){
+        data[j]['marker']['lineWidth'] = 0;
+      } else {
+        data[j]['marker'] = {'lineWidth': 0};
+      }
+      var match = false;
+      $.each(window.mqc_highlight_f_texts, function(idx, f_text){
+        if(f_text == ''){ return true; }
+        if((window.mqc_highlight_regex_mode && data[j]['name'].match(f_text)) || (!window.mqc_highlight_regex_mode && data[j]['name'].indexOf(f_text) > -1)){
+          data[j]['color'] = window.mqc_highlight_f_cols[idx];
+          match = true;
+        }
+      });
+      if(!match) {
+        data[j]['color'] = 'rgba(100,100,100,0.2)';
+      }
+    });
+  }
+
+  // Hide samples
+  $('#'+target).closest('.mqc_hcplot_plotgroup').parent().find('.samples-hidden-warning').remove();
+  $('#'+target).closest('.mqc_hcplot_plotgroup').show();
+  if(window.mqc_hide_f_texts.length > 0){
+    var num_hidden = 0;
+    var num_total = data.length;
+    var j = data.length;
+    while (j--) {
+      var match = false;
+      for (i = 0; i < window.mqc_hide_f_texts.length; i++) {
+        var f_text = window.mqc_hide_f_texts[i];
+        if(window.mqc_hide_regex_mode){
+          if(data[j]['name'].match(f_text)){ match = true; }
+        } else {
+          if(data[j]['name'].indexOf(f_text) > -1){ match = true; }
+        }
+      }
+      if(window.mqc_hide_mode == 'show'){
+        match = !match;
+      }
+      if(match){
+        data.splice(j,1);
+        num_hidden += 1;
+      }
+    };
+    // Some series hidden. Show a warning text string.
+    if(num_hidden > 0) {
+      var alert = '<div class="samples-hidden-warning alert alert-warning"><span class="glyphicon glyphicon-info-sign"></span> <strong>Warning:</strong> '+num_hidden+' samples hidden. <a href="#mqc_hidesamples" class="alert-link" onclick="mqc_toolbox_openclose(\'#mqc_hidesamples\', true); return false;">See toolbox.</a></div>';
+      $('#'+target).closest('.mqc_hcplot_plotgroup').before(alert);
+    }
+    // All series hidden. Hide the graph.
+    if(num_hidden == num_total){
+      $('#'+target).closest('.mqc_hcplot_plotgroup').hide();
+      return false;
+    }
+  }
+
+  // Make the highcharts plot
+  Highcharts.chart(target, {
+        chart: {
+          type: 'column',
+          //zoomType: 'xy',
+          plotBorderWidth: 1,
+          height: config['square'] ? 500 : undefined,
+          width: config['square'] ? 500 : undefined
+        },
+        title: {
+          text: config['title'],
+          x: 30 // fudge to center over plot area rather than whole plot
+        },
+        xAxis: {
+          title: {
+            text: config['xlab']
+          },
+          type: 'linear',
+          gridLineWidth: 1,
+          categories: config['categories'],
+          ceiling: config['xCeiling'],
+          floor: config['xFloor'],
+          max: config['xmax'],
+          min: config['xmin'],
+          minRange: config['xMinRange'],
+          allowDecimals: config['xDecimals'],
+          plotBands: config['xPlotBands'],
+          plotLines: config['xPlotLines']
+        },
+        yAxis: {
+          title: {
+            text: config['ylab'] || 'Count'
+          },
+          type: config['yLog'] ? 'logarithmic' : 'linear',
+          ceiling: config['yCeiling'],
+          floor: config['yFloor'],
+          max: config['ymax'],
+          min: config['ymin'],
+          minRange: config['yMinRange'],
+          allowDecimals: config['yDecimals'],
+          plotBands: config['yPlotBands'],
+          plotLines: config['yPlotLines']
+        },
+        plotOptions: {
+          series: {
+            animation: false,
+            marker: {
+              radius: config['marker_size'],
+              lineColor: config['marker_line_colour'],
+              lineWidth: config['marker_line_width'],
+              states: {
+                hover: {
+                  enabled: config['enableHover'] == undefined ? true : config['enableHover'],
+                  lineColor: 'rgb(100,100,100)'
+                }
+              }
+            },
+            turboThreshold: config['turboThreshold'],
+            enableMouseTracking: config['enableMouseTracking'],
+            cursor: config['cursor'],
+            point: {
+              events: {
+                click: config['click_func']
+              }
+            }
+          }
+        },
+        legend: {
+          enabled: false
+        },
+        tooltip: {
+          headerFormat: '',
+          pointFormat: config['pointFormat'],
+          useHTML: true,
+          formatter: (function() {
+            if(!this.point.noTooltip) {
+              // Formatter function doesn't do name for some reason
+              fstring = config['pointFormat'].replace('{point.name}', this.point.name);
+              return Highcharts.Point.prototype.tooltipFormatter.call(this, fstring);
+            }
+            return false;
+          })
+        },
+        series: [{
+          color: config['marker_colour'],
+          data: histogram(data, 10)
+        }]
+      },
+      // Maintain aspect ratio as chart size changes
+      function(this_chart){
+        if(config['square']){
+          var resizeCh = function(chart){
+            // Extra width for legend
+            var lWidth = chart.options.legend.enabled ? 30 : 0;
+            // Work out new chart width, assuming needs to be narrower
+            var chHeight = $(chart.renderTo).height();
+            var chWidth = $(chart.renderTo).width();
+            var nChHeight = chHeight;
+            var nChWidth = chHeight + lWidth;
+            // Chart is already too narrow, make it less tall
+            if(chWidth < nChWidth){
+              nChHeight = chWidth - lWidth;
+              nChWidth = chWidth;
+            }
+            chart.setSize(nChWidth, nChHeight);
+          }
+          // Resize on load
+          resizeCh(this_chart);
+          // Resize on graph resize
+          $(this_chart.renderTo).on('mqc_plotresize', function(e){
+            resizeCh(this_chart);
+          });
+        }
+      });
+}
+
+/**
+ * Get histogram data out of xy data
+ * @param   {Array} data  Array of tuples [x, y]
+ * @param   {Number} step Resolution for the histogram
+ * @returns {Array}       Histogram data
+ */
+function histogram(data, step) {
+  var histo = {},
+      x,
+      i,
+      arr = [];
+
+  // Group down
+  for (i = 0; i < data.length; i++) {
+    x = Math.floor(data[i]['x'] / step) * step;
+    if (!histo[x]) {
+      histo[x] = 0;
+    }
+    histo[x]++;
+  }
+
+  // Make the histo group into an array
+  for (x in histo) {
+    if (histo.hasOwnProperty((x))) {
+      arr.push([parseFloat(x), histo[x]]);
+    }
+  }
+
+  // Finally, sort the array
+  arr.sort(function (a, b) {
+    return a[0] - b[0];
+  });
+
+  return arr;
+}
 
 // Scatter plot
 function plot_scatter_plot (target, ds){
