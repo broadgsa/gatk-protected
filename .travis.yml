@@ -18,7 +18,7 @@ before_deploy:
 deploy:
   provider: releases
   api_key:
-    secure: "${GH_TOKEN}"
+    secure: gisfoGLp5n4SO4pMyLbIiIPf1QZX5uRyii6JWcaYAKbRITI9qTvhXpPiOKn84EwDZjCzS1kq+RBwNNm21ZiNCSZC4wneobPvLEt+7iApFEinCk+lZ1UznF7DPffguVhmeD2cGDAlaui12zeGQWOfGBiZXTomaXDzlgymn/VoU/b8jZbLkAS8Nnp95HjnV0WTZg+ZEE7jDGLqd9QjePaCzrvvQ+NwEvkUb9AeUFjiEtocJMezUQt7gyOJfrloQNEGFYG2R7MZYSyT8651rYSm9OgeZfS/nm4Sx4I7/UoyoxtmZLmi1IMy/pt7u8oB00i3bTzCg3H/qyw5Zoflus8Ae2MRQPDhfV+a1CzpxLdjSpGJkWV6fRnuMihgaW1Unq9shtOImsuyMmjWl5vlKUegGo/VnP7bKLhlxYvB+B9GhuDEknL0/fPT3nQAI9hZNU4kwUDDcg5ooiVuEBIIO8FYKh2wxorQCevbkKp0Qy+/N4C3eZlh7iKpOaJhZCqQAdWHoAeK2KzKb1wwqh9szVV47zhH36lnPToHyonmC9eIYdTD+rtvJqU5wiEbfEhJdz1KYfqLDz3UoYusOOdx1h5NP5PsZ2otw/M5ETakdSIcD9h8uOKXvMBeNKbG5p/mIePxrOmT+mmHR9zUEJBqSb5XA6awEw7rpC0fjEcxFnrmPqE=
   file:
     - target/VariantQC-${TRAVIS_TAG}.jar
   skip_cleanup: true
