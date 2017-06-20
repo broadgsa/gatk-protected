@@ -96,11 +96,11 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
         //configure the child walkers
         for (VariantEvalWrapper wrapper : this.wrappers){
             configureWalker(wrapper);
-            
+
             wrapper.walker.initialize();
         }
     }
-    
+
     private void configureWalker(VariantEvalWrapper wrapper){
         wrapper.walker.setToolkit(getToolkit());
 
@@ -235,7 +235,7 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
             throw new GATKException(e.getMessage(), e);
         }
     }
-    
+
     private static class VariantEvalWrapper {
         private VariantEval walker = new VariantEval();
         private ByteArrayOutputStream out = new ByteArrayOutputStream();
