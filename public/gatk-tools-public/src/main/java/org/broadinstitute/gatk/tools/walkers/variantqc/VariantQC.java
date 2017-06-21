@@ -73,6 +73,12 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
             }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("Sample"), Arrays.asList(
                     new PivotingTransformer.Pivot("FilterType", "nVariantLoci", null)
             )))),
+            new VariantEvalWrapper("By Sample", new String[]{"Sample", "Contig"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
+                    new TableReportDescriptor("Variants By Contig", "CountVariants", Arrays.asList("all")),
+                    BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),
+            }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("Sample"), Arrays.asList(
+                    new PivotingTransformer.Pivot("Contig", "nVariantLoci", null)
+            ), getSampleDB()))),
             new VariantEvalWrapper("By Contig", new String[]{"Contig", "FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
                     new TableReportDescriptor("Sites By Filter", "CountVariants", Arrays.asList("all")),
                     BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),

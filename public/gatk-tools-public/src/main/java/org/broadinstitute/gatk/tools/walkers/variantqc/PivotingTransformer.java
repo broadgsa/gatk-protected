@@ -1,6 +1,8 @@
 package org.broadinstitute.gatk.tools.walkers.variantqc;
 
 import htsjdk.samtools.util.StringUtil;
+import org.broadinstitute.gatk.engine.samples.Sample;
+import org.broadinstitute.gatk.engine.samples.SampleDB;
 import org.broadinstitute.gatk.utils.exceptions.GATKException;
 import org.broadinstitute.gatk.utils.report.GATKReportColumn;
 import org.broadinstitute.gatk.utils.report.GATKReportDataType;
@@ -15,11 +17,17 @@ public class PivotingTransformer implements GATKReportTableTransformer {
     private final List<String> groupBy;
     private final List<Pivot> colsToPivot;
     private final String evalModuleName;
+    private final SampleDB sampleDB;
 
     public PivotingTransformer(String evalModuleName, List<String> groupBy, List<Pivot> colsToPivot){
+        this(evalModuleName, groupBy, colsToPivot, null);
+    }
+
+    public PivotingTransformer(String evalModuleName, List<String> groupBy, List<Pivot> colsToPivot, SampleDB sampleDB){
         this.evalModuleName = evalModuleName;
         this.groupBy = groupBy;
         this.colsToPivot = colsToPivot;
+        this.sampleDB = sampleDB;
     }
 
     @Override
@@ -31,6 +39,11 @@ public class PivotingTransformer implements GATKReportTableTransformer {
         distinctColNames.addAll(groupBy);
         for (String colName : groupBy){
             colFormatMap.put(colName, GATKReportDataType.String.getDefaultFormatString());
+        }
+
+        if (sampleDB != null){
+            distinctColNames.add("Gender");
+            colFormatMap.put("Gender", GATKReportDataType.String.getDefaultFormatString());
         }
 
         Map<String, GATKReportColumn> colMap = new HashMap<>();
@@ -75,8 +88,21 @@ public class PivotingTransformer implements GATKReportTableTransformer {
         int rowIdx = 0;
         for (String key : rowMap.keySet()){
             for (GATKReportColumn col : ret.getColumnInfo()){
-                Object val = rowMap.get(key).get(col.getColumnName());
-                if (val != null){
+                Object val = null;
+                if ("Gender".equals(col.getColumnName())){
+                    Object sample = rowMap.get(key).get("Subject");
+                    if (sample != null){
+                        Sample s = sampleDB.getSample(String.valueOf(sample));
+                        if (s != null){
+                            val = s.getGender().name();
+                        }
+                    }
+                }
+                else {
+                    val = rowMap.get(key).get(col.getColumnName());
+                }
+
+                if (val != null) {
                     ret.set(rowIdx, col.getColumnName(), val);
                 }
             }

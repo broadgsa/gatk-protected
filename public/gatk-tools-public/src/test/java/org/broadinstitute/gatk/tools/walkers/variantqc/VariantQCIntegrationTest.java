@@ -74,7 +74,7 @@ public class VariantQCIntegrationTest extends WalkerTest {
                                         "-V " + testDir + "GBS_PstI.vcf.gz",
                                         "-L chr01",
                                         //"-L " + testDir + "GBS_PstI.vcf.gz",
-                                        "-o /Users/bimber/Desktop/text.html"
+                                        "-o /Users/bimber/Desktop/test.html"
                                         //"-o %s"
                                 ),
                                 1,
