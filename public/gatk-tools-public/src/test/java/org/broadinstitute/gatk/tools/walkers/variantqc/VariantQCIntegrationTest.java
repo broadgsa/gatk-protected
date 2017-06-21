@@ -71,6 +71,8 @@ public class VariantQCIntegrationTest extends WalkerTest {
                                 buildCommandLine(
                                         "-T VariantQC",
                                         "-R " + testDir + "18_MacaM.fasta",
+                                        "-ped " + testDir + "gatk.ped",
+                                        "-pedValidationType SILENT",
                                         "-V " + testDir + "GBS_PstI.vcf.gz",
                                         "-L chr01",
                                         //"-L " + testDir + "GBS_PstI.vcf.gz",
@@ -78,7 +80,7 @@ public class VariantQCIntegrationTest extends WalkerTest {
                                         //"-o %s"
                                 ),
                                 1,
-                                Arrays.asList("7091cbeb47d041463806c8c8f98239a6")
+                                Arrays.asList("d41d8cd98f00b204e9800998ecf8427e")
                               );
         executeTest("testBasicOperation", spec);
     }

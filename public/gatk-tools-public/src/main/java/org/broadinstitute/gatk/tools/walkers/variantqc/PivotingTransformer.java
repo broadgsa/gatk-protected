@@ -8,6 +8,7 @@ import org.broadinstitute.gatk.utils.report.GATKReportColumn;
 import org.broadinstitute.gatk.utils.report.GATKReportDataType;
 import org.broadinstitute.gatk.utils.report.GATKReportTable;
 
+import javax.annotation.Nullable;
 import java.util.*;
 
 /**
@@ -17,21 +18,21 @@ public class PivotingTransformer implements GATKReportTableTransformer {
     private final List<String> groupBy;
     private final List<Pivot> colsToPivot;
     private final String evalModuleName;
-    private final SampleDB sampleDB;
+    private final boolean showGender;
 
     public PivotingTransformer(String evalModuleName, List<String> groupBy, List<Pivot> colsToPivot){
-        this(evalModuleName, groupBy, colsToPivot, null);
+        this(evalModuleName, groupBy, colsToPivot, false);
     }
 
-    public PivotingTransformer(String evalModuleName, List<String> groupBy, List<Pivot> colsToPivot, SampleDB sampleDB){
+    public PivotingTransformer(String evalModuleName, List<String> groupBy, List<Pivot> colsToPivot, boolean showGender){
         this.evalModuleName = evalModuleName;
         this.groupBy = groupBy;
         this.colsToPivot = colsToPivot;
-        this.sampleDB = sampleDB;
+        this.showGender = showGender;
     }
 
     @Override
-    public GATKReportTable transform(GATKReportTable table) {
+    public GATKReportTable transform(GATKReportTable table, @Nullable SampleDB sampleDB) {
         Map<String, Map<String, Object>> rowMap = new LinkedHashMap<>();
         Set<String> distinctColNames = new LinkedHashSet<>();
         Map<String, String> colFormatMap = new HashMap<>();
@@ -41,7 +42,7 @@ public class PivotingTransformer implements GATKReportTableTransformer {
             colFormatMap.put(colName, GATKReportDataType.String.getDefaultFormatString());
         }
 
-        if (sampleDB != null){
+        if (showGender && sampleDB != null){
             distinctColNames.add("Gender");
             colFormatMap.put("Gender", GATKReportDataType.String.getDefaultFormatString());
         }
@@ -62,6 +63,16 @@ public class PivotingTransformer implements GATKReportTableTransformer {
                 rowMap.put(key, new HashMap<>());
                 for (String colName : groupBy){
                     rowMap.get(key).put(colName, table.get(i, colName));
+                }
+            }
+
+            if (showGender && sampleDB != null){
+                Object sample = String.valueOf(table.get(i, "Sample"));
+                if (sample != null){
+                    Sample s = sampleDB.getSample(String.valueOf(sample));
+                    if (s != null){
+                        rowMap.get(key).put("Gender", s.getGender().name());
+                    }
                 }
             }
 
@@ -88,20 +99,7 @@ public class PivotingTransformer implements GATKReportTableTransformer {
         int rowIdx = 0;
         for (String key : rowMap.keySet()){
             for (GATKReportColumn col : ret.getColumnInfo()){
-                Object val = null;
-                if ("Gender".equals(col.getColumnName())){
-                    Object sample = rowMap.get(key).get("Subject");
-                    if (sample != null){
-                        Sample s = sampleDB.getSample(String.valueOf(sample));
-                        if (s != null){
-                            val = s.getGender().name();
-                        }
-                    }
-                }
-                else {
-                    val = rowMap.get(key).get(col.getColumnName());
-                }
-
+                Object val = rowMap.get(key).get(col.getColumnName());
                 if (val != null) {
                     ret.set(rowIdx, col.getColumnName(), val);
                 }

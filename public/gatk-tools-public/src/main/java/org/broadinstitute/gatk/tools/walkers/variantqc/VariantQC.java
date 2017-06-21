@@ -74,11 +74,10 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
                     new PivotingTransformer.Pivot("FilterType", "nVariantLoci", null)
             )))),
             new VariantEvalWrapper("By Sample", new String[]{"Sample", "Contig"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
-                    new TableReportDescriptor("Variants By Contig", "CountVariants", Arrays.asList("all")),
-                    BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),
+                    new TableReportDescriptor("Variants Per Contig", "CountVariants", Arrays.asList("all")),
             }, Arrays.asList(new PivotingTransformer("CountVariants", Arrays.asList("Sample"), Arrays.asList(
                     new PivotingTransformer.Pivot("Contig", "nVariantLoci", null)
-            ), getSampleDB()))),
+            ), true))),
             new VariantEvalWrapper("By Contig", new String[]{"Contig", "FilterType"}, new String[]{"CountVariants"}, new ReportDescriptor[]{
                     new TableReportDescriptor("Sites By Filter", "CountVariants", Arrays.asList("all")),
                     BarPlotReportDescriptor.getSiteFilterTypeBarPlot(),
@@ -211,7 +210,7 @@ public class VariantQC extends RodWalker<Integer, Integer> implements TreeReduci
 
                     GATKReportTableTransformer transformer = wrapper.transformerMap.get(table.getTableName());
                     if (transformer != null){
-                        table = transformer.transform(table);
+                        table = transformer.transform(table, getSampleDB());
                     }
 
                     if (!sectionMap.containsKey(wrapper.sectionLabel)){
