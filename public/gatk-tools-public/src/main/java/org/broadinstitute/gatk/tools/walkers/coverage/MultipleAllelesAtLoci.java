@@ -47,7 +47,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(DataSource.REFERENCE)
-public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.SiteBaseCounter, Integer> implements TreeReducible<Long> {
+public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.SiteBaseCounter, Integer> implements TreeReducible<Integer> {
     @Output
     PrintStream out;
 
@@ -90,7 +90,7 @@ public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.Sit
     }
 
     @Override
-    public Long treeReduce(Long lhs, Long rhs) {
+    public Integer treeReduce(Integer lhs, Integer rhs) {
         return null;
     }
 

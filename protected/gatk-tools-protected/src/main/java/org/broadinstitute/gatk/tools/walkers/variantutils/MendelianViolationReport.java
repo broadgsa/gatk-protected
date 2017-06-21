@@ -29,7 +29,7 @@ import java.util.*;
  * Created by bimber on 6/21/2017.
  */
 @By(DataSource.REFERENCE)
-public class MendelianViolationReport extends RodWalker<Integer, Integer> implements TreeReducible<Long> {
+public class MendelianViolationReport extends RodWalker<Integer, Integer> implements TreeReducible<Integer> {
     @ArgumentCollection
     protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
@@ -91,7 +91,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
     }
 
     @Override
-    public Long treeReduce (Long lhs, Long rhs){
+    public Integer treeReduce (Integer lhs, Integer rhs){
         return null;
     }
 
