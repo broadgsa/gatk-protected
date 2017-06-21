@@ -1,28 +1,25 @@
 package org.broadinstitute.gatk.tools.walkers.coverage;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
 import org.broadinstitute.gatk.engine.walkers.By;
 import org.broadinstitute.gatk.engine.walkers.DataSource;
 import org.broadinstitute.gatk.engine.walkers.LocusWalker;
-import org.broadinstitute.gatk.utils.*;
-import org.broadinstitute.gatk.utils.collections.Pair;
+import org.broadinstitute.gatk.engine.walkers.TreeReducible;
+import org.broadinstitute.gatk.utils.BaseUtils;
+import org.broadinstitute.gatk.utils.GenomeLoc;
+import org.broadinstitute.gatk.utils.GenomeLocParser;
+import org.broadinstitute.gatk.utils.HasGenomeLocation;
 import org.broadinstitute.gatk.utils.commandline.Advanced;
 import org.broadinstitute.gatk.utils.commandline.Argument;
 import org.broadinstitute.gatk.utils.commandline.Output;
 import org.broadinstitute.gatk.utils.contexts.AlignmentContext;
 import org.broadinstitute.gatk.utils.contexts.ReferenceContext;
-import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.broadinstitute.gatk.utils.help.DocumentedGATKFeature;
 import org.broadinstitute.gatk.utils.help.HelpConstants;
-import org.broadinstitute.gatk.utils.pileup.PileupElement;
 import org.broadinstitute.gatk.utils.refdata.RefMetaDataTracker;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.util.*;
 
 
@@ -50,7 +47,7 @@ import java.util.*;
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_QC, extraDocs = {CommandLineGATK.class} )
 @By(DataSource.REFERENCE)
-public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.SiteBaseCounter, Integer> {
+public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.SiteBaseCounter, Integer> implements TreeReducible<Long> {
     @Output
     PrintStream out;
 
@@ -90,6 +87,11 @@ public class MultipleAllelesAtLoci extends LocusWalker<MultipleAllelesAtLoci.Sit
     @Override
     public void initialize() {
 
+    }
+
+    @Override
+    public Long treeReduce(Long lhs, Long rhs) {
+        return null;
     }
 
     protected static class SiteBaseCounter implements HasGenomeLocation {

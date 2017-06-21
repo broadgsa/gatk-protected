@@ -86,8 +86,7 @@ public class MendelianViolationCount extends InfoFieldAnnotation implements RodR
             for (String sn : sampleDB.getSampleNames()) {
                 int count = countViolations(sampleDB.getSample(sn), vc, minGenotypeQuality);
                 totalViolations += count;
-                if (count > 0)
-                {
+                if (count > 0) {
                     violations.add(sn);
                 }
             }
@@ -117,23 +116,31 @@ public class MendelianViolationCount extends InfoFieldAnnotation implements RodR
         return true;
     }
 
-    public static int countViolations(Sample subject, VariantContext vc, double minGenotypeQuality)
-    {
+    public static int countViolations(Sample subject, VariantContext vc, double minGenotypeQuality) {
+        MV ret = getMendelianViolation(subject, vc, minGenotypeQuality);
+        if (ret == null){
+            return 0;
+        }
+
+        return ret.isViolation() ? 1 : 0;
+    }
+
+    public static MV getMendelianViolation(Sample subject, VariantContext vc, double minGenotypeQuality) {
         Genotype gChild = vc.getGenotype(subject.getID());
         if (gChild == null || !gChild.isCalled()){
-            return 0;  //cant make call
+            return null;  //cant make call
         }
 
         //Count lowQual. Note that if min quality is set to 0, even values with no quality associated are returned
         if (minGenotypeQuality > -1 && gChild.getGQ() < minGenotypeQuality) {
-            return 0; //cannot make determination
+            return null; //cannot make determination
         }
 
         //until we have improved calling of sex chromosomes, skip this situation
         //chrY is overwhelmingly no-call for females, so we can proceed w/ the check here
         boolean isChrX = vc.getContig().equalsIgnoreCase("X") || vc.getContig().equalsIgnoreCase("chrX");
         if (isChrX && subject.getGender().equals(Gender.MALE)){
-            return 0;
+            return null;
         }
 
         Genotype gMom = vc.getGenotype(subject.getMaternalID());
@@ -148,39 +155,56 @@ public class MendelianViolationCount extends InfoFieldAnnotation implements RodR
         }
 
         //If the family is all homref, not too interesting
-        if (!(gMom.isHomRef() && gDad.isHomRef() && gChild.isHomRef()))
-        {
-            if (!gMom.isCalled() && !gDad.isCalled()) {
-                return 0;
-            }
-            else if (isViolation(gMom, gDad, gChild, minGenotypeQuality)){
-                return 1;
-            }
+        if (gMom.isHomRef() && gDad.isHomRef() && gChild.isHomRef()) {
+            return null;
+        }
+        else if (!gMom.isCalled() && !gDad.isCalled()) {
+            return null;
         }
 
-        return 0;
+        return getViolation(gMom, gDad, gChild, minGenotypeQuality);
     }
 
-    private static boolean isViolation(final Genotype gMom, final Genotype gDad, final Genotype gChild, double minGenotypeQuality) {
+    private static MV getViolation(final Genotype gMom, final Genotype gDad, final Genotype gChild, double minGenotypeQuality) {
+        MV ret = new MV();
+
         //1 parent is no call
-        if (!gMom.isCalled()){
-            if (gDad.getGQ() < minGenotypeQuality) {
-                return false;
-            }
-
-            return (gDad.isHomRef() && gChild.isHomVar()) || (gDad.isHomVar() && gChild.isHomRef()) || (!gDad.getAlleles().contains(gChild.getAllele(0)) && !gDad.getAlleles().contains(gChild.getAllele(1)));
+        if (gDad.isCalled()){
+            ret.fatherIsViolation = testParent(gChild, gDad, minGenotypeQuality);
         }
-        else if (!gDad.isCalled()){
-            if (gMom.getGQ() < minGenotypeQuality) {
-                return false;
-            }
 
-            return (gMom.isHomRef() && gChild.isHomVar()) || (gMom.isHomVar() && gChild.isHomRef()) || (!gMom.getAlleles().contains(gChild.getAllele(0)) && !gMom.getAlleles().contains(gChild.getAllele(1)));
+        if (!gMom.isCalled()){
+            ret.motherIsViolation = testParent(gChild, gMom, minGenotypeQuality);
         }
 
         //Both parents have genotype information
-        return !(gMom.getAlleles().contains(gChild.getAlleles().get(0)) && gDad.getAlleles().contains(gChild.getAlleles().get(1)) ||
-                gMom.getAlleles().contains(gChild.getAlleles().get(1)) && gDad.getAlleles().contains(gChild.getAlleles().get(0)));
+        if (gMom.isCalled() && gDad.isCalled()){
+            ret.violationCombined = testParents(gChild, gDad, gMom);
+        }
+
+        return ret;
+    }
+
+    public static class MV {
+        public boolean motherIsViolation = false;
+        public boolean fatherIsViolation = false;
+        public boolean violationCombined = false;
+
+        public boolean isViolation(){
+            return motherIsViolation || fatherIsViolation || violationCombined;
+        }
+    }
+
+    private static boolean testParents(Genotype gChild, Genotype gDad, Genotype gMom){
+        return !(gMom.getAlleles().contains(gChild.getAlleles().get(0)) && gDad.getAlleles().contains(gChild.getAlleles().get(1)) || gMom.getAlleles().contains(gChild.getAlleles().get(1)) && gDad.getAlleles().contains(gChild.getAlleles().get(0)));
+    }
+
+    private static boolean testParent(Genotype gChild, Genotype gParent, double minGenotypeQuality){
+        if (gParent.getGQ() < minGenotypeQuality) {
+            return false;
+        }
+
+        return (gParent.isHomRef() && gChild.isHomVar()) || (gParent.isHomVar() && gChild.isHomRef()) || (!gParent.getAlleles().contains(gChild.getAllele(0)) && !gParent.getAlleles().contains(gChild.getAllele(1)));
     }
 
     // return the descriptions used for the VCF INFO meta field
