@@ -165,13 +165,13 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
 
     private void reportSample(String sn, MVSummary summary, Set<String> additionalSamplesToReport){
         Sample sample = sampleDB.getSample(sn);
-        List<String> line = Arrays.asList(
+        List<String> line = new ArrayList<>(Arrays.asList(
                 sn,
                 String.valueOf(summary.totalViolations),
                 String.valueOf(summary.violationsMom),
                 String.valueOf(summary.violationsDad),
                 String.valueOf(summary.violationsTogether)
-        );
+        ));
 
         appendParentToLine(sample.getMother(), line, additionalSamplesToReport);
         appendParentToLine(sample.getFather(), line, additionalSamplesToReport);
