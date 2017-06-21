@@ -188,7 +188,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
         else {
             line.add(parent.getID());
             MVSummary summary = sampleMap.get(parent.getID());
-            line.add(String.valueOf(summary == null));
+            line.add(String.valueOf(summary != null));
             line.add(summary == null ? "" : String.valueOf(summary.totalViolations));
             additionalSamplesToReport.add(parent.getID());
         }

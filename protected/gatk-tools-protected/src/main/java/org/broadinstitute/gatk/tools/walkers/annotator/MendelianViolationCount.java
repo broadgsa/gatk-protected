@@ -168,12 +168,11 @@ public class MendelianViolationCount extends InfoFieldAnnotation implements RodR
     private static MV getViolation(final Genotype gMom, final Genotype gDad, final Genotype gChild, double minGenotypeQuality) {
         MV ret = new MV();
 
-        //1 parent is no call
         if (gDad.isCalled()){
             ret.fatherIsViolation = testParent(gChild, gDad, minGenotypeQuality);
         }
 
-        if (!gMom.isCalled()){
+        if (gMom.isCalled()){
             ret.motherIsViolation = testParent(gChild, gMom, minGenotypeQuality);
         }
 
