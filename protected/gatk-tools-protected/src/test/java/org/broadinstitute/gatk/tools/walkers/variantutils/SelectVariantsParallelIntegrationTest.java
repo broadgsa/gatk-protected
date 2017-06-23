@@ -90,17 +90,17 @@ public class SelectVariantsParallelIntegrationTest extends WalkerTest {
                 String testfile = validationDataLocation + "test.filtered.maf_annotated.vcf";
                 String samplesFile = validationDataLocation + "SelectVariants.samples.txt";
                 String args = " -sn A -se '[CDH]' -sf " + samplesFile + " -env -ef -select 'DP < 250' --variant " + testfile;
-                new ParallelSelectTestProvider(b36KGReference, args, "8090c349d12549b437a80e29c285fdd5", nt);
+                new ParallelSelectTestProvider(b36KGReference, args, "46451eaf6b7d02a5462c0a2463db2402", nt);
             }
             { // new tests on b37 using testdir VCF
                 final String testfile = privateTestDir + "NA12878.hg19.example1.vcf";
                 final String args = "-select 'DP > 30' -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "51645037428729c3a9fa0e25fc2104ad", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "25eab4762a6381b6f456d2d5c0616419", nt);
             }
             { // AD and PL decoding race condition
                 final String testfile = privateTestDir + "race_condition.vcf";
                 final String args = "-env -trimAlternates -sn SAMPLE -L 1:1-10,000,000 -V " + testfile;
-                new ParallelSelectTestProvider(b37KGReference, args, "f289f22aacf1a5638a9fb6b32c5cf6fb", nt);
+                new ParallelSelectTestProvider(b37KGReference, args, "9983e6a41472e8956dd32f967bf87f05", nt);
             }
         }
 
