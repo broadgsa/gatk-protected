@@ -70,7 +70,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testGenotypesToVCFUsingHapMapInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("970157c9e15c53a6e50faaad41227487");
+        md5.add("0c10e87bd40fb6030f7e43462e89e711");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +
@@ -87,7 +87,7 @@ public class VariantsToVCFIntegrationTest extends WalkerTest {
     @Test
     public void testGenotypesToVCFUsingVCFInput() {
         List<String> md5 = new ArrayList<String>();
-        md5.add("975830cb2bff58c7df426bbf09a08244");
+        md5.add("2cb826f35aea5bec736205820a2bc394");
 
         WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
                 "-R " + b36KGReference +
