@@ -370,11 +370,17 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             final GATKReportTable pmcTable = reportIn.getTable("PositiveModelCovariances");
             final GATKReportTable pmmTable = reportIn.getTable("PositiveModelMeans");
             final GATKReportTable pPMixTable = reportIn.getTable("GoodGaussianPMix");
+            final GATKReportTable anMeansTable = reportIn.getTable("AnnotationMeans");
+            final GATKReportTable anStDevsTable = reportIn.getTable("AnnotationStdevs");
             final int numAnnotations = dataManager.annotationKeys.size();
 
             if( numAnnotations != pmmTable.getNumColumns()-1 || numAnnotations != nmmTable.getNumColumns()-1 ) { // -1 because the first column is the gaussian number.
                 throw new UserException.CommandLineException( "Annotations specified on the command line do not match annotations in the model report." );
             }
+
+            final Map<String, Double> anMeans = getMapFromVectorTable(anMeansTable);
+            final Map<String, Double> anStdDevs = getMapFromVectorTable(anStDevsTable);
+            dataManager.setNormalization(anMeans, anStdDevs);
 
             goodModel = GMMFromTables(pmmTable, pmcTable, pPMixTable, numAnnotations);
             badModel = GMMFromTables(nmmTable, nmcTable, nPMixTable, numAnnotations);
@@ -512,7 +518,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         for (int i = 1; i <= max_attempts; i++) {
             try {
                 dataManager.setData(reduceSum);
-                dataManager.normalizeData(); // Each data point is now (x - mean) / standard deviation
+                dataManager.normalizeData(inputModel.isEmpty()); // Each data point is now (x - mean) / standard deviation
 
                 final List<VariantDatum> positiveTrainingData = dataManager.getTrainingData();
                 final List<VariantDatum> negativeTrainingData;
@@ -638,38 +644,18 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
 
     }
 
-    private double[] getStandardDeviationsFromTable(GATKReportTable astdTable){
-        double[] stdVector = {};
+    private Map<String, Double> getMapFromVectorTable(GATKReportTable vectorTable){
+        Map<String, Double> dataMap = new HashMap<>();
 
-        for (GATKReportColumn reportColumn : astdTable.getColumnInfo() ) {
-            if (reportColumn.getColumnName().equals("Standarddeviation")) {
-                stdVector = new double[astdTable.getNumRows()];
-                for (int row = 0; row < astdTable.getNumRows(); row++) {
-                    stdVector[row] =  (Double) astdTable.get(row, reportColumn.getColumnName());
-                }
-            }
+        //do a row-major traversal
+        for (int i = 0; i < vectorTable.getNumRows(); i++) {
+            dataMap.put((String) vectorTable.get(i, 0), (Double) vectorTable.get(i, 1));
         }
-
-        return stdVector;
-    }
-
-    private double[] getMeansFromTable(GATKReportTable amTable){
-        double[] meanVector = {};
-
-        for (GATKReportColumn reportColumn : amTable.getColumnInfo() ) {
-            if (reportColumn.getColumnName().equals("Mean")) {
-                meanVector = new double[amTable.getNumRows()];
-                for (int row = 0; row < amTable.getNumRows(); row++) {
-                    meanVector[row] = (Double) amTable.get(row, reportColumn.getColumnName());
-                }
-            }
-        }
-
-        return meanVector;
+        return dataMap;
     }
 
     protected GATKReport writeModelReport(final GaussianMixtureModel goodModel, final GaussianMixtureModel badModel, List<String> annotationList) {
-        final String formatString = "%.8E";
+        final String formatString = "%.16E";
         final GATKReport report = new GATKReport();
 
         if (dataManager != null) {  //for unit test
