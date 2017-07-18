@@ -279,7 +279,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testAlleleSpecificAnnotations() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -V "
                 + privateTestDir + "NA12878.AS.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("26606fbfc3e9e5a8813307227d898b9a"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("43196128ec5876b7f352c48e28e971b7"));
         spec.disableShadowBCF();
         executeTest("testAlleleSpecificAnnotations", spec);
     }
@@ -300,7 +300,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testASMateRankSumAnnotation() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_MQMateRankSumTest -V "
                 + privateTestDir + "NA12878.AS.MateRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.MateRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("9fd72e0f1f0f08a5aff6875225eec567"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("d93b649f38b490f3f234cd50bd4a3a3b"));
         spec.disableShadowBCF();
         executeTest("testASMateRankSumAnnotation", spec);
     }
@@ -309,7 +309,7 @@ public class CombineGVCFsIntegrationTest extends WalkerTest {
     public void testASInsertSizeRankSumAnnotation() throws Exception {
         final String cmd = "-T CombineGVCFs -R " + b37KGReference + " -o %s --no_cmdline_in_header -G Standard -G AS_Standard -A AS_InsertSizeRankSum -V "
                 + privateTestDir + "NA12878.AS.InsertSizeRankSum.chr20snippet.g.vcf -V " + privateTestDir + "NA12892.AS.InsertSizeRankSum.chr20snippet.g.vcf";
-        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("b8e10684010702d11ee71538b1f201ac"));
+        final WalkerTestSpec spec = new WalkerTestSpec(cmd, 1, Arrays.asList("eed25cfb0fa4e05ff64a1ce96eecaeae"));
         spec.disableShadowBCF();
         executeTest("testASInsertSizeRankSumAnnotation", spec);
     }
