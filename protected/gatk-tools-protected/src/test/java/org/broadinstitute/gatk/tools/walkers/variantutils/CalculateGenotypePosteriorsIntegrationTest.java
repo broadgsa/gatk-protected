@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -61,6 +62,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     private static String CEUtrioFamilyFile = privateTestDir + "CEUtrio.ped";
     private static String CEUtrioTest = privateTestDir + "CEUtrioTest.vcf";
     private static String CEUtrioPopPriorsTest = privateTestDir + "CEUtrioPopPriorsTest.vcf";
+    private static String CEUtrioMixedPloidyTest = privateTestDir + "CEUtrioMixedPloidy.vcf";
     private static String threeMemberNonTrioFamilyFile = privateTestDir + "threeMemberNonTrio.ped";
     private static String getThreeMemberNonTrioTest = privateTestDir + "threeMemberNonTrioTest.vcf";
 
@@ -135,5 +137,16 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
         executeTest("testFamilyPriors", spec);
     }
 
-
+    @Test(enabled = true)
+    public void testFamilyPriorsMixedPloidy() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header " +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -ped " + CEUtrioFamilyFile +
+                        " -V " + CEUtrioMixedPloidyTest,
+                1,
+                UserException.class);
+        executeTest("testFamilyPriorsMixedPloidy", spec);
+    }
 }
