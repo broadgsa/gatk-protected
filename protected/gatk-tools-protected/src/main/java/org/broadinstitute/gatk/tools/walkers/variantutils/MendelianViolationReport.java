@@ -66,8 +66,13 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
         long violationsMom = 0L;
         long violationsTogether = 0L;
         long totalViolations = 0L;
+        long totalCalled = 0L;
 
-        public void addMV(MendelianViolationCount.MV mv){
+        public void addMV(MendelianViolationCount.MV mv, Genotype g){
+            if (g.isCalled()) {
+                totalCalled++;
+            }
+
             if (mv == null){
                 return;
             }
@@ -120,7 +125,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
                     Sample s = sampleDB.getSample(g);
                     if (s != null){
                         MendelianViolationCount.MV mv = MendelianViolationCount.getMendelianViolation(s, vc, -1.0);
-                        sampleMap.get(sample).addMV(mv);
+                        sampleMap.get(sample).addMV(mv, g);
                     }
                 }
             }
@@ -141,7 +146,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
 
     @Override
     public void onTraversalDone(Integer result) {
-        out.println(StringUtils.join(Arrays.asList("SampleName", "TotalViolations", "MotherInconsistent", "FatherInconsistent", "InconsistentCombined", "Mother", "MotherHasData", "MotherMVs", "Father", "FatherHasData", "FatherMVs"), "\t"));
+        out.println(StringUtils.join(Arrays.asList("SampleName", "TotalCalled", "TotalViolations", "MotherInconsistent", "FatherInconsistent", "InconsistentCombined", "Mother", "MotherHasData", "MotherMVs", "Father", "FatherHasData", "FatherMVs"), "\t"));
 
         Set<String> samplesReported = new HashSet<>();
         Set<String> additionalSamplesToReport = new HashSet<>();
@@ -167,6 +172,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
         Sample sample = sampleDB.getSample(sn);
         List<String> line = new ArrayList<>(Arrays.asList(
                 sn,
+                String.valueOf(summary.totalCalled),
                 String.valueOf(summary.totalViolations),
                 String.valueOf(summary.violationsMom),
                 String.valueOf(summary.violationsDad),
