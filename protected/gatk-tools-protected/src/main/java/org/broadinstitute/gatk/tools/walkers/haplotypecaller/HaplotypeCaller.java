@@ -114,6 +114,8 @@ import org.broadinstitute.gatk.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.gatk.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.gatk.utils.variant.HomoSapiensConstants;
 
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -530,7 +532,6 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
      */
     private static final int MINIMUM_PUTATIVE_PLOIDY_FOR_ACTIVE_REGION_DISCOVERY = 2;
 
-
     /**
      * Reads with length lower than this number, after clipping off overhands outside the active region,
      * won't be considered for genotyping.
@@ -549,6 +550,11 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private final static Allele FAKE_ALT_ALLELE = Allele.create("<FAKE_ALT>", false); // used in isActive function to call into UG Engine. Should never appear anywhere in a VCF file
 
     ReferenceConfidenceModel referenceConfidenceModel = null;
+
+    /*
+     * Is the bad mate filter disabled by the argument -drf BadMate?
+     */
+    private boolean isBadMateFilterDisabled = false;
 
 
     ////////////////////////////////////////////////////////////////////////
@@ -735,6 +741,8 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
 
         trimmer.initialize(getToolkit().getGenomeLocParser(), HCAC.DEBUG,
                 HCAC.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES,emitReferenceConfidence());
+
+        isBadMateFilterDisabled = toolkit.getArguments().disabledReadFilters.contains("BadMate");
     }
 
     private void initializeReferenceConfidenceModel(final SampleList samples, final Set<VCFHeaderLine> headerInfo) {
@@ -767,7 +775,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private ReadLikelihoodCalculationEngine createLikelihoodCalculationEngine() {
         switch (likelihoodEngineImplementation) {
             case PairHMM:
-                return new PairHMMLikelihoodCalculationEngine( (byte) LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMSub, LEAC.alwaysLoadVectorLoglessPairHMMLib, log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
+                return new PairHMMLikelihoodCalculationEngine( (byte) LEAC.gcpHMM, LEAC.pairHMM, LEAC.pairHMMNativeArgs.getPairHMMArgs(), log10GlobalReadMismappingRate, LEAC.noFpga, pcrErrorModel );
             case GraphBased:
                 return new GraphBasedLikelihoodCalculationEngine( (byte) LEAC.gcpHMM,log10GlobalReadMismappingRate, heterogeneousKmerSizeResolution, HCAC.DEBUG, RTAC.debugGraphTransformations);
             case Random:
@@ -1226,7 +1234,7 @@ public class HaplotypeCaller extends ActiveRegionWalker<List<VariantContext>, In
     private Set<GATKSAMRecord> filterNonPassingReads( final ActiveRegion activeRegion ) {
         final Set<GATKSAMRecord> readsToRemove = new LinkedHashSet<>();
         for( final GATKSAMRecord rec : activeRegion.getReads() ) {
-            if( rec.getReadLength() < READ_LENGTH_FILTER_THRESHOLD || rec.getMappingQuality() < READ_QUALITY_FILTER_THRESHOLD || BadMateFilter.hasBadMate(rec) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
+            if( rec.getReadLength() < READ_LENGTH_FILTER_THRESHOLD || rec.getMappingQuality() < READ_QUALITY_FILTER_THRESHOLD || (!isBadMateFilterDisabled && BadMateFilter.hasBadMate(rec)) || (keepRG != null && !rec.getReadGroup().getId().equals(keepRG)) ) {
                 readsToRemove.add(rec);
             }
         }

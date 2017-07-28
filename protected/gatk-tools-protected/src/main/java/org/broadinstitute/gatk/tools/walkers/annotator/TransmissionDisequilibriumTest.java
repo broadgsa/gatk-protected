@@ -101,12 +101,14 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
 
         // Can only be called from VariantAnnotator
         if ( !(walker instanceof VariantAnnotator) ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                if ( walker != null )
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
-                else
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
-                walkerIdentityCheckWarningLogged = true;
+            synchronized (this) {
+                if (!walkerIdentityCheckWarningLogged) {
+                    if (walker != null)
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getSimpleName());
+                    else
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                    walkerIdentityCheckWarningLogged = true;
+                }
             }
             return null;
         }
@@ -115,9 +117,11 @@ public class TransmissionDisequilibriumTest extends InfoFieldAnnotation implemen
         if ( trios == null ) {
             trios = ((VariantAnnotator) walker).getSampleDB().getChildrenWithParents();
             if (trios == null || trios.isEmpty()) {
-                if ( !pedigreeCheckWarningLogged ) {
-                    logger.warn("Transmission disequilibrium test annotation requires a valid ped file be passed in.");
-                    pedigreeCheckWarningLogged = true;
+                synchronized (this) {
+                    if (!pedigreeCheckWarningLogged) {
+                        logger.warn("Transmission disequilibrium test annotation requires a valid ped file be passed in.");
+                        pedigreeCheckWarningLogged = true;
+                    }
                 }
                 return null;
             }

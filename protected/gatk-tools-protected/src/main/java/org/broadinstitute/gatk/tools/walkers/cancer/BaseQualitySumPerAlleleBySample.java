@@ -115,12 +115,14 @@ public class BaseQualitySumPerAlleleBySample extends GenotypeAnnotation implemen
 
         // Can only call from MuTect2
         if ( !(walker instanceof MuTect2) ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                if ( walker != null )
-                    logger.warn("Annotation will not be calculated, can only be called from MuTect2, not " + walker.getClass().getName());
-                else
-                    logger.warn("Annotation will not be calculated, can only be called from MuTect2");
-                walkerIdentityCheckWarningLogged = true;
+            synchronized (this) {
+                if (!walkerIdentityCheckWarningLogged) {
+                    if (walker != null)
+                        logger.warn("Annotation will not be calculated, can only be called from MuTect2, not " + walker.getClass().getSimpleName());
+                    else
+                        logger.warn("Annotation will not be calculated, can only be called from MuTect2");
+                    walkerIdentityCheckWarningLogged = true;
+                }
             }
             return;
         }

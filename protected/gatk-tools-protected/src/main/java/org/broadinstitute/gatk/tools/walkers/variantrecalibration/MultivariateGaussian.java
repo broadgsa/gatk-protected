@@ -271,4 +271,5 @@ public class MultivariateGaussian {
 
         resetPVarInGaussian(); // clean up some memory
     }
+
 }

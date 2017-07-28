@@ -67,6 +67,7 @@ import org.broadinstitute.gatk.utils.haplotype.Haplotype;
 import org.broadinstitute.gatk.utils.pairhmm.*;
 import org.broadinstitute.gatk.utils.sam.GATKSAMRecord;
 import org.broadinstitute.gatk.utils.variant.TandemRepeatFinder;
+import org.broadinstitute.gatk.nativebindings.pairhmm.PairHMMNativeArguments;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -82,8 +83,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
     private final double log10globalReadMismappingRate;
 
     private final PairHMM.HMM_IMPLEMENTATION hmmType;
-    private final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType;
-    private final boolean alwaysLoadVectorLoglessPairHMMLib;
+    private final PairHMMNativeArguments pairHmmNativeArgs;
     private final boolean noFpga;
 
     private final ThreadLocal<PairHMM> pairHMMThreadLocal = new ThreadLocal<PairHMM>() {
@@ -98,24 +98,36 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
                     else
                         return new CnyPairHMM();
                 case VECTOR_LOGLESS_CACHING:
-                    try
-                    {
-                        return new VectorLoglessPairHMM(hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
+                    return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.AVX, pairHmmNativeArgs);
+                case VECTOR_LOGLESS_CACHING_OMP:
+                    return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.OMP, pairHmmNativeArgs);
+                case VECTOR_LOGLESS_CACHING_FPGA_EXPERIMENTAL:
+                    return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.FPGA, pairHmmNativeArgs);
+                case FASTEST_AVAILABLE:
+                    try {
+                        return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.OMP, pairHmmNativeArgs);
                     }
-                    catch(UnsatisfiedLinkError ule)
-                    {
-                        logger.warn("Failed to load native library for VectorLoglessPairHMM - using Java implementation of LOGLESS_CACHING");
+                    catch(UserException.HardwareFeatureException hfe) {
+                        logger.warn("OpenMP multi-threaded AVX-accelerated native PairHMM implementation is not supported");
+                    }
+                    try {
+                        return new VectorLoglessPairHMM(VectorLoglessPairHMM.Implementation.AVX, pairHmmNativeArgs);
+                    }
+                    catch(UserException.HardwareFeatureException hfe) {
+                        logger.warn("AVX-accelerated native PairHMM implementation is not supported. Falling back to slower LOGLESS_CACHING implementation");
                         return new LoglessPairHMM();
                     }
                 case DEBUG_VECTOR_LOGLESS_CACHING:
-                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING, hmmSubType, alwaysLoadVectorLoglessPairHMMLib);
+                    return new DebugJNILoglessPairHMM(PairHMM.HMM_IMPLEMENTATION.VECTOR_LOGLESS_CACHING, pairHmmNativeArgs);
                 case ARRAY_LOGLESS:
                     if (noFpga || !CnyPairHMM.isAvailable())
                         return new ArrayLoglessPairHMM();
                     else
                         return new CnyPairHMM();
                 default:
-                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, and ARRAY_LOGLESS.");
+                    throw new UserException.BadArgumentValue("pairHMM", "Specified pairHMM implementation is unrecognized or " +
+                        "incompatible with the HaplotypeCaller. Acceptable options are ORIGINAL, EXACT, CACHING, LOGLESS_CACHING, " +
+                        "VECTOR_LOGLESS_CACHING, VECTOR_LOGLESS_CACHING_OMP, VECTOR_LOGLESS_CACHING_FPGA_EXPERIMENTAL, and ARRAY_LOGLESS.");
             }
         }
     };
@@ -160,8 +172,7 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      *
      * @param constantGCP the gap continuation penalty to use with the PairHMM
      * @param hmmType the type of the HMM to use
-     * @param hmmSubType the type of the machine dependent sub-implementation of HMM to use
-     * @param alwaysLoadVectorLoglessPairHMMLib always load the vector logless HMM library instead of once
+     * @param pairHmmNativeArgs arguments to the vector logless PairHMM implementation
      * @param log10globalReadMismappingRate the global mismapping probability, in log10(prob) units.  A value of
      *                                      -3 means that the chance that a read doesn't actually belong at this
      *                                      location in the genome is 1 in 1000.  The effect of this parameter is
@@ -173,11 +184,9 @@ public class PairHMMLikelihoodCalculationEngine implements ReadLikelihoodCalcula
      * @param noFpga disable FPGA acceleration
      * @param pcrErrorModel model to correct for PCR indel artifacts
      */
-    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final PairHMM.HMM_SUB_IMPLEMENTATION hmmSubType,
-                                               final boolean alwaysLoadVectorLoglessPairHMMLib, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
+    public PairHMMLikelihoodCalculationEngine( final byte constantGCP, final PairHMM.HMM_IMPLEMENTATION hmmType, final PairHMMNativeArguments pairHmmNativeArgs, final double log10globalReadMismappingRate, final boolean noFpga, final PCR_ERROR_MODEL pcrErrorModel ) {
         this.hmmType = hmmType;
-        this.hmmSubType = hmmSubType;
-        this.alwaysLoadVectorLoglessPairHMMLib = alwaysLoadVectorLoglessPairHMMLib;
+        this.pairHmmNativeArgs = pairHmmNativeArgs;
         this.constantGCP = constantGCP;
         this.log10globalReadMismappingRate = log10globalReadMismappingRate;
         this.noFpga = noFpga;

@@ -137,9 +137,9 @@ public class DepthPerSampleHC extends GenotypeAnnotation implements StandardHCAn
                     dp++;
                 }
             }
-
-            gb.DP(dp);
         }
+
+        gb.DP(dp);
     }
 
     @Override

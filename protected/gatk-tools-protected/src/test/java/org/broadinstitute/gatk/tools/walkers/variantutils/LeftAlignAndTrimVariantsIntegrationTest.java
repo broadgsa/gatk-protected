@@ -71,7 +71,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --no_cmdline_in_header",
                  1,
-                 Arrays.asList("5d82f53b036d9a0fca170e5be68d5ab2"));
+                 Arrays.asList("f01f0eb9a0ee7f1f7dd5089a40071956"));
          executeTest("test left alignment", spec);
     }
 
@@ -88,7 +88,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "longAlleles.vcf --no_cmdline_in_header -log " + logFileName,
                 1,
-                Arrays.asList("136f88a5bd07a022a3404089359cb8ee"));
+                Arrays.asList("138f4284278a652dd860a30333b95987"));
         executeTest("test left alignment with long alleles with an error", spec);
 
         // Make sure the "reference allele too long" message is in the log
@@ -112,7 +112,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir +
                         "longAlleles.vcf --no_cmdline_in_header --reference_window_stop 208 -log " + logFileName,
                 1,
-                Arrays.asList("c4ca5520ee499da171053059e3717b2f"));
+                Arrays.asList("1a2c2d8f12483c69a596ec7844363af6"));
         executeTest("test left alignment with long alleles fix", spec);
 
         // Make sure the "reference allele too long" message is in the log
@@ -127,7 +127,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header",
                 1,
-                Arrays.asList("dd238fe14b4a495a489907c1e021221e"));
+                Arrays.asList("cc20380fb6f8571b455814f001d08b1f"));
         executeTest("test left alignment, don't trim", spec);
     }
 
@@ -136,7 +136,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("58c09033814d41fab5da4c152eab7fa2"));
+                Arrays.asList("981a51ccc0eb4bd5ce5bee4a35573107"));
         executeTest("test left alignment with hard multiple alleles", spec);
     }
 
@@ -145,7 +145,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "forHardLeftAlignVariantsTest.vcf --dontTrimAlleles --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("6d22a6b78d24ee2329b91f27a91751cf"));
+                Arrays.asList("01bc359d01c8625ba25f644bbb3ad192"));
         executeTest("test left alignment with hard multiple alleles, don't trim", spec);
     }
 
@@ -154,7 +154,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("0acb354a2c28e250ef2853c1e0a0fafb"));
+                Arrays.asList("80b4a994a569ecfbd628121b85e64339"));
         executeTest("test left alignment of multiple alleles with genoptypes", spec);
     }
 
@@ -163,7 +163,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt-het-noref.vcf --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("a335913de938082061d6bbb863626ee2"));
+                Arrays.asList("9ffe7aa7e0c51885d04dc5c0ad8d6462"));
         executeTest("test left alignment of multiple alleles with genoptypes, including het-noref", spec);
     }
 
@@ -172,7 +172,25 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split -keepOriginalAC",
                 1,
-                Arrays.asList("67657ee509665fd0d7a2c9024981ba92"));
+                Arrays.asList("6774b43d9446278e716d7198717a5f85"));
         executeTest("test left alignment of multiple alleles with genoptypes, keep original AC", spec);
+    }
+
+    @Test
+    public void testSplitLeftAlignmentWithMultiallelicNoCallGenotypes() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " --variant:vcf " + privateTestDir + "multiallelic-nocall.vcf -L chr12:104350950-104350960 --no_cmdline_in_header -split",
+                1,
+                Arrays.asList("c7ce4310117f993593ce35f586451c53"));
+        executeTest("test splitting left alignment of multiple alleles with no-call genoptypes", spec);
+    }
+
+    @Test
+    public void testSplitLeftAlignmentWithMultiallelicBadAD() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T LeftAlignAndTrimVariants -o %s -R " + hg19ReferenceWithChrPrefixInChromosomeNames + " --variant:vcf " + privateTestDir + "multiallelic-nocall-badAD.vcf -L chr12:104350950-104350960 --no_cmdline_in_header -split",
+                1,
+                 IllegalStateException.class);
+        executeTest("test splitting left alignment of multiple alleles with bad AD", spec);
     }
 }

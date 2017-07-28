@@ -106,7 +106,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
     protected final GenomeLocParser genomeLocParser;
 
-    private final List<GenomeLoc> upstreamDeletionsLoc = new LinkedList<>();
+    private final ThreadLocal< List<GenomeLoc> > upstreamDeletionsLoc = ThreadLocal.withInitial(() -> new LinkedList<GenomeLoc>());
 
     protected final AFCalculator newAFCalculator;
 
@@ -411,7 +411,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         // Allele ia a deletion
         if (deletionSize > 0) {
             final GenomeLoc genomeLoc = genomeLocParser.createGenomeLocOnContig(vc.getContig(), vc.getStart(), vc.getStart() + deletionSize);
-            upstreamDeletionsLoc.add(genomeLoc);
+            upstreamDeletionsLoc.get().add(genomeLoc);
         }
     }
 
@@ -422,7 +422,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @return  true if the location is covered by an upstream deletion, false otherwise
      */
     private boolean coveredByDeletion(final VariantContext vc) {
-        for (Iterator<GenomeLoc> it = upstreamDeletionsLoc.iterator(); it.hasNext(); ) {
+        for (Iterator<GenomeLoc> it = upstreamDeletionsLoc.get().iterator(); it.hasNext(); ) {
             final GenomeLoc loc = it.next();
             if (!loc.getContig().equals(vc.getContig())) { // past contig deletion.
                 it.remove();

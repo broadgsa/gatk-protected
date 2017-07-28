@@ -132,30 +132,30 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
          cvExecuteTest("combine PLs 1:" + new File(file1).getName() + " 2:" + new File(file2).getName(), spec, true);
     }
 
-    @Test public void test1SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "e3dbdfa14aefb2f6bd1213287d34a2e5", " -U LENIENT_VCF_PROCESSING"); }
-    @Test public void test2SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "d727fab83b4265859c4a902f6e66ac3d", " -setKey foo -U LENIENT_VCF_PROCESSING"); }
-    @Test public void test3SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "42fc3d2c68415a61ff15e594a63d9349", " -setKey null -U LENIENT_VCF_PROCESSING"); }
-    @Test public void testOfficialCEUPilotCalls() { test1InOut("CEU.trio.2010_03.genotypes.vcf.gz", "a3994d6145bb3813950939238db4c592"); } // official project VCF files in tabix format
+    @Test public void test1SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "554a6cfd4e57d8131281d7c3441ececc", " -U LENIENT_VCF_PROCESSING"); }
+    @Test public void test2SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "dc550d1a673f7115601ac8390b039bbc", " -setKey foo -U LENIENT_VCF_PROCESSING"); }
+    @Test public void test3SNP() { test1InOut("pilot2.snps.vcf4.genotypes.vcf", "2f59d80c01ab21d5a8bfa1edae2f330b", " -setKey null -U LENIENT_VCF_PROCESSING"); }
+    @Test public void testOfficialCEUPilotCalls() { test1InOut("CEU.trio.2010_03.genotypes.vcf.gz", "9c094f4f3f7be94561278128328ec02c"); } // official project VCF files in tabix format
 
-    @Test public void test1Indel1() { test1InOut("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "e7fd959312e2aff0b4231963ee690aec"); }
-    @Test public void test1Indel2() { test1InOut("CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "23439a1f0108b57a14e18efe9482cc88"); }
+    @Test public void test1Indel1() { test1InOut("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "cf66b8bc832cb2b21cd452a0b90db50d"); }
+    @Test public void test1Indel2() { test1InOut("CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "62b6624da8af9cdf2f8e7c2d93dc7b30"); }
 
-    @Test public void combineWithPLs() { combinePLs("combine.3.vcf", "combine.4.vcf", "27aa46cdb022be3959e7240a0d7ac794"); }
+    @Test public void combineWithPLs() { combinePLs("combine.3.vcf", "combine.4.vcf", "d418c467e04b4d2f784887b3cb4f8796"); }
 
-    @Test public void combineTrioCalls() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", "", "9bdda937754e1407183406808f560723"); } // official project VCF files in tabix format
-    @Test public void combineTrioCallsMin() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", " -minimalVCF", "6344953a82a422115bd647ec1d696b94"); } // official project VCF files in tabix format
-    @Test public void combine2Indels() { combine2("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "51cf4543e46c8434e32c426f59507d1e"); }
+    @Test public void combineTrioCalls() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", "", "0cb105be750ddd6e461e5c65cecf0114"); } // official project VCF files in tabix format
+    @Test public void combineTrioCallsMin() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "YRI.trio.2010_03.genotypes.vcf.gz", " -minimalVCF", "3a3b16abf4170918ed763349041a0af3"); } // official project VCF files in tabix format
+    @Test public void combine2Indels() { combine2("CEU.dindel.vcf4.trio.2010_06.indel.genotypes.vcf", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "ba9909557cb6882b79441b85ca11ba12"); }
 
-    @Test public void combineSNPsAndIndels() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "f9d1d7e6246f0ce9e493357d5b320323"); }
+    @Test public void combineSNPsAndIndels() { combine2("CEU.trio.2010_03.genotypes.vcf.gz", "CEU.dindel.vcf4.low_coverage.2010_06.indel.genotypes.vcf", "", "a353e2adbc1356f6db2b1be655abef2a"); }
 
     @Test public void uniqueSNPs() {
         // parallelism must be disabled because the input VCF is malformed (DB=0) and parallelism actually fixes this which breaks the md5s
         //both of these files have the YRI trio and merging of duplicate samples without priority must be specified with UNSORTED merge type
-        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", " -genotypeMergeOptions UNSORTED", "5aece78046bfb7d6ee8dc4d551542e3a", true);
+        combine2("pilot2.snps.vcf4.genotypes.vcf", "yri.trio.gatk_glftrio.intersection.annotated.filtered.chr1.vcf", " -genotypeMergeOptions UNSORTED", "4812bb9a6ae7842f08361d01c206e359", true);
     }
 
-    @Test public void omniHM3Union() { combineSites(" -filteredRecordsMergeType KEEP_IF_ANY_UNFILTERED", "0897efcc0046bd94760315838d4d0fa5"); }
-    @Test public void omniHM3Intersect() { combineSites(" -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED", "8b12b09a6ec4e3fde2352bbf82637f1e"); }
+    @Test public void omniHM3Union() { combineSites(" -filteredRecordsMergeType KEEP_IF_ANY_UNFILTERED", "53653c3cab8d064c376f2f8aef5630ef"); }
+    @Test public void omniHM3Intersect() { combineSites(" -filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED", "52d30251d397ca990703296d0c348f02"); }
 
     @Test public void threeWayWithRefs() {
         WalkerTestSpec spec = new WalkerTestSpec(
@@ -169,7 +169,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                         " -priority NA19240_BGI,NA19240_ILLUMINA,NA19240_WUGSC,denovoInfo" +
                         " -genotypeMergeOptions UNIQUIFY -L 1"),
                 1,
-                Arrays.asList("8b75e835ed19c06c358a2185cd0e14db"));
+                Arrays.asList("98299ecb58963d069ebbc5b0da33cda7"));
         cvExecuteTest("threeWayWithRefs", spec, true);
     }
 
@@ -186,17 +186,17 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
         cvExecuteTest("combineComplexSites 1:" + new File(file1).getName() + " 2:" + new File(file2).getName() + " args = " + args, spec, true);
     }
 
-    @Test public void complexTestFull() { combineComplexSites("", "80c3b7ba39c8a3f3511fc1ea61ecd4da"); }
-    @Test public void complexTestMinimal() { combineComplexSites(" -minimalVCF", "e7da95bbcf3890a4debbfa07cbd646e5"); }
-    @Test public void complexTestSitesOnly() { combineComplexSites(" -sites_only", "d7ee8da6ceee4dd1212122c2e9cab2a6"); }
-    @Test public void complexTestSitesOnlyMinimal() { combineComplexSites(" -sites_only -minimalVCF", "d7ee8da6ceee4dd1212122c2e9cab2a6"); }
+    @Test public void complexTestFull() { combineComplexSites("", "166fe9233adb30c13a1638215e79e86d"); }
+    @Test public void complexTestMinimal() { combineComplexSites(" -minimalVCF", "17f43aab1aeb9609c3834e8257f04422"); }
+    @Test public void complexTestSitesOnly() { combineComplexSites(" -sites_only", "89ff19389c40b8c0bff710be2b969d98"); }
+    @Test public void complexTestSitesOnlyMinimal() { combineComplexSites(" -sites_only -minimalVCF", "89ff19389c40b8c0bff710be2b969d98"); }
 
     @Test
     public void combineDBSNPDuplicateSites() {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T CombineVariants --no_cmdline_in_header -L 1:902000-903000 -o %s -R " + b37KGReference + " -V:v1 " + b37dbSNP132,
                  1,
-                 Arrays.asList("b0d4b86702b44fc4faa527c34adf6239"));
+                 Arrays.asList("719c2e7726b1ba4aa22f5d2b87206300"));
          cvExecuteTest("combineDBSNPDuplicateSites:", spec, true);
     }
 
@@ -207,7 +207,7 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                         + " -R " + b37KGReference
                         + " -V " + privateTestDir + "combineVariantsLeavesRecordsUnfiltered.vcf",
                 1,
-                Arrays.asList("0f221847e76521250de1abcba535e49c"));
+                Arrays.asList("57c65954cf6a2316e1270a40f4b016b4"));
         cvExecuteTest("combineLeavesUnfilteredRecordsUnfiltered: ", spec, false);
     }
 
@@ -250,5 +250,18 @@ public class CombineVariantsIntegrationTest extends WalkerTest {
                 0,
                 Arrays.asList(""));
         executeTest("combineSpanningDels: ", spec);
+    }
+
+    @Test
+    public void combineDifferentTypes() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CombineVariants --no_cmdline_in_header -o %s "
+                        + " -R " + b37KGReference
+                        + " -V " + privateTestDir + "same.variant.indel.vcf"
+                        + " -V " + privateTestDir + "same.variant.mixed.vcf"
+                        + " -multipleAllelesMergeType MIX_TYPES",
+                1,
+                Arrays.asList("a21c03e0398af88daefe259c6746707f"));
+        executeTest("combineDifferentTypes: ", spec);
     }
 }

@@ -60,22 +60,6 @@ class UnmappedExcludedQueueTest {
   @Test(timeOut=36000000)
   def testUnmappedExclusion(): Unit = {
 
-    //FindCoveredIntervals is an ActiveRegionWalker, which throws an exception if it encounters unmapped reads
-    //But it's partitioned by contigs, which by default includes unmapped reads.  Verify that the unmapped reads
-    //are correctly not added in this case
-    val testOut = "fci.out"
-    val spec = new QueueTestSpec
-    spec.name = "findcoveredintervals"
-    spec.args = Array(
-      " -S " + QueueTest.protectedQScriptsPackageDir + "examples/ExampleFindCoveredIntervals.scala",
-      " -R " + BaseTest.publicTestDir + "exampleFASTA.fasta",
-      " -I " + BaseTest.publicTestDir + "exampleBAM.bam",
-      " -out " + testOut).mkString
-
-    //The output file is blank - the real test is simply that it runs to completion
-    spec.fileMD5s += testOut -> "d41d8cd98f00b204e9800998ecf8427e"
-    QueueTest.executeTest(spec)
-
     //Regression Test: HaplotypeCaller is also an ActiveRegionWalker, and is much more widely used.  Explicitly test
     //it as well
     val hcTestOut = "hctest.vcf"

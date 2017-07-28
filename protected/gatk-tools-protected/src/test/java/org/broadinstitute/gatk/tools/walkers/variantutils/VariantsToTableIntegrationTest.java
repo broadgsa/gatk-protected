@@ -63,7 +63,7 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
                 " --variant:vcf " + privateTestDir + "soap_gatk_annotated.vcf" +
                 " -T VariantsToTable" +
                 " -F CHROM -F POS -F ID -F REF -F ALT -F QUAL -F FILTER -F TRANSITION -F DP -F SB -F set -F RankSumP -F refseq.functionalClass*" +
-                " -L chr1 -o %s" + moreArgs;
+                " -L chr1 -o %s " + moreArgs;
     }
 
     private String variantsToTableMultiAllelicCmd(String moreArgs) {
@@ -76,15 +76,15 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
 
     @Test(enabled = true)
     public void testComplexVariantsToTable() {
-        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableCmd(" -AMD"),
+        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableCmd(""),
                 Arrays.asList("e8f771995127b727fb433da91dd4ee98"));
         executeTest("testComplexVariantsToTable", spec);
     }
 
     @Test(enabled = true)
     public void testComplexVariantsToTableFail() {
-        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableCmd(""), 1, UserException.class);
-        executeTest("testComplexVariantsToTable-FAIL", spec);
+        WalkerTestSpec spec = new WalkerTestSpec(variantsToTableCmd("--errorIfMissingData"), 1, UserException.class);
+        executeTest("testComplexVariantsToTableFail", spec);
     }
 
     @Test(enabled = true)
@@ -112,6 +112,32 @@ public class VariantsToTableIntegrationTest extends WalkerTest {
                 1,
                 Arrays.asList("d43562e9b94f0e8e337d38a6829671ee"));
         executeTest("testGenotypeFields", spec);
+    }
+
+    @Test(enabled = true)
+    public void testUnfilteredGenotypeField() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-R " + b36KGReference +
+                        " --variant " + privateTestDir + "vcfexample2.vcf" +
+                        " -T VariantsToTable" +
+                        " -GF RD -GF FT" +
+                        " -o %s",
+                1,
+                Arrays.asList("fec1e70f3c5762225535559feb5ffdee"));
+        executeTest("testUnfilteredGenotypeField", spec);
+    }
+
+    @Test(enabled = true)
+    public void testUnfilteredGenotypeFieldFail() {
+        WalkerTest.WalkerTestSpec spec = new WalkerTest.WalkerTestSpec(
+                "-R " + b36KGReference +
+                        " --variant " + privateTestDir + "vcfexample2.vcf" +
+                        " -T VariantsToTable" +
+                        " -GF RD -GF FT --errorIfMissingData" +
+                        " -o %s",
+                1,
+                UserException.class);
+        executeTest("testUnfilteredGenotypeFieldFail", spec);
     }
 
     @Test

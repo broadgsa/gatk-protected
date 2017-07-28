@@ -89,17 +89,17 @@ public class VariantFiltrationParallelIntegrationTest extends WalkerTest {
                 String testfile = privateTestDir + "vcfexample2.vcf" ;
                 String args = " -filter 'AlleleBalance < 70.0 && FisherStrand == 1.4' -filterName bar --variant -V " + testfile +
                         " -L 1:10,020,000-10,021,000";
-                new ParallelVariantFiltrationTestProvider(b36KGReference, args, "0c0fddb0eb6f9d3f74556332cd498079", nt);
+                new ParallelVariantFiltrationTestProvider(b36KGReference, args, "0a7cdf3117b4e8bcfcc41fde34ef0a9e", nt);
             }
             {
                 final String testfile = privateTestDir + "filteringDepthInFormat.vcf";
                 final String args = " --genotypeFilterExpression 'DP < 8' --genotypeFilterName highDP --invertGenotypeFilterExpression -V " + testfile;
-                new ParallelVariantFiltrationTestProvider(b37KGReference, args, "c6bc275c97a9e737748d16132ee76f48", nt);
+                new ParallelVariantFiltrationTestProvider(b37KGReference, args, "cc8eab3f7cacc6d7effc9df9ba98210a", nt);
             }
             {
                 final String testfile = privateTestDir + "filteringDepthInFormat.vcf";
                 final String args = "  --genotypeFilterExpression 'DP < 8' --genotypeFilterName lowDP -V " + testfile;
-                new ParallelVariantFiltrationTestProvider(b37KGReference, args, "b0016040127766a4163fcbd91afff3ea", nt);
+                new ParallelVariantFiltrationTestProvider(b37KGReference, args, "8c82cc0ec68b2397512d7bf255c17730", nt);
             }
         }
 

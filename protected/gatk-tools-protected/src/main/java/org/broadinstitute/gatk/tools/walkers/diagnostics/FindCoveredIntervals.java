@@ -94,6 +94,8 @@ import java.io.PrintStream;
  *   -R reference.fasta \
  *   -I my_file.bam \
  *   [-cov 10 \]
+ *   [-minBQ 20 \]
+ *   [-minMQ 20 \]
  *   [-uncovered \]
  *   -o output.list
  * </pre>
@@ -110,7 +112,7 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     private boolean outputUncovered = false;
 
     @Argument(fullName = "coverage_threshold", shortName = "cov", doc = "The minimum allowable coverage to be considered covered", required = false)
-    private int coverageThreshold = 20;
+    private int coverageThreshold = 0;
 
     @Argument(fullName = "minBaseQuality", shortName = "minBQ", doc = "The minimum allowable base quality score to be counted for coverage",required = false)
     private int minBaseQuality = 0;
@@ -118,22 +120,15 @@ public class FindCoveredIntervals extends ActiveRegionWalker<GenomeLoc, Long> {
     @Argument(fullName = "minMappingQuality", shortName = "minMQ", doc = "The minimum allowable mapping quality score to be counted for coverage",required = false)
     private int minMappingQuality = 0;
 
-
-
-
     @Override
     // Look to see if the region has sufficient coverage
     public ActivityProfileState isActive(final RefMetaDataTracker tracker, final ReferenceContext ref, final AlignmentContext context) {
+        final int filteredByQualityDepth = (minBaseQuality == 0 && minMappingQuality == 0) ? context.getBasePileup().depthOfCoverage() :
+                context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality,minMappingQuality).depthOfCoverage();
+        // The region is active if passes the base quality, mapping quality and coverage threshold. 
+        final double isActiveProb = filteredByQualityDepth == 0 ? 0.0 : filteredByQualityDepth >= coverageThreshold ? 1.0 : 0.0;
 
-        int depth;
-        if(minBaseQuality == 0 && minMappingQuality == 0)
-            depth = context.getBasePileup().getBaseFilteredPileup(coverageThreshold).depthOfCoverage();
-        else
-            depth = context.getBasePileup().getBaseAndMappingFilteredPileup(minBaseQuality,minMappingQuality).depthOfCoverage();
-
-        // note the linear probability scale
-        return new ActivityProfileState(ref.getLocus(), Math.min(depth / coverageThreshold, 1));
-
+        return new ActivityProfileState(ref.getLocus(), isActiveProb);
     }
 
     @Override

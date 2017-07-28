@@ -52,6 +52,7 @@
 package org.broadinstitute.gatk.tools.walkers.variantutils;
 
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
+import org.broadinstitute.gatk.utils.exceptions.UserException;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -61,6 +62,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
     private static String CEUtrioFamilyFile = privateTestDir + "CEUtrio.ped";
     private static String CEUtrioTest = privateTestDir + "CEUtrioTest.vcf";
     private static String CEUtrioPopPriorsTest = privateTestDir + "CEUtrioPopPriorsTest.vcf";
+    private static String CEUtrioMixedPloidyTest = privateTestDir + "CEUtrioMixedPloidy.vcf";
     private static String threeMemberNonTrioFamilyFile = privateTestDir + "threeMemberNonTrio.ped";
     private static String getThreeMemberNonTrioTest = privateTestDir + "threeMemberNonTrioTest.vcf";
 
@@ -74,7 +76,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("43fa27382e654081af69ea05bd26e281"));
+                Arrays.asList("8f227698838bee7bea2f537be7348533"));
         executeTest("testUsingDiscoveredAF", spec);
     }
 
@@ -89,7 +91,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -L 20:10,000,000-10,001,432" +
                         " -V " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("d63893f530fb749505ec685a5c57ff69"));
+                Arrays.asList("bacd69e97eee216c9fa8f0a909d14ef7"));
         executeTest("testMissingPriors", spec);
     }
 
@@ -103,7 +105,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + validationDataLocation + "NA12878.Jan2013.haplotypeCaller.subset.indels.vcf" +
                         " -supporting " + validationDataLocation + "1000G.phase3.broad.withGenotypes.chr20.1MB.vcf",
                 1,
-                Arrays.asList("a5d7bcad5a2a194441d00eb6574b8300"));
+                Arrays.asList("69e6b6b494bccdec126b00a0e67f3479"));
         executeTest("testInputINDELs", spec);
     }
 
@@ -117,7 +119,7 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + CEUtrioTest +
                         " -supporting " + CEUtrioPopPriorsTest,
                 1,
-                Arrays.asList("98bf63fd2ae3fa1cc42e66fa6b4f50f5"));
+                Arrays.asList("a2b123d282f029b95ed2ce2959a17f24"));
         executeTest("testFamilyPriors", spec);
     }
 
@@ -131,9 +133,20 @@ public class CalculateGenotypePosteriorsIntegrationTest extends WalkerTest {
                         " -V " + getThreeMemberNonTrioTest +
                         " -skipPop",
                 1,
-                Arrays.asList("e71420099fcfc824f1cf92ff2010b69e"));
+                Arrays.asList("dc52a9b5a09d15c8cfb004ffee5f42d0"));
         executeTest("testFamilyPriors", spec);
     }
 
-
+    @Test(enabled = true)
+    public void testFamilyPriorsMixedPloidy() {
+        WalkerTestSpec spec = new WalkerTestSpec(
+                "-T CalculateGenotypePosteriors --no_cmdline_in_header " +
+                        " -o %s" +
+                        " -R " + b37KGReference +
+                        " -ped " + CEUtrioFamilyFile +
+                        " -V " + CEUtrioMixedPloidyTest,
+                1,
+                UserException.class);
+        executeTest("testFamilyPriorsMixedPloidy", spec);
+    }
 }

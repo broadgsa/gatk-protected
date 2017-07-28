@@ -106,10 +106,11 @@ import java.util.*;
  *   -o cohort.g.vcf
  * </pre>
  *
- * <h3>Caveat</h3>
+ * <h3>Caveats</h3>
  * <p>Only gVCF files produced by HaplotypeCaller (or CombineGVCFs) can be used as input for this tool. Some other
  * programs produce files that they call gVCFs but those lack some important information (accurate genotype likelihoods
  * for every position) that GenotypeGVCFs requires for its operation.</p>
+ * <p>If the gVCF files contain allele specific annotations, add -G Standard -G AS_Standard to the command line.</p>
  *
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARMANIP, extraDocs = {CommandLineGATK.class} )

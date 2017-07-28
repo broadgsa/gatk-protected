@@ -65,6 +65,8 @@ public class StrandBiasTableUtils {
 
     private final static Logger logger = Logger.getLogger(StrandBiasTableUtils.class);
 
+    private static final double REL_ERR = 1 + 10e-7;
+
     //For now this is only for 2x2 contingency tables
     protected static final int ARRAY_DIM = 2;
     protected static final int ARRAY_SIZE = ARRAY_DIM * ARRAY_DIM;
@@ -117,7 +119,7 @@ public class StrandBiasTableUtils {
         final HypergeometricDistribution dist = new HypergeometricDistribution(N, numberOfSuccesses, sampleSize);
 
         //Then we determine a given probability with the sampled successes (k = a) from the first entry in the table.
-        double pCutoff = dist.probability(table[0][0]);
+        double pCutoff = dist.probability(table[0][0]) * REL_ERR;
 
         double pValue = 0.0;
         /**

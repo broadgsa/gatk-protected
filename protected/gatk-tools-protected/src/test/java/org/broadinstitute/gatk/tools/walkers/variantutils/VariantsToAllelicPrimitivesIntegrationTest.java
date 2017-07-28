@@ -66,7 +66,7 @@ public class VariantsToAllelicPrimitivesIntegrationTest extends WalkerTest {
          WalkerTestSpec spec = new WalkerTestSpec(
                  "-T VariantsToAllelicPrimitives -o %s -R " + b37KGReference + " -V " + privateTestDir + "vcfWithMNPs.vcf --no_cmdline_in_header",
                  1,
-                 Arrays.asList("db9929eef707d7dff0aef576f49e4a0d"));
+                 Arrays.asList("d6d817cf5331794bb2dcc31180c2892b"));
          executeTest("test MNPs To SNPs", spec);
     }
 }

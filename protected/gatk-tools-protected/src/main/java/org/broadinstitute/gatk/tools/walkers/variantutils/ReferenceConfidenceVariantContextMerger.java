@@ -78,6 +78,8 @@ public class ReferenceConfidenceVariantContextMerger {
 
     private final static Logger logger = Logger.getLogger(ReferenceConfidenceVariantContextMerger.class);
 
+    static final String ADD_AS_STANDARD_MSG = " Add -G Standard -G AS_Standard to the command to annotate in the final VC.";
+
     private static Comparable combineAnnotationValues( final List<Comparable> array ) {
         return MathUtils.median(array); // right now we take the median but other options could be explored
     }
@@ -244,7 +246,9 @@ public class ReferenceConfidenceVariantContextMerger {
                     }
 
                 } catch (final NumberFormatException e) {
-                    logger.warn("WARNING: remaining (non-reducible) annotations are assumed to be ints or doubles or booleans, but " + value.getRawData() + " doesn't parse and will not be annotated in the final VC.");
+                    final String baseMsg = "Remaining (non-reducible) annotations are assumed to be ints or doubles, but " + value.getRawData() + " doesn't parse and will not be annotated in the final VC.";
+                    final String msg = value.getRawData().contains("|") ? baseMsg + ADD_AS_STANDARD_MSG : baseMsg;
+                    logger.warn(msg);
                 }
             }
             parsedAnnotations.put(currentData.getKey(),annotationValues);

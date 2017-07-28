@@ -109,12 +109,14 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
 
         // Can only be called from VariantAnnotator
         if ( !(walker instanceof VariantAnnotator) ) {
-            if ( !walkerIdentityCheckWarningLogged ) {
-                if ( walker != null )
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getName());
-                else
-                    logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
-                walkerIdentityCheckWarningLogged = true;
+            synchronized (this) {
+                if (!walkerIdentityCheckWarningLogged) {
+                    if (walker != null)
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator, not " + walker.getClass().getSimpleName());
+                    else
+                        logger.warn("Annotation will not be calculated, must be called from VariantAnnotator");
+                    walkerIdentityCheckWarningLogged = true;
+                }
             }
             return null;
         }
@@ -123,9 +125,11 @@ public class MVLikelihoodRatio extends InfoFieldAnnotation implements RodRequiri
             // Must have a pedigree file
             trios = ((Walker) walker).getSampleDB().getTrios();
             if ( trios.isEmpty() ) {
-                if ( !pedigreeCheckWarningLogged ) {
-                    logger.warn("Annotation will not be calculated, mendelian violation annotation must provide a valid PED file (-ped) from the command line.");
-                    pedigreeCheckWarningLogged = true;
+                synchronized (this) {
+                    if (!pedigreeCheckWarningLogged) {
+                        logger.warn("Annotation will not be calculated, mendelian violation annotation must provide a valid PED file (-ped) from the command line.");
+                        pedigreeCheckWarningLogged = true;
+                    }
                 }
                 return null;
             }

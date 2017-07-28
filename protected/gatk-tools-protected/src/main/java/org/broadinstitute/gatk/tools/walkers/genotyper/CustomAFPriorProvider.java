@@ -86,8 +86,6 @@ public class CustomAFPriorProvider extends AFPriorProvider {
 
     @Override
     protected double[] buildPriors(final int totalPloidy) {
-        if (totalPloidy != priors.length - 1)
-            throw new IllegalStateException("requesting an invalid prior total ploidy " + totalPloidy + " != " + (priors.length - 1));
         return priors;
     }
 }

@@ -248,7 +248,7 @@ public class UnifiedGenotypingEngine extends GenotypingEngine<UnifiedArgumentCol
                 glcm.put(key, (GenotypeLikelihoodsCalculationModel)c.newInstance(args));
             }
             catch (Exception e) {
-                throw new UserException("The likelihoods model provided for the -glm argument (" + UAC.GLmodel + ") is not a valid option: " + e.getMessage());
+                throw new UserException("The likelihoods model provided for the -glm argument (" + UAC.GLmodel + ") is not a valid option: " + e.getCause().getMessage());
             }
         }
 

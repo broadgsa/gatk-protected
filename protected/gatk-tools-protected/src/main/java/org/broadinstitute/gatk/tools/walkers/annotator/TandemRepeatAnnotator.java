@@ -79,7 +79,6 @@ import java.util.*;
  */
 public class TandemRepeatAnnotator extends InfoFieldAnnotation implements StandardUGAnnotation, ActiveRegionBasedAnnotation {
     private final static Logger logger = Logger.getLogger(TandemRepeatAnnotator.class);
-    private boolean walkerIdentityCheckWarningLogged = false;
 
     @Override
     public Map<String, Object> annotate(final RefMetaDataTracker tracker,

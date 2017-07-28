@@ -354,7 +354,7 @@ public class ValidateVariantsIntegrationTest extends WalkerTest {
         String baseIntervals = " 1:1-100 -L 5:1-200 ";
         String intervalString = " -L " + baseIntervals;
         final WalkerTestSpec hc = new WalkerTestSpec("-T HaplotypeCaller " + intervalString + " -I " + privateTestDir + "NA12878.4.snippet.bam " +
-                " -R /humgen/1kg/reference/human_g1k_v37_decoy.fasta -ERC GVCF -o " + output, Collections.singletonList(EMPTY_MD5));
+                " -R /humgen/gsa-hpprojects/GATK/bundle/current/b37/human_g1k_v37_decoy.fasta -ERC GVCF -o " + output, Collections.singletonList(EMPTY_MD5));
         executeTest("running hc", hc);
 
         WalkerTestSpec spec = new WalkerTestSpec(

@@ -107,7 +107,7 @@ import java.util.ArrayList;
  *   -R reference.fasta \
  *   -I input.bam \
  *   -o output.bam \
- *   -U ALLOW_N_CIGARS
+ *   -U ALLOW_N_CIGAR_READS
  * </pre>
  * 
  * <h3>Note</h3>

@@ -185,6 +185,8 @@ import java.util.*;
  *   -o output.withPosteriors.vcf
  * </pre>
  *
+ * <h3>Caveat</h3>
+ * <p>If applying family priors, only diploid family genotypes are supported</p>
  */
 @DocumentedGATKFeature( groupName = HelpConstants.DOCS_CAT_VARDISC, extraDocs = {CommandLineGATK.class} )
 public class CalculateGenotypePosteriors extends RodWalker<Integer,Integer> {
