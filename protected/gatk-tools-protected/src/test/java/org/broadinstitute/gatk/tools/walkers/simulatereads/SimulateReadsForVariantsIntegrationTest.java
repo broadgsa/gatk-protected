@@ -64,7 +64,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("d929369b9095420a8aaff2595ec2f80a"));
+                 Arrays.asList("b5680f835aff1da6e1e60123d39f2371"));
         executeTest("testVariants", spec);
     }
 
@@ -74,7 +74,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RL 70 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("bbc65e4f8bd3a1656616476a1e190ecf"));
+                 Arrays.asList("177d32e0b13bd40aaeef71e8e5ffefe7"));
         executeTest("testReadLength", spec);
     }
 
@@ -84,7 +84,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-ER 40 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                  1,
-                 Arrays.asList("cb0e4b11bbd1b5a154ad6c99541cd017"));
+                 Arrays.asList("7353b4d148221f4f4975f07712413e18"));
         executeTest("testErrorRate", spec);
     }
 
@@ -94,7 +94,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RGPL SOLID -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forSimulation.vcf -o %s",
                 1,
-                Arrays.asList("2b5c6cda9a434c9e25e5da5599eeae51"));
+                Arrays.asList("6f7a2ff3aa3c2e24a00f04dc770a4140"));
         executeTest("testPlatformTag", spec);
     }
 
@@ -105,7 +105,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag --useAFAsAlleleFraction -DP 100 -R " + b37KGReference + " -V " + publicTestDir + "forAlleleFractionSimulation.vcf -o %s",
                 1,
-                Arrays.asList("1ae2c354718b470e30b44d5e59cb9944"));
+                Arrays.asList("f19d4b62269512fff0dcce21874c0d43"));
         executeTest("testAlleleFraction", spec);
 
     }
@@ -116,7 +116,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
                 1,
-                Arrays.asList("5c069bff8efb988660c7f6d28a3117fc"));
+                Arrays.asList("052f1b644848cfd058cd2aeb0b6f2fd2"));
         executeTest("testLongInsertFailure", spec);
     }
 
@@ -126,7 +126,7 @@ public class SimulateReadsForVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-RL 269 -T SimulateReadsForVariants --no_pg_tag -R " + b37KGReference + " -V " + publicTestDir + "forLongInsert.vcf -o %s",
                 1,
-                Arrays.asList("0657f6a692d22b5e2b7f5832710042e4"));
+                Arrays.asList("33f7da2e0b711a9ad28cb49c60e648be"));
         executeTest("testLongInsertSuccess", spec);
     }
 

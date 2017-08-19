@@ -133,7 +133,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
 
     @Test
     public void testHaplotypeBAMOutFlags() throws IOException {
-        final String md5BAMOut = "69aae17f8cd384666ec7c3c1f3d3eb57";
+        final String md5BAMOut = "0934466fa2b8648af9e6267286a57151";
         HCTestWithBAMOut(NA12878_BAM, " -L 20:10000000-10100000 ", "df622103b0a6917f2299b1acfd0ed0ac", md5BAMOut);
         validateForwardedProgramRecords(new ArrayList<>(Arrays.asList(new File(NA12878_BAM))), md5BAMOut);
     }
@@ -330,7 +330,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     @Test
     public void testLeftAlignmentBamOutBugFix() throws IOException {
         final String outputVCF = createTempFile("temp", ".vcf").getAbsolutePath();
-        final String md5BAMOut = "27e729df3b166c81792a62a5b57ef7b3";
+        final String md5BAMOut = "60db3996cd37a863d8b93218fcbf1c8b";
         final String base = String.format("-T HaplotypeCaller -R %s -I %s", REF, LEFT_ALIGNMENT_BAMOUT_TEST_INPUT)
                 + " --no_cmdline_in_header -bamout %s -o " + outputVCF  + " -L 1:11740000-11740700 --allowNonUniqueKmersInRef";
         final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(md5BAMOut));
@@ -541,7 +541,7 @@ public class HaplotypeCallerIntegrationTest extends WalkerTest {
     public void testHaplotypeCallerReadPosRankSum() throws IOException {
         final File testBAM = new File(privateTestDir + "testReadPos.snippet.bam");
         final String md5Variants = "e664b7a9da71cf81e14648ac7e698eea";
-        final String md5BAMOut = "3ef35732e49980093ad445e3ac5731fa";
+        final String md5BAMOut = "74f2cab2d2d0d999b54456b73e597d6c";
         final String base = String.format("-T HaplotypeCaller -R %s -I %s -L 1:3753063 -ip 100 ", REF, testBAM) +
                 " --no_cmdline_in_header -o %s -bamout %s";
         final WalkerTestSpec spec = new WalkerTestSpec(base, Arrays.asList(md5Variants, md5BAMOut));
