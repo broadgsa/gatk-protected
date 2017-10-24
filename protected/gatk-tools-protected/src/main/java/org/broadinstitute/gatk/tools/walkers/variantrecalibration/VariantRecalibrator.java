@@ -51,6 +51,7 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
+import com.google.common.annotations.VisibleForTesting;
 import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.gatk.utils.commandline.*;
 import org.broadinstitute.gatk.engine.CommandLineGATK;
@@ -312,6 +313,9 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
     @Argument(fullName = "trustAllPolymorphic", shortName = "allPoly", doc = "Trust that all the input training sets' unfiltered records contain only polymorphic sites to drastically speed up the computation.", required = false)
     protected Boolean TRUST_ALL_POLYMORPHIC = false;
 
+    @VisibleForTesting
+    protected List<Integer> annotationOrder = null;
+
     /////////////////////////////
     // Private Member Variables
     /////////////////////////////
@@ -372,18 +376,15 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
             final GATKReportTable pPMixTable = reportIn.getTable("GoodGaussianPMix");
             final GATKReportTable anMeansTable = reportIn.getTable("AnnotationMeans");
             final GATKReportTable anStDevsTable = reportIn.getTable("AnnotationStdevs");
-            final int numAnnotations = dataManager.annotationKeys.size();
 
-            if( numAnnotations != pmmTable.getNumColumns()-1 || numAnnotations != nmmTable.getNumColumns()-1 ) { // -1 because the first column is the gaussian number.
-                throw new UserException.CommandLineException( "Annotations specified on the command line do not match annotations in the model report." );
-            }
+            orderAndValidateAnnotations(anMeansTable, dataManager.annotationKeys);
 
             final Map<String, Double> anMeans = getMapFromVectorTable(anMeansTable);
             final Map<String, Double> anStdDevs = getMapFromVectorTable(anStDevsTable);
             dataManager.setNormalization(anMeans, anStdDevs);
 
-            goodModel = GMMFromTables(pmmTable, pmcTable, pPMixTable, numAnnotations);
-            badModel = GMMFromTables(nmmTable, nmcTable, nPMixTable, numAnnotations);
+            goodModel = GMMFromTables(pmmTable, pmcTable, pPMixTable, annotationOrder.size());
+            badModel = GMMFromTables(nmmTable, nmcTable, nPMixTable, annotationOrder.size());
         }
 
         final Set<VCFHeaderLine> hInfo = new HashSet<>();
@@ -398,6 +399,32 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         for ( final RodBindingCollection<VariantContext> inputCollection : inputCollections )
             input.addAll(inputCollection.getRodBindings());
 
+
+    }
+
+    /**
+     * Order and validate annotations according to the annotations in the serialized model
+     * Annotations on the command line must be the same as those in the model report or this will throw an exception.
+     * Sets the {@code annotationOrder} list to map from command line order to the model report's order.
+     * n^2 because we typically use 7 or less annotations.
+     * @param annotationTable GATKReportTable of annotations read from the serialized model file
+     */
+    protected void orderAndValidateAnnotations(final GATKReportTable annotationTable, final List<String> annotationKeys){
+        annotationOrder = new ArrayList<Integer>(annotationKeys.size());
+
+        for (int i = 0; i < annotationTable.getNumRows(); i++){
+            String serialAnno = (String)annotationTable.get(i, "Annotation");
+            for (int j = 0; j < annotationKeys.size(); j++) {
+                if (serialAnno.equals( annotationKeys.get(j) )){
+                    annotationOrder.add(j);
+                }
+            }
+        }
+
+        if(annotationOrder.size() != annotationTable.getNumRows() || annotationOrder.size() != annotationKeys.size()) {
+            final String errorMsg = "Annotations specified on the command line:"+annotationKeys.toString() +" do not match annotations in the model report:"+inputModel;
+            throw new UserException.CommandLineException(errorMsg);
+        }
 
     }
 
@@ -518,7 +545,7 @@ public class VariantRecalibrator extends RodWalker<ExpandingArrayList<VariantDat
         for (int i = 1; i <= max_attempts; i++) {
             try {
                 dataManager.setData(reduceSum);
-                dataManager.normalizeData(inputModel.isEmpty()); // Each data point is now (x - mean) / standard deviation
+                dataManager.normalizeData(inputModel.isEmpty(), annotationOrder); // Each data point is now (x - mean) / standard deviation
 
                 final List<VariantDatum> positiveTrainingData = dataManager.getTrainingData();
                 final List<VariantDatum> negativeTrainingData;

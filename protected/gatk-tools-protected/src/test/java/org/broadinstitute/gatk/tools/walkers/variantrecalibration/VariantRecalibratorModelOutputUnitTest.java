@@ -276,4 +276,52 @@ public class VariantRecalibratorModelOutputUnitTest  extends BaseTest {
         return new GaussianMixtureModel(badGaussianList, shrinkage, dirichlet, priorCounts);
     }
 
+    @Test
+    public void testAnnotationOrderAndValidate() {
+        final VariantRecalibrator vqsr = new VariantRecalibrator();
+        final List<String> annotationList = new ArrayList<>();
+        annotationList.add("QD");
+        annotationList.add("FS");
+        annotationList.add("ReadPosRankSum");
+        annotationList.add("MQ");
+        annotationList.add("MQRankSum");
+        annotationList.add("SOR");
+
+        double[] meanVector = {16.13, 2.45, 0.37, 59.08, 0.14, 0.91};
+        final String columnName = "Mean";
+        final String formatString = "%.3f";
+        GATKReportTable annotationTable = vqsr.makeVectorTable("AnnotationMeans", "Mean for each annotation, used to normalize data", annotationList, meanVector, columnName, formatString);
+        vqsr.orderAndValidateAnnotations(annotationTable, annotationList);
+
+        for (int i = 0; i < vqsr.annotationOrder.size(); i++){
+            Assert.assertEquals(i, (int)vqsr.annotationOrder.get(i));
+        }
+
+        annotationList.remove(0);
+        annotationList.add("QD");
+        vqsr.orderAndValidateAnnotations(annotationTable, annotationList);
+        for (int i = 0; i < vqsr.annotationOrder.size(); i++) {
+            if (i == 0) {
+                Assert.assertEquals(annotationList.size()-1, (int)vqsr.annotationOrder.get(i));
+            } else {
+                Assert.assertEquals(i - 1, (int)vqsr.annotationOrder.get(i));
+            }
+        }
+
+        final List<String> annotationList2 = new ArrayList<>();
+        annotationList2.add("ReadPosRankSum");
+        annotationList2.add("MQRankSum");
+        annotationList2.add("MQ");
+        annotationList2.add("SOR");
+        annotationList2.add("QD");
+        annotationList2.add("FS");
+
+        final VariantRecalibrator vqsr2 = new VariantRecalibrator();
+        vqsr2.orderAndValidateAnnotations(annotationTable, annotationList2);
+        for (int i = 0; i < vqsr2.annotationOrder.size(); i++){
+            Assert.assertEquals(annotationList.get(vqsr.annotationOrder.get(i)), annotationList2.get(vqsr2.annotationOrder.get(i)));
+        }
+
+    }
+
 }
