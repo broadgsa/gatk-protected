@@ -154,7 +154,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split",
                 1,
-                Arrays.asList("80b4a994a569ecfbd628121b85e64339"));
+                Arrays.asList("a7dcd0cf9542bf58153023d26deec06e"));
         executeTest("test left alignment of multiple alleles with genoptypes", spec);
     }
 
@@ -172,7 +172,7 @@ public class LeftAlignAndTrimVariantsIntegrationTest extends WalkerTest {
         WalkerTestSpec spec = new WalkerTestSpec(
                 "-T LeftAlignAndTrimVariants -o %s -R " + b37KGReference + " --variant:vcf " + privateTestDir + "multiallele-gt.vcf --no_cmdline_in_header -split -keepOriginalAC",
                 1,
-                Arrays.asList("6774b43d9446278e716d7198717a5f85"));
+                Arrays.asList("26e67892c75ded1756709476520d4264"));
         executeTest("test left alignment of multiple alleles with genoptypes, keep original AC", spec);
     }
 

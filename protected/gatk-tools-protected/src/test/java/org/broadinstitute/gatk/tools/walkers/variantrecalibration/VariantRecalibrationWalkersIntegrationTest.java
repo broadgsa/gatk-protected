@@ -51,6 +51,8 @@
 
 package org.broadinstitute.gatk.tools.walkers.variantrecalibration;
 
+import org.broadinstitute.gatk.utils.exceptions.UserException;
+import org.broadinstitute.gatk.utils.exceptions.UserException.CommandLineException;
 import org.broadinstitute.gatk.utils.variant.VCIterable;
 import org.broadinstitute.gatk.engine.walkers.WalkerTest;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -60,6 +62,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -389,6 +392,74 @@ public class VariantRecalibrationWalkersIntegrationTest extends WalkerTest {
         for ( final File outputFile : walkerOutputFiles ) {
             new File(outputFile.getAbsolutePath() + ".pdf").deleteOnExit();
         }
+    }
+
+    @Test
+    public void testVQSRAnnotationOrder() throws IOException {
+        final String inputFile = privateTestDir + "oneSNP.vcf";
+        final String exacModelReportFilename = privateTestDir + "subsetExAC.snps_model.report";
+        final String annoOrderRecal = privateTestDir + "anno_order.recal";
+        final String annoOrderTranches = privateTestDir + "anno_order.tranches";
+        final String goodMd5 = "d41d8cd98f00b204e9800998ecf8427e";
+        final String base = "-R " + b37KGReference +
+                        " -T VariantRecalibrator" +
+                        " -input " + inputFile +
+                        " -L 1:110201699" +
+                        " -resource:truth=true,training=true,prior=15.0 " + inputFile +
+                        " -an FS -an ReadPosRankSum -an MQ -an MQRankSum -an QD -an SOR"+
+                        " --recal_file " + annoOrderRecal +
+                        " -tranchesFile " + annoOrderTranches +
+                        " --input_model " + exacModelReportFilename +
+                        " -ignoreAllFilters -mode SNP" +
+                        " --no_cmdline_in_header" ;
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(goodMd5));
+        spec.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
+
+        List<File> outputFiles = executeTest("testVQSRAnnotationOrder", spec).getFirst();
+        setPDFsForDeletion(outputFiles);
+
+
+        final String base2 = "-R " + b37KGReference +
+                " -T VariantRecalibrator" +
+                " -input " + inputFile +
+                " -L 1:110201699" +
+                " -resource:truth=true,training=true,prior=15.0 " + inputFile +
+                " -an ReadPosRankSum -an MQ -an MQRankSum -an QD -an SOR -an FS "+
+                " --recal_file " + annoOrderRecal +
+                " -tranchesFile " + annoOrderTranches +
+                " --input_model " + exacModelReportFilename +
+                " -ignoreAllFilters -mode SNP" +
+                " --no_cmdline_in_header" ;
+
+        final WalkerTestSpec spec2 = new WalkerTestSpec(base2, 1, Arrays.asList(goodMd5));
+        spec2.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
+        outputFiles = executeTest("testVQSRAnnotationOrder2", spec2).getFirst();
+        setPDFsForDeletion(outputFiles);
+    }
+
+    @Test(expectedExceptions={RuntimeException.class, CommandLineException.class})
+    public void testVQSRAnnotationMismatch() throws IOException {
+        final String inputFile = privateTestDir + "oneSNP.vcf";
+        final String exacModelReportFilename = privateTestDir + "subsetExAC.snps_model.report";
+        final String annoOrderRecal = privateTestDir + "anno_order.recal";
+        final String annoOrderTranches = privateTestDir + "anno_order.tranches";
+        final String goodMd5 = "d41d8cd98f00b204e9800998ecf8427e";
+        final String base = "-R " + b37KGReference +
+                " -T VariantRecalibrator" +
+                " -input " + inputFile +
+                " -L 1:110201699" +
+                " -resource:truth=true,training=true,prior=15.0 " + inputFile +
+                " -an FS -an ReadPosRankSum -an MQ -an MQRankSum -an QD -an SOR -an BaseQRankSum"+
+                " --recal_file " + annoOrderRecal +
+                " -tranchesFile " + annoOrderTranches +
+                " --input_model " + exacModelReportFilename +
+                " -ignoreAllFilters -mode SNP" +
+                " --no_cmdline_in_header" ;
+
+        final WalkerTestSpec spec = new WalkerTestSpec(base, 1, Arrays.asList(goodMd5));
+        spec.disableShadowBCF(); // TODO -- enable when we support symbolic alleles
+        executeTest("testVQSRAnnotationMismatch", spec).getFirst();
     }
 }
 

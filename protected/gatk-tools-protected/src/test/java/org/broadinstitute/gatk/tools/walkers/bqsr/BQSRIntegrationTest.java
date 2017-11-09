@@ -198,13 +198,13 @@ public class BQSRIntegrationTest extends WalkerTest {
     public Object[][] createPRTestData() {
         List<Object[]> tests = new ArrayList<Object[]>();
 
-        tests.add(new Object[]{1, new PRTest(" -qq -1", "8a38828e3b14ce067614d4248e3ea95a")});
-        tests.add(new Object[]{1, new PRTest(" -qq 6", "e4f23250b2c87f0d68d042cc3d2ec1d3")});
-        tests.add(new Object[]{1, new PRTest(" -DIQ", "2dfa45f004d3a371fd290ed67fbdf573")});
-        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30", "4882354d9e603f9bbe7c9591bba0a573")});
-        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30 -RDQ", "6ffdfc4593e83f7c234b6249412433af")});
+        tests.add(new Object[]{1, new PRTest(" -qq -1", "e9969c6d7fd35d96b82c691b4ced5443")});
+        tests.add(new Object[]{1, new PRTest(" -qq 6", "b4b271acac003b8504b530c5526d43ad")});
+        tests.add(new Object[]{1, new PRTest(" -DIQ", "ec795d16746c3bdf5e54c57337e6eed6")});
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30", "d50df5a7bcc8f195479f64285c124d18")});
+        tests.add(new Object[]{1, new PRTest(" --useOriginalQualities -SQQ 10 -SQQ 20 -SQQ 30 -RDQ", "58b9df85e49eb3ee228f0d581c168791")});
         for ( final int nct : Arrays.asList(1, 2, 4) ) {
-            tests.add(new Object[]{nct, new PRTest("", "6451093cadfc14d7359617b2a7ea6db8")});
+            tests.add(new Object[]{nct, new PRTest("", "f4704ba2894ec0aec8a55ce6b361f768")});
         }
 
         return tests.toArray(new Object[][]{});
