@@ -152,7 +152,7 @@ public class MendelianViolationReport extends RodWalker<Integer, Integer> implem
         Set<String> additionalSamplesToReport = new HashSet<>();
         for (String sn : sampleMap.keySet()){
             MVSummary summary = sampleMap.get(sn);
-            if (summary.totalViolations > violationReportThreshold){
+            if (summary.totalViolations >= violationReportThreshold){
                 samplesReported.add(sn);
                 reportSample(sn, summary, additionalSamplesToReport);
             }
