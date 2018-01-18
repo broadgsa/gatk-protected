@@ -160,9 +160,9 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
             }
             else {
                 GenotypesContext ctx = GenotypesContext.copy(vc.getGenotypes());
-                Set<String> sampleNames = ctx.getSampleNames();
-                for (String sn : sampleNames){
-                    Genotype g = ctx.get(sn);
+                ListIterator<Genotype> it = ctx.listIterator();
+                while (it.hasNext()){
+                    Genotype g = it.next();
                     GenotypeBuilder gb = new GenotypeBuilder(g);
                     if (clearGTfilter){
                         gb.unfiltered();
@@ -173,7 +173,7 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
                     gtAttributes.keySet().retainAll(allowableFormatKeys);
                     gb.attributes(gtAttributes);
 
-                    ctx.replace(gb.make());
+                    it.set(gb.make());
                 }
                 vcb.genotypes(ctx);
             }
