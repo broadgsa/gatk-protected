@@ -159,7 +159,7 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
                 vcb.noGenotypes();
             }
             else {
-                GenotypesContext ctx = vc.getGenotypes();
+                GenotypesContext ctx = GenotypesContext.copy(vc.getGenotypes());
                 Set<String> sampleNames = ctx.getSampleNames();
                 for (String sn : sampleNames){
                     Genotype g = ctx.get(sn);
