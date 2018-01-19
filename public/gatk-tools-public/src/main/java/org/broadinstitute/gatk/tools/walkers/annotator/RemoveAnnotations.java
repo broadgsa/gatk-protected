@@ -49,8 +49,11 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
     @Argument(fullName="retainExtraHeaderLines", shortName="rh", doc="If provided, additional header lines (metadata, etc) will be retained.", required=false)
     protected boolean retainExtraHeaderLines = false;
 
-    @Argument(fullName="clearGenotypeFilter", shortName="cgf", doc="Clear the filter field on all genotypes.  ", required=false)
+    @Argument(fullName="clearGenotypeFilter", shortName="cgf", doc="Clear the filter field on all genotypes.  This executes after setFilteredGTToNoCall", required=false)
     protected boolean clearGTfilter = true;
+
+    @Argument(fullName="setFilteredGTToNoCall", shortName="sgf", doc="Sets filtered genotypes to no-call.  ", required=false)
+    protected boolean setFilteredGTToNoCall = true;
 
     @Argument(fullName="sitesOnly", shortName="sitesOnly", doc="Omit samples and genotypes from the output VCF.  ", required=false)
     protected boolean sitesOnly = false;
@@ -58,6 +61,14 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
     private VCFHeader header;
     private Set<String> allowableInfoKeys;
     private Set<String> allowableFormatKeys;
+
+    private List<String> formatFields = Arrays.asList(
+            VCFConstants.GENOTYPE_KEY,
+            VCFConstants.DEPTH_KEY,
+            VCFConstants.GENOTYPE_PL_KEY,
+            VCFConstants.GENOTYPE_QUALITY_KEY,
+            VCFConstants.GENOTYPE_ALLELE_DEPTHS
+    );
 
     @Override
     public void initialize() {
@@ -78,6 +89,11 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
 
         //strip format fields
         for (VCFFormatHeaderLine line : initialHeader.getFormatHeaderLines()) {
+            //special-case standard genotype field
+            if (!sitesOnly && formatFields.contains(line.getKey())){
+                headerLines.add(line);
+            }
+
             skippedHeaderLines += inspectAnnotation(headerLines, line, genotypeAnnotationToKeep, genotypeAnnotationsToExclude);
         }
 
@@ -164,6 +180,16 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
                 for (String sn : sampleNames){
                     Genotype g = ctx.get(sn);
                     GenotypeBuilder gb = new GenotypeBuilder(g);
+
+                    if (setFilteredGTToNoCall && g.isFiltered()){
+                        gb.alleles(Arrays.asList(Allele.NO_CALL, Allele.NO_CALL));
+                        gb.noAD();
+                        gb.noDP();
+                        gb.noGQ();
+                        gb.noPL();
+                        gb.noAttributes();
+                    }
+
                     if (clearGTfilter){
                         gb.unfiltered();
                     }
