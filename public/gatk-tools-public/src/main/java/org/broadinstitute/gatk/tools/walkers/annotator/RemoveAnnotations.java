@@ -198,6 +198,7 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
                     //retain only allowable info fields
                     Map<String, Object> gtAttributes = new HashMap<>(g.getExtendedAttributes());
                     gtAttributes.keySet().retainAll(allowableFormatKeys);
+                    gb.noAttributes();
                     gb.attributes(gtAttributes);
 
                     ctx.replace(gb.make());
