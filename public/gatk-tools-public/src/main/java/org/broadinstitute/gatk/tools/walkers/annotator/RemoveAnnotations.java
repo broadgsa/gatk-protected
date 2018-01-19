@@ -90,8 +90,9 @@ public class RemoveAnnotations extends RodWalker<Integer, Integer> implements Tr
         //strip format fields
         for (VCFFormatHeaderLine line : initialHeader.getFormatHeaderLines()) {
             //special-case standard genotype field
-            if (!sitesOnly && formatFields.contains(line.getKey())){
+            if (!sitesOnly && formatFields.contains(line.getID())){
                 headerLines.add(line);
+                continue;
             }
 
             skippedHeaderLines += inspectAnnotation(headerLines, line, genotypeAnnotationToKeep, genotypeAnnotationsToExclude);
