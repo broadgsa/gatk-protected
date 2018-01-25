@@ -12,8 +12,6 @@ function processPlots(config){
 
         //create div for section
         if (!sectionMap[section.label]){
-            var sectionDiv = buildSectionDiv(section);
-            toAppend.push(sectionDiv);
             sectionMap[section.label] = section;
         }
 
@@ -28,34 +26,46 @@ function processPlots(config){
                 label: r.label
             });
 
-            //make plot div
-            buildReportDiv(sectionDiv.get(1), r);
-
             //merge for nav panel
-            r.data.config = r.data.config || {}
+            r.data.config = r.data.config || {};
             r.data.config.id = r.plotDivId;
             plotData[r.plotDivId] = r.data;
         });
     });
 
     $('div.mainpage').append(toAppend);
-    updateNavPanel(navConfig);
+    updateNavPanel(navConfig, sectionMap);
 
-    window.mqc_compressed_plotdata = mqc_compressed_plotdata = LZString.compressToBase64(JSON.stringify(plotData));
+    window.mqc_compressed_plotdata = mqc_compressed_plotdata = plotData;
 }
 
-function updateNavPanel(navConfig){
+function updateNavPanel(navConfig, sectionMap){
     var toAppend = [];
     $.each(navConfig, function(key, val){
-        var newEl = $('<li/>', {
-            html: '<a href="#' + val.id + '-header" class="nav-l1">' + val.label + '</a><ul></ul>'
+        var newEl = $('<li></li>', {
+            html: '<a href="javascript:void(0)" class="nav-l1">' + val.label + '</a><ul></ul>'
+        });
+
+        newEl.click(function(){
+            var sectionDiv = buildSectionDiv(sectionMap[val.label]);
+            $.each(sectionMap[val.label].reports, function (idx, r) {
+                //make plot div
+                buildReportDiv(sectionDiv.get(1), r);
+            });
+            $('div #section_wrapper').empty();
+            $('div #section_wrapper').append(sectionDiv);
+
+            render_plots();
+            render_tables();
+            configure_toolbox();
         });
 
         if (val.children.length > 1) {
             $.each(val.children, function (idx, child) {
-                newEl.find('ul').append($('<li/>', {
+                var el = $('<li/>', {
                     html: '<a href="#' + child.id + '_div" class="nav-l2">' + child.label + '</a>'
-                }))
+                });
+                newEl.find('ul').append(el);
             });
         }
 
@@ -72,8 +82,8 @@ function buildSectionDiv(section){
 
     var html = '<hr>' +
         '<div id="mqc-module-section-' + sectionId + '" class="mqc-module-section">' +
-            '<h2 id="' + sectionId + '-header">' + sectionLabel + '</h2>' +
-            '<p>' + descriptionHTML + '</p>' +
+        '<h2 id="' + sectionId + '-header">' + sectionLabel + '</h2>' +
+        '<p>' + descriptionHTML + '</p>' +
         '</div>';
 
     return $(html);
@@ -101,10 +111,10 @@ function buildReportDiv(parentDiv, config) {
 function buildPlotDiv(parentDiv, config, plotType, buttonCfg){
     var html = '<hr><h3 id="' + config.id + '_div">' + config.label + '</h3>' +
         '<div class="mqc_hcplot_plotgroup">' +
-            '<div class="btn-group hc_switch_group">' + buttonCfg + '</div>' +
-            '<div class="hc-plot-wrapper">' +
-                '<div id="' + config.plotDivId + '" class="hc-plot not_rendered ' + plotType + '"><small>loading..</small></div>' +
-            '</div>' +
+        '<div class="btn-group hc_switch_group">' + buttonCfg + '</div>' +
+        '<div class="hc-plot-wrapper">' +
+        '<div id="' + config.plotDivId + '" class="hc-plot not_rendered ' + plotType + '"><small>loading..</small></div>' +
+        '</div>' +
         '</div>';
 
     $(parentDiv).append($(html));

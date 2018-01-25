@@ -35,7 +35,6 @@ public class HtmlGenerator {
     };
 
     public static final String[] JS_SCRIPTS2 = new String[]{
-            "templates/assets/js/multiqc.js",
             "templates/assets/js/multiqc_tables.js",
             "templates/assets/js/multiqc_toolbox.js",
             "templates/assets/js/multiqc.js",

@@ -18,7 +18,7 @@
             </button>
             <a href="#">VariantQC
                 <br class="hidden-xs">
-                <small class="hidden-xs">v0.1</small>
+                <small class="hidden-xs">v0.2</small>
             </a>
         </h1>
 
@@ -42,7 +42,6 @@
             <li><a href="#mqc_renamesamples" title="Rename" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-font"></span></a></li>
             <li><a href="#mqc_hidesamples" title="Hide" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-eye-close"></span></a></li>
             <li><a href="#mqc_exportplots" title="Export" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-download-alt"></span></a></li>
-            <li><a href="#mqc_saveconfig" title="Save" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-floppy-disk"></span></a></li>
             <li><a href="#mqc_about" title="About" data-placement="left" data-toggle="tooltip"><span class="glyphicon glyphicon-question-sign"></span></a></li>
         </ul>
     </div>
@@ -220,48 +219,21 @@
             </form>
         </div>
 
-        <!-- Save Config -->
-        <div id="mqc_saveconfig" class="mqc_filter_section">
-            <h4>Save Settings</h4>
-            <p>You can save the toolbox settings for this report to the browser.</p>
-            <form class="form-inline" id="mqc_saveconfig_form">
-                <input type="text" class="form-control input-sm" placeholder="Config Name">
-                <button type="submit" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-floppy-disk"></span> Save</button>
-            </form>
-            <hr>
-
-            <h4>Load Settings</h4>
-            <p>Choose a saved report profile from the dropdown box below:</p>
-            <form id="mqc_loadconfig_form">
-                <div class="form-group">
-                    <select class="form-control input-sm">
-                        <option value="">[ select ]</option>
-                    </select>
-                </div>
-                <div class="form-group actions">
-                    <button type="submit" class="btn btn-sm btn-default"><span class="glyphicon glyphicon-floppy-open"></span> Load</button>
-                    <button class="mqc_config_clear btn btn-sm btn-default"><span class="glyphicon glyphicon-trash"></span> Delete</button>
-                </div>
-            </form>
-        </div>
-
         <!-- Help / About -->
         <div id="mqc_about" class="mqc_filter_section">
-            <h4>About MultiQC</h4>
-            <p>This report was generated using MultiQC, version 0.9</p>
-            <p>You can see a YouTube video describing how to use MultiQC reports here:
-                <a href="https://youtu.be/qPbIlO_KWN0?list=PLIA2-lqNuhvFGAsB92N0v7Qi5xCxCNsYM" target="_blank">https://youtu.be/qPbIlO_KWN0</a></p>
-            <p>For more information about MultiQC, including other videos and
-                extensive documentation, please visit <a href="http://multiqc.info/?ref=mqc_report" target="_blank">http://multiqc.info</a></p>
-            <p>You can report bugs, suggest improvements and find the source code for MultiQC on GitHub:
-                <a href="https://github.com/ewels/MultiQC" target="_blank">https://github.com/ewels/MultiQC</a></p>
-            <p>MultiQC is published in Bioinformatics:</p>
+            <h4>About VariantQC</h4>
+            <p>This report was generated using VariantQC, version 0.2</p>
+            <p>For more information about VariantQC, including other videos and
+                documentation, please visit <a href="http://multiqc.info/?ref=mqc_report" target="_blank">http://multiqc.info</a></p>
+            <p>You can report bugs, suggest improvements and find the source code for VariantQC on GitHub:
+                <a href="https://github.com/discvr/VariantQC" target="_blank">https://github.com/discvr/VariantQC</a></p>
+            <p>VariantQC is published in Bioinformatics:</p>
             <blockquote>
-                <strong>MultiQC: Summarize analysis results for multiple tools and samples in a single report</strong><br>
-                <em>Philip Ewels, M&aring;ns Magnusson, Sverker Lundin and Max K&auml;ller</em><br>
-                Bioinformatics (2016)<br>
-                doi: <a href="http://dx.doi.org/10.1093/bioinformatics/btw354" target="_blank">10.1093/bioinformatics/btw354</a><br>
-                PMID: <a href="http://www.ncbi.nlm.nih.gov/pubmed/27312411" target="_blank">27312411</a>
+                <strong>TODO</strong><br>
+                <em>Authors</em><br>
+                journal<br>
+                doi: <a href="http://dx.doi.org/10.1093/bioinformatics/btw354" target="_blank">TBD</a><br>
+                PMID: <a href="http://www.ncbi.nlm.nih.gov/pubmed/XXXXXXX" target="_blank">XXXXXXX</a>
             </blockquote>
         </div>
 
@@ -295,7 +267,11 @@
         <p id="dateTime"></p>
     </div>
 
-
+    <div id="section_wrapper">
+        <p class="lead">
+            &#8592; Make a selection on the left to view specific summary stats.
+        </p>
+    </div>
 
 
 
@@ -306,10 +282,10 @@
     <div class="container-fluid">
         <p>
             <strong>
-                <a href="#" target="_blank">VariantQC v0.1</a>
+                <a href="#" target="_blank">VariantQC v0.2</a>
             </strong>
             - Written by Ben Bimber and Melissa Yan,
-            available on <a href="${variantQC_URL}" target="_blank">GitHub</a>.
+            available on <a href="${TODO:variantQC_URL}" target="_blank">GitHub</a>.
         </p>
         <p>
             This report uses
